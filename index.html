@@ -2499,7 +2499,7 @@ function drawTrace(ctx, W, H, o){
 }
 function toN(e){ const r = main.getBoundingClientRect(); return {x: (e.clientX - r.left)/r.width, y: (e.clientY - r.top)/r.height}; }
 // ---------- auto-trace learning: the user's corrections tune the detector (stored only in this browser) ----------
-let autoModel = {n: 0, skin: null, faceScale: 1, faceDy: 0, strokes: 2.5, triW: 1};
+let autoModel = {n: 0, skin: null, faceScale: 1, faceDy: 0, strokes: 2.5, triW: 1, poseN: 0, poseBias: {}, poseFaceK: 1, poseFaceDy: 0};
 try { const m = JSON.parse(localStorage.getItem('kouzu-automodel') || 'null'); if (m && typeof m.n === 'number') autoModel = Object.assign(autoModel, m); } catch(e) {}
 function storeAutoModel(){ try { localStorage.setItem('kouzu-automodel', JSON.stringify(autoModel)); } catch(e) {} }
 function pxHSV(r, g, b){ const mx = Math.max(r, g, b), mn = Math.min(r, g, b), v = mx/255, sat = mx ? (mx - mn)/mx : 0; let hue = 0; if (mx !== mn) { if (mx === r) hue = ((g - b)/(mx - mn)) % 6; else if (mx === g) hue = (b - r)/(mx - mn) + 2; else hue = (r - g)/(mx - mn) + 4; hue *= 60; if (hue < 0) hue += 360; } return [hue, sat, v]; }
@@ -2621,7 +2621,7 @@ function mlDetect(img){ // 学習した分類器で 顔・流れの種・手 を
     else hands.push({x: (x0 + x1)/2/iw, y: (y0 + y1)/2/ih, s: Math.max(x1 - x0, y1 - y0)/mi*0.32, rot: 0}); });
   return {faces, flow, hands, S: w};
 }
-function resetLearning(){ autoModel = {n: 0, skin: null, faceScale: 1, faceDy: 0, strokes: 2.5, triW: 1}; storeAutoModel(); learnSet = []; cellModel = null; try { localStorage.removeItem('kouzu-learnset'); localStorage.removeItem('kouzu-cellmodel'); } catch(e) {} }
+function resetLearning(){ autoModel = {n: 0, skin: null, faceScale: 1, faceDy: 0, strokes: 2.5, triW: 1, poseN: 0, poseBias: {}, poseFaceK: 1, poseFaceDy: 0}; storeAutoModel(); learnSet = []; cellModel = null; try { localStorage.removeItem('kouzu-learnset'); localStorage.removeItem('kouzu-cellmodel'); } catch(e) {} }
 function bootstrapLearning(){ // 残してある 160px サムネイルからも学習用の統計を作る（画像は読まない・残さない）
   const todo = templates.filter(t => t.thumb && t.faces.length && !learnSet.some(it => it.id === t.id)); if (!todo.length) return;
   let left = todo.length; todo.forEach(t => { const im = new Image(); im.onload = () => { try { const feat = cellFeatures(im), L = cellLabels(feat, t), q = new Uint8Array(feat.F.length); for (let i = 0; i < q.length; i++) q[i] = Math.round(feat.F[i]*255); learnSet.push({id: t.id, cw: feat.cw, ch: feat.ch, f: q, l: L}); } catch(e) {} if (--left === 0) { while (learnSet.length > MAX_LEARN) learnSet.shift(); trainCellModel(); storeLearn(); if (trace) renderProps(); } }; im.onerror = () => { if (--left === 0) { trainCellModel(); storeLearn(); } }; im.src = t.thumb; });
@@ -2652,6 +2652,10 @@ function poseToTrace(lm, img){ // → {face:{x,y,r}|null, pose:{shL..ftR}, hands
   const side = (a, b) => { const A = P(a, 0.25), B = P(b, 0.25); if (A && B) return A.x <= B.x ? [A, B] : [B, A]; return A ? [A, null] : [null, B]; };
   const [shL, shR] = side(11, 12), [elL, elR] = side(13, 14), [hipL, hipR] = side(23, 24), [knL, knR] = side(25, 26), [ftL, ftR] = side(31, 32);
   const pose = (shL && shR) ? {shL, shR, elL, elR, hipL, hipR, knL, knR, ftL, ftR} : null;
+  const raw = {face: face ? Object.assign({}, face) : null, pose: pose ? JSON.parse(JSON.stringify(pose)) : null};
+  // 直された癖を足す：関節ごとの平均ずれ（肩幅単位）と、顔の丸の倍率・上下ずれ
+  if (pose && autoModel.poseN >= 2 && autoModel.poseBias) { const sw = Math.hypot((shR.x - shL.x)*iw, (shR.y - shL.y)*ih) || mn*0.2; Object.entries(autoModel.poseBias).forEach(([k, b]) => { if (pose[k] && b) { pose[k] = {x: pose[k].x + b.dx*sw/iw, y: pose[k].y + b.dy*sw/ih}; } }); }
+  if (face && autoModel.poseN >= 2) { face.y += autoModel.poseFaceDy*face.r*mn/ih; face.r = Math.max(0.03, face.r*autoModel.poseFaceK); }
   // 手：手首・人差し指・小指から囲みを作り、絵からシルエットを拾う
   const hands = [];
   [[15, 19, 17], [16, 20, 18]].forEach(([wi, ii, pi]) => { const w = P(wi, 0.5), ix = P(ii, 0.4), pk = P(pi, 0.4); if (!w) return; const pts = [w, ix, pk].filter(Boolean); const cx = pts.reduce((a, q) => a + q.x, 0)/pts.length*iw, cy = pts.reduce((a, q) => a + q.y, 0)/pts.length*ih;
@@ -2659,14 +2663,21 @@ function poseToTrace(lm, img){ // → {face:{x,y,r}|null, pose:{shL..ftR}, hands
     let sil = null; try { sil = handSilhouette(img, loop); } catch(e) { sil = null; }
     if (sil && sil.pts.length >= 6) hands.push({x: sil.cx/iw, y: sil.cy/ih, s: sil.s/mn, rot: 0, pts: sil.pts.map(q => ({x: q.x/iw, y: q.y/ih}))});
     else hands.push({x: cx/iw, y: cy/ih, s: sz*0.55/mn, rot: ix ? Math.atan2((ix.y - w.y)*ih, (ix.x - w.x)*iw) + PI/2 : 0}); });
-  return {face, pose, hands};
+  return {face, pose, hands, raw};
+}
+function learnPoseBias(raw, t, img){ // 検出結果と保存された（直された）位置の差を、関節ごとに平均していく
+  const iw = img ? img.width : 1000, ih = img ? img.height : 1000, mn = Math.min(iw, ih); let learned = false;
+  if (raw.pose && t.pose) { const a = raw.pose.shL, b = raw.pose.shR; const sw = Math.hypot((b.x - a.x)*iw, (b.y - a.y)*ih) || mn*0.2; autoModel.poseBias = autoModel.poseBias || {};
+    Object.keys(raw.pose).forEach(k => { const r0 = raw.pose[k], u = t.pose[k]; if (!r0 || !u) return; const dx = clamp((u.x - r0.x)*iw/sw, -1.5, 1.5), dy = clamp((u.y - r0.y)*ih/sw, -1.5, 1.5); const prev = autoModel.poseBias[k] || {dx: 0, dy: 0}; autoModel.poseBias[k] = {dx: ema(prev.dx, dx, autoModel.poseN), dy: ema(prev.dy, dy, autoModel.poseN)}; learned = true; }); }
+  if (raw.face && t.faces[0]) { const f = t.faces[0], r0 = raw.face; if (Math.hypot(f.x - r0.x, f.y - r0.y) < 0.2) { autoModel.poseFaceK = ema(autoModel.poseFaceK, clamp(f.r/r0.r, 0.5, 2.5), autoModel.poseN); autoModel.poseFaceDy = ema(autoModel.poseFaceDy, clamp((f.y - r0.y)*ih/(r0.r*mn), -1, 1), autoModel.poseN); learned = true; } }
+  if (learned) { autoModel.poseN = (autoModel.poseN || 0) + 1; storeAutoModel(); }
 }
 async function runPoseOnTrace(){
   if (!PLUS) return; if (!trace || !trace.img) { toast('画像がないので検出できません'); return; } if (poseBusy) return; poseBusy = true;
   try {
     const lm = await detectPose(trace.img); const t = trace.tpl;
     if (!lm) { toast('骨格が見つかりませんでした（等身の低い絵・極端な角度・後ろ姿は苦手です）'); return; }
-    const r = poseToTrace(lm, trace.img); tracePush();
+    const r = poseToTrace(lm, trace.img); tracePush(); trace.poseRaw = r.raw;
     if (r.face) { if (t.faces.length) t.faces[0] = Object.assign(t.faces[0], r.face); else t.faces.push(r.face); }
     if (r.pose) t.pose = r.pose; if (r.hands.length) t.hands = r.hands;
     trace.autoResult = trace.autoResult || {faces: r.face ? [Object.assign({}, r.face)] : [], strokes: [], tris: []};
@@ -2826,6 +2837,7 @@ function finishTrace(save){
     if (!t.faces.length && !t.strokes.length && !t.tris.length && !(t.hands || []).length && !t.pose) { toast('顔の丸か線を、ひとつは入れてください'); return; }
     t.thumb = (trace.img && !trace.fromThumb) ? makeThumb(trace.img, t.keepThumb !== false) : (t.keepThumb === false ? null : t.thumb);
     if (trace.img && !trace.fromThumb) { try { learnFromTrace(trace.img, t, trace.autoResult || null); } catch(e) {} }
+    if (trace.poseRaw) { try { learnPoseBias(trace.poseRaw, t, trace.img); } catch(e) {} }
     if (!templates.some(x => x.id === t.id)) templates.push(t);
     storeTemplates(); toast(`「${t.name}」をテンプレートに保存しました`);
   }
@@ -2928,7 +2940,7 @@ function renderProps(){
     [1, 2, 3, 4, 5].forEach(n => { const b = document.createElement('button'); b.textContent = '★'.repeat(n); b.className = (t.weight || 3) === n ? 'on' : ''; b.addEventListener('click', () => { t.weight = n; renderProps(); }); ch.appendChild(b); }); stars.appendChild(ch);
     const imp = document.createElement('input'); imp.type = 'number'; imp.placeholder = 'いいね数（任意）'; imp.min = 0; imp.value = t.likes ?? ''; imp.addEventListener('input', e => { t.likes = e.target.value === '' ? null : +e.target.value; if (t.likes != null) { t.weight = t.likes >= 5000 ? 5 : t.likes >= 1000 ? 4 : t.likes >= 300 ? 3 : t.likes >= 50 ? 2 : 1; [...ch.children].forEach((b, i) => b.classList.toggle('on', i + 1 === t.weight)); } }); stars.appendChild(imp);
     box.appendChild(stars);
-    const auto = document.createElement('div'); auto.className = 'group'; auto.innerHTML = `${PLUS ? '<button class="ghost" id="poseBtn" title="同梱の骨格モデル（MediaPipe Pose）で、顔・肩・肘・腰・膝・足・手を拾います。推論はブラウザ内で、画像は外に出ません">骨格を検出（AI・端末内）</button>' : ''}<button class="ghost" id="autoTrace">オートでなぞる（判定）</button><p class="note">肌色の塊を顔、輪郭の広がりを三角、線の流れを動線として推定します。結果は選択・消す・Ctrl+Z で直せます。</p><p class="note" id="autoLearn">${cellModel ? `学習：${cellModel.n}枚。マス分類（顔／流れ／手）の一致率 ${Math.round(cellModel.acc*100)}%${cellModel.n < 3 ? '（3枚から判定に使います）' : ''}` : autoModel.n ? `学習：${autoModel.n}枚分のなぞりから、肌の色・丸の大きさ・動線の本数・三角の幅を調整中` : '学習：まだ0枚。なぞって保存するたびに判定が寄っていきます。枚数が増えるほど、顔・流れ・手の見分けが良くなります'}${(autoModel.n || cellModel) ? ' <button class="ghost" id="autoReset" style="padding:1px 8px;font-size:12px">学習をリセット</button>' : ''}</p><p class="note">学習用に残るのは 22×22 マスの色・線密度の統計と学習した重みだけです。画像は残しません。</p>`;
+    const auto = document.createElement('div'); auto.className = 'group'; auto.innerHTML = `${PLUS ? '<button class="ghost" id="poseBtn" title="同梱の骨格モデル（MediaPipe Pose）で、顔・肩・肘・腰・膝・足・手を拾います。推論はブラウザ内で、画像は外に出ません">骨格を検出（AI・端末内）</button>' : ''}<button class="ghost" id="autoTrace">オートでなぞる（判定）</button><p class="note">肌色の塊を顔、輪郭の広がりを三角、線の流れを動線として推定します。結果は選択・消す・Ctrl+Z で直せます。</p><p class="note" id="autoLearn">${cellModel ? `学習：${cellModel.n}枚。マス分類（顔／流れ／手）の一致率 ${Math.round(cellModel.acc*100)}%${cellModel.n < 3 ? '（3枚から判定に使います）' : ''}` : autoModel.n ? `学習：${autoModel.n}枚分のなぞりから、肌の色・丸の大きさ・動線の本数・三角の幅を調整中` : '学習：まだ0枚。なぞって保存するたびに判定が寄っていきます。枚数が増えるほど、顔・流れ・手の見分けが良くなります'}${(autoModel.n || cellModel) ? ' <button class="ghost" id="autoReset" style="padding:1px 8px;font-size:12px">学習をリセット</button>' : ''}</p><p class="note">学習用に残るのは 22×22 マスの色・線密度の統計と学習した重みだけです。画像は残しません。</p>${PLUS ? `<p class="note">骨格の学習：${autoModel.poseN ? `${autoModel.poseN}枚分の関節・顔の直しから、ずれの癖を補正中（2枚から効きます）` : 'まだ0枚。検出したあと関節や顔の丸を直して保存すると、次からそのずれを先に補正します'}</p>` : ''}`;
     const pb = auto.querySelector('#poseBtn'); if (pb) pb.addEventListener('click', runPoseOnTrace);
     const rs = auto.querySelector('#autoReset'); if (rs) rs.addEventListener('click', () => { resetLearning(); renderProps(); toast('オート判定の学習をリセットしました'); });
     auto.querySelector('#autoTrace').addEventListener('click', () => {
@@ -3551,6 +3563,8 @@ const ZH = {
   '骨格を検出（AI・端末内）': '偵測骨架（AI・裝置內）',
   '骨格を消しました（Ctrl+Z で戻せます）': '已清除骨架（可用 Ctrl+Z 復原）',
   '・骨格あり': '・有骨架',
+  '骨格の学習：': '骨架學習：', '枚分の関節・顔の直しから、ずれの癖を補正中（2枚から効きます）': '張的關節・臉修正中學習偏差習慣（從 2 張開始生效）',
+  'まだ0枚。検出したあと関節や顔の丸を直して保存すると、次からそのずれを先に補正します': '還是 0 張。偵測後修正關節或臉的圓並儲存，下次就會先補正該偏差',
   '髪': '頭髮',
   '枚': '張',
   '副': '副',
