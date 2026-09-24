@@ -85,6 +85,19 @@ main{display:grid;grid-template-columns:minmax(0,1fr) minmax(200px,22%);gap:12px
 .stage canvas{display:block;border-radius:6px;box-shadow:0 8px 30px rgba(0,0,0,.28);touch-action:none;cursor:crosshair;max-width:100%;max-height:100%}
 .stage .tag{position:absolute;left:14px;top:10px;right:90px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;display:flex;gap:8px;align-items:center;pointer-events:none;font-size:14px;color:var(--muted)}
 .stage .tag b{color:var(--text);font-weight:500}
+.camBar{position:absolute;right:10px;bottom:10px;display:none;flex-direction:column;align-items:center;gap:6px;z-index:4;user-select:none}
+.camBar.show{display:flex}
+.camBar .gizmo{width:84px;height:84px;border-radius:50%;background:rgba(20,20,22,.55);cursor:grab;touch-action:none}
+.camBar .gizmo:active{cursor:grabbing}
+.camBar .tools{display:flex;flex-direction:column;gap:4px;background:rgba(20,20,22,.7);border-radius:12px;padding:5px}
+.camBar .tools button{width:34px;height:34px;padding:0;border-radius:50%;background:rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center;touch-action:none;cursor:grab;color:var(--text)}
+.camBar .tools button:hover{background:rgba(255,255,255,.16)}
+.camBar .tools button.on{background:var(--accent);color:#2a2115}
+.camBar .tools svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.camBar .views{display:flex;gap:3px;background:rgba(20,20,22,.7);border-radius:9px;padding:3px}
+.camBar .views button{padding:2px 6px;font-size:11px;border-radius:6px;background:transparent;color:var(--muted)}
+.camBar .views button:hover{color:var(--text);background:rgba(255,255,255,.1)}
+.stage.cam .hint{right:120px}
 .stage .hint{position:absolute;left:14px;bottom:12px;right:14px;font-size:14px;color:var(--muted);pointer-events:none;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .stage .hint span{background:rgba(0,0,0,.28);padding:5px 10px;border-radius:8px}
 .dropHint{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(242,180,92,.14);border:2px dashed var(--accent);border-radius:var(--r);z-index:5;pointer-events:none;font-size:18px;font-weight:500}
@@ -281,6 +294,16 @@ footer.book{background:var(--panel);border:1px solid var(--line);border-radius:v
         <div class="hint" id="stageHint"></div>
         <div class="toast" id="toast"></div>
         <div class="hairPanel" id="hairPanel"></div>
+        <div class="camBar" id="camBar" title="3D のカメラ（素体だけ動きます）">
+          <canvas class="gizmo" id="camGizmo" width="168" height="168" title="ドラッグで回転（中ボタンドラッグでも）"></canvas>
+          <div class="tools">
+            <button id="camOrbit" title="回転：ドラッグ"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-3-6.2"/><path d="M17 3v4h4"/></svg></button>
+            <button id="camPan" title="移動：ドラッグ（Shift＋中ボタンでも）"><svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/></svg></button>
+            <button id="camZoom" title="拡大・縮小：上下にドラッグ（ホイールでも）"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5.5 5.5M8 10.5h5M10.5 8v5"/></svg></button>
+            <button id="camHome" title="カメラを元に戻す"><svg viewBox="0 0 24 24"><path d="M4 11l8-7 8 7"/><path d="M6 10v10h12V10"/></svg></button>
+          </div>
+          <div class="views"><button data-v="front" title="正面から">前</button><button data-v="side" title="横から">横</button><button data-v="top" title="上から">上</button><button data-v="low" title="下から">下</button></div>
+        </div>
         <div class="dropHint" id="dropHint"><span>ここに絵をドロップ → 線と丸をなぞる（Ctrl+V の貼り付けでも）</span></div>
       </div>
 
@@ -2266,6 +2289,38 @@ function drawHairMass(ctx, hm, mode, lw, alphaK){ // mode: 'line' | 'flat' | 'co
       ctx.strokeStyle = rgba(light, .35*a); ctx.lineWidth = lw(1.4); hm.tips.forEach((t, i) => { if (i % 2) return; ctx.beginPath(); ctx.moveTo(hm.c.x + (t.root.x - hm.c.x)*0.25, hm.c.y + (t.root.y - hm.c.y)*0.25); ctx.quadraticCurveTo(hm.c.x + (t.root.x - hm.c.x)*0.6 + (t.root.y - hm.c.y)*0.15, hm.c.y + (t.root.y - hm.c.y)*0.6 - (t.root.x - hm.c.x)*0.15, t.tip.x, t.tip.y); ctx.stroke(); }); } }
   ctx.restore();
 }
+// ---------- 3D のカメラバー（3D ソフト風：ギズモ＝回転、手＝移動、虫眼鏡＝拡大、家＝リセット。中ボタン・ホイールでも） ----------
+function camTarget(){ const c = trace ? null : curComp(); return (c && PLUS && k3 && k3.vrm && k3use && viewMode === 'concept' && appTab === 'make') ? c : null; }
+function camOf(c){ c.cam = c.cam || {yaw: 0, pitch: 0, zoom: 1, x: 0, y: 0}; return c.cam; }
+function drawCamGizmo(){ const cv = $('camGizmo'); if (!cv) return; const g = cv.getContext('2d'), W = cv.width, R = W*0.36, c = camTarget(); g.clearRect(0, 0, W, W); if (!c) return; const cm = camOf(c);
+  let pitch = c.angle === 'low' ? -0.32 : c.angle === 'high' ? 0.32 : 0, yaw = 0; if (c.vp) { pitch = clamp((c.vp.y/VH - 0.5)*0.9, -0.7, 0.7); yaw = clamp((c.vp.x/VW - 0.5)*0.6, -0.5, 0.5); } yaw += cm.yaw; pitch = clamp(pitch + cm.pitch, -1.45, 1.45);
+  const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
+  const proj = v => { const x1 = v[0]*cy - v[2]*sy, z1 = v[0]*sy + v[2]*cy; const y2 = v[1]*cp - z1*sp, z2 = v[1]*sp + z1*cp; return {x: W/2 + x1*R, y: W/2 - y2*R, z: z2}; };
+  const ax = [[[1, 0, 0], '#e8566a', 'X'], [[0, 1, 0], '#8fd35a', 'Y'], [[0, 0, 1], '#5a9ae8', 'Z'], [[-1, 0, 0], '#e8566a', ''], [[0, -1, 0], '#8fd35a', ''], [[0, 0, -1], '#5a9ae8', '']].map(([v, col, l]) => Object.assign(proj(v), {col, l}));
+  ax.sort((a, b) => a.z - b.z);
+  ax.forEach(a => { g.strokeStyle = a.col; g.globalAlpha = a.l ? 1 : 0.45; g.lineWidth = 4; g.beginPath(); g.moveTo(W/2, W/2); g.lineTo(a.x, a.y); g.stroke(); g.fillStyle = a.col; g.beginPath(); g.arc(a.x, a.y, a.l ? 15 : 10, 0, TAU); g.fill(); if (a.l) { g.fillStyle = '#111'; g.font = 'bold 18px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(a.l, a.x, a.y + 1); } });
+  g.globalAlpha = 1; }
+function camApply(full){ const c = camTarget(); if (!c) return; renderMain(); drawCamGizmo(); if (full) { renderThumbs(); storeLater(); } }
+function camDrag(el, mode){ el.addEventListener('pointerdown', e => { const c = camTarget(); if (!c) return; e.preventDefault(); e.stopPropagation(); el.setPointerCapture(e.pointerId); pushUndo(); const cm = camOf(c); let lx = e.clientX, ly = e.clientY; el.classList.add('on');
+  const mv = ev => { const dx = ev.clientX - lx, dy = ev.clientY - ly; lx = ev.clientX; ly = ev.clientY; camStep(cm, mode, dx, dy); camApply(false); };
+  const up = () => { el.classList.remove('on'); el.removeEventListener('pointermove', mv); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up); camApply(true); };
+  el.addEventListener('pointermove', mv); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); }); }
+function camStep(cm, mode, dx, dy){ if (mode === 'orbit') { cm.yaw -= dx*0.012; cm.pitch = clamp(cm.pitch + dy*0.01, -1.4, 1.4); } else if (mode === 'pan') { cm.x += dx/mainW; cm.y += dy/mainH; } else if (mode === 'zoom') { cm.zoom = clamp(cm.zoom*Math.exp(-dy*0.01), 0.25, 5); } }
+function initCamBar(){
+camDrag($('camGizmo'), 'orbit'); camDrag($('camOrbit'), 'orbit'); camDrag($('camPan'), 'pan'); camDrag($('camZoom'), 'zoom');
+$('camHome').addEventListener('click', () => { const c = camTarget(); if (!c) return; pushUndo(); c.cam = null; camApply(true); toast('カメラを元に戻しました'); });
+$('camBar').querySelectorAll('.views button').forEach(b => b.addEventListener('click', () => { const c = camTarget(); if (!c) return; pushUndo(); const cm = camOf(c); const v = b.dataset.v; cm.yaw = v === 'side' ? 1.45 : 0; cm.pitch = v === 'top' ? 1.25 : v === 'low' ? -0.9 : 0; camApply(true); }));
+$('camBar').addEventListener('wheel', e => { const c = camTarget(); if (!c) return; e.preventDefault(); const cm = camOf(c); cm.zoom = clamp(cm.zoom*Math.exp(-e.deltaY*0.0015), 0.25, 5); camApply(false); clearTimeout(camApply._t); camApply._t = setTimeout(() => camApply(true), 400); }, {passive: false});
+// キャンバス上：中ボタンドラッグ＝回転、Shift＋中ボタン＝移動、Alt＋ホイール（または Ctrl＋ホイール）＝拡大
+main.addEventListener('pointerdown', e => { if (e.button !== 1) return; const c = camTarget(); if (!c) return; e.preventDefault(); e.stopImmediatePropagation(); main.setPointerCapture(e.pointerId); pushUndo(); const cm = camOf(c), mode = e.shiftKey ? 'pan' : 'orbit'; let lx = e.clientX, ly = e.clientY;
+  const mv = ev => { camStep(cm, mode, ev.clientX - lx, ev.clientY - ly); lx = ev.clientX; ly = ev.clientY; camApply(false); };
+  const up = () => { main.removeEventListener('pointermove', mv, true); main.removeEventListener('pointerup', up, true); camApply(true); };
+  main.addEventListener('pointermove', mv, true); main.addEventListener('pointerup', up, true); }, true);
+main.addEventListener('pointermove', e => { if (e.buttons & 4 && camTarget()) e.stopImmediatePropagation(); }, true);
+main.addEventListener('auxclick', e => { if (e.button === 1) e.preventDefault(); });
+main.addEventListener('wheel', e => { const c = camTarget(); if (!c || !(e.altKey || e.ctrlKey)) return; e.preventDefault(); const cm = camOf(c); cm.zoom = clamp(cm.zoom*Math.exp(-e.deltaY*0.0015), 0.25, 5); camApply(false); clearTimeout(camApply._t); camApply._t = setTimeout(() => camApply(true), 400); }, {passive: false});
+}
+function renderCamBar(){ const show = !!camTarget(); $('camBar').classList.toggle('show', show); $('stage').classList.toggle('cam', show); if (show) drawCamGizmo(); }
 let hairCur = null; // {id: 構図id|null(スケッチ), i}
 function hairOwner(cur){ if (!cur) return null; const o = cur.id ? comps.find(x => x.id === cur.id) : sketch; if (!o || !o.hairMasses || !o.hairMasses[cur.i]) return null; return o; }
 function hairPanelSig(){ const c = trace ? null : curComp(); const o = c || sketch; const list = (o && o.hairMasses) || []; return [trace ? 'T' : (c ? c.id : 'S'), tool, hairCur ? hairCur.id + ':' + hairCur.i : '-', list.map(h => h.name + '/' + (h.wind ? 1 : 0)).join('|')].join('#'); }
@@ -2669,7 +2724,7 @@ function fitCanvas(){
 function curComp(){ return comps.find(c => c.id === selected) || null; }
 function renderMain(){
   const c = trace ? null : curComp();
-  mctx.clearRect(0, 0, mainW, mainH); try { renderHairPanel(); } catch(e) {}
+  mctx.clearRect(0, 0, mainW, mainH); try { renderHairPanel(); } catch(e) {} try { renderCamBar(); } catch(e) {}
   if (trace) drawTrace(mctx, mainW, mainH, {handles: tool === 'select'});
   else if (c) drawComp(mctx, c, mainW, mainH, {mode: viewMode, handles: tool === 'select', emph: true, underlay: true, labels: showLabels});
   else drawSketchCanvas(mctx, mainW, mainH, {handles: tool === 'select', underlay: true});
@@ -2954,6 +3009,7 @@ function k3render(c, W, H, idx){ // → renderer.domElement（透明背景）。
   // カメラ：あおり／ふかん（消失点があればそこから）
   let pitch = c.angle === 'low' ? -0.32 : c.angle === 'high' ? 0.32 : 0, yaw = 0;
   if (c.vp) { pitch = clamp((c.vp.y/VH - 0.5)*0.9, -0.7, 0.7); yaw = clamp((c.vp.x/VW - 0.5)*0.6, -0.5, 0.5); }
+  const cm = c.cam || {}; yaw += cm.yaw || 0; pitch = clamp(pitch + (cm.pitch || 0), -1.45, 1.45); // カメラバー：回転
   const D = 6; cam.position.set(Math.sin(yaw)*Math.cos(pitch)*D, Math.sin(pitch)*D, Math.cos(yaw)*Math.cos(pitch)*D); cam.lookAt(0, 0, 0); cam.updateMatrixWorld(true);
   // ポーズ
   vrm.scene.position.set(0, 0, 0); vrm.scene.scale.setScalar(1); vrm.scene.rotation.set(0, 0, 0); vrm.scene.updateMatrixWorld(true);
@@ -2963,9 +3019,9 @@ function k3render(c, W, H, idx){ // → renderer.domElement（透明背景）。
   const headW = new THREE.Vector3(); headNode.getWorldPosition(headW); const up = new THREE.Vector3(0, 1, 0).applyQuaternion(headNode.getWorldQuaternion(new THREE.Quaternion())); headW.addScaledVector(up, 0.09);
   const tanH = Math.tan(cam.fov*PI/360), zc = D;
   const rWorld = 0.115; // VRM の頭の半径（およそ）
-  const scale = (R/VH*2)*zc*tanH/rWorld; vrm.scene.scale.setScalar(scale); vrm.scene.updateMatrixWorld(true);
+  const scale = (R/VH*2)*zc*tanH/rWorld*(cm.zoom || 1); vrm.scene.scale.setScalar(scale); // カメラバー：拡大 vrm.scene.updateMatrixWorld(true);
   headNode.getWorldPosition(headW); headW.addScaledVector(up, 0.09*scale);
-  const tx = (f.x/VW*2 - 1), ty = -(f.y/VH*2 - 1);
+  const tx = ((f.x + (cm.x || 0)*VW)/VW*2 - 1), ty = -((f.y + (cm.y || 0)*VH)/VH*2 - 1); // カメラバー：移動
   const want = new THREE.Vector3(tx*zc*tanH*cam.aspect, ty*zc*tanH, -zc); cam.localToWorld(want);
   vrm.scene.position.add(want.sub(headW)); vrm.scene.updateMatrixWorld(true);
   // ライト
@@ -2975,7 +3031,7 @@ function k3render(c, W, H, idx){ // → renderer.domElement（透明背景）。
   k3applyGray(k3gray, idx);
   r.render(k3.scene, cam); return r.domElement;
 }
-function k3key(c, W, idx){ const b = c.bodies[idx || 0]; return JSON.stringify([idx || 0, k3arm, c.faces[idx || 0], b.dir, b.shL, b.shR, b.hipL, b.hipR, b.elbowL, b.elbowR, b.wrL, b.wrR, b.kneeL, b.kneeR, b.footL, b.footR, c.skel, c.facing, c.light, c.angle, c.vp, c.contrast, W, k3gray, k3.name]); }
+function k3key(c, W, idx){ const b = c.bodies[idx || 0]; return JSON.stringify([idx || 0, k3arm, c.cam || null, c.faces[idx || 0], b.dir, b.shL, b.shR, b.hipL, b.hipR, b.elbowL, b.elbowR, b.wrL, b.wrR, b.kneeL, b.kneeR, b.footL, b.footR, c.skel, c.facing, c.light, c.angle, c.vp, c.contrast, W, k3gray, k3.name]); }
 function k3draw(ctx, c, long, idx){ // drawComp から：虚座標系（scale 済み）の ctx に描く。まだ準備できていなければ false。idx＝何人目か
   if (!k3 || !k3.vrm || !k3use) return false; idx = idx || 0; if (!c.bodies[idx] || c.bodies[idx].fromPose && idx) return false;
   const W = VW >= VH ? long : Math.round(long*VW/VH), H = VW >= VH ? Math.round(long*VH/VW) : long; const key = k3key(c, W, idx);
@@ -3916,6 +3972,8 @@ const ZH = {
   '髪の毛：塊を囲む': '頭髮：圈出髮塊', '髪の毛（囲み）': '頭髮（圈選）', '髪の毛': '頭髮', 'ぶわぶわ': '蓬鬆度', '風になびく': '隨風飄動', '別の房': '換一種髮束',
   '囲んだ形を、風（動線の向き）と重さで膨らませています。選択ツールで真ん中の点をドラッグすると動きます。髪以外（布・飾り）の塊にも使えます。': '把圈出的形狀，依風（動線方向）和重量蓬起。用選取工具拖曳中央的點即可移動。頭髮以外（布・飾品）的塊也可以用。',
   ' を置きました（色・ぶわぶわは右の縦パネルで）': ' 已放置（顏色・蓬鬆度在右側的直向面板調整）',
+  '3D のカメラ（素体だけ動きます）': '3D 攝影機（只移動素體）', 'ドラッグで回転（中ボタンドラッグでも）': '拖曳旋轉（也可用中鍵拖曳）', '回転：ドラッグ': '旋轉：拖曳', '移動：ドラッグ（Shift＋中ボタンでも）': '移動：拖曳（也可用 Shift＋中鍵）', '拡大・縮小：上下にドラッグ（ホイールでも）': '放大・縮小：上下拖曳（也可用滾輪）', 'カメラを元に戻す': '重設攝影機', 'カメラを元に戻しました': '已重設攝影機',
+  '正面から': '從正面', '横から': '從側面', '上から': '從上方', '下から': '從下方', '前': '前', '上': '上', '下': '下',
   '番号で選ぶ': '用編號選擇', '塊をなげなわで囲む': '用套索圈出髮塊', '色（自由）': '顏色（自訂）', '風': '風',
   '三角：3点タップ／手：範囲を囲む': '三角：點 3 點／手：圈選範圍',
   'メイン画面だけに、手・固形物などの名前を添える': '只在主畫面標示手・固體物等的名稱',
@@ -4386,6 +4444,7 @@ if (window.innerWidth < 700 && uiZoom > 0.7) applyZoom(0.7, false);
   }
   if (lang === 'zh') retranslate();
   try { bootstrapLearning(); } catch(e) {}
+  try { initCamBar(); } catch(e) { console.warn('cam', e); }
   k3bootstrap();
 })();
 })();
