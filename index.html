@@ -56,8 +56,8 @@ header.top{display:flex;flex-direction:column;gap:6px;min-width:0}
 .modes button.on{background:var(--panel2);color:var(--accent)}
 
 main{display:grid;grid-template-columns:minmax(0,1fr) minmax(200px,22%);gap:12px;min-height:0;min-width:0}
-.editor{display:grid;grid-template-columns:64px minmax(0,1fr) 250px;gap:10px;min-height:0;min-width:0;position:relative}
-.editor.closed{grid-template-columns:64px minmax(0,1fr)}
+.editor{display:grid;grid-template-columns:50px minmax(0,1fr) 250px;gap:10px;min-height:0;min-width:0;position:relative}
+.editor.closed{grid-template-columns:50px minmax(0,1fr)}
 .editor.closed .props{display:none}
 .hairPanel{position:absolute;right:8px;top:44px;max-height:calc(100% - 56px);width:60px;display:none;flex-direction:column;align-items:center;gap:6px;background:rgba(20,20,22,.8);border-radius:12px;padding:8px 4px;z-index:4;overflow:auto;font-size:11px;color:var(--muted)}
 .hairPanel.show{display:flex}
@@ -75,15 +75,20 @@ main{display:grid;grid-template-columns:minmax(0,1fr) minmax(200px,22%);gap:12px
 .hairPanel .hp-sep{width:36px;height:1px;background:rgba(255,255,255,.15)}
 .drawerBtn{position:absolute;right:8px;top:8px;display:flex;align-items:center;gap:4px;padding:3px 9px;font-size:13px;background:rgba(20,20,22,.55);color:var(--muted);border-radius:8px;z-index:4}
 .drawerBtn:hover{background:rgba(20,20,22,.8);color:var(--text)}
-.rail{display:flex;flex-direction:column;gap:6px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:8px 6px;overflow:auto}
-.rail button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:5px 4px;font-size:12.5px;background:transparent;color:var(--muted);border-radius:9px}
-.rail button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.rail{display:flex;flex-direction:column;gap:1px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:5px 3px;overflow:auto}
+.rail button{display:flex;flex-direction:column;align-items:center;gap:1px;padding:3px 2px;font-size:10.5px;line-height:1.15;background:transparent;color:var(--muted);border-radius:9px}
+.rail button svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .rail button:hover{background:var(--panel2);color:var(--text)}
 .rail button.on{background:var(--panel2);color:var(--accent)}
-.rail .sep{height:1px;background:var(--line);margin:4px 6px}
+.rail .sep{height:1px;background:var(--line);margin:2px 6px}
+.eraseBar{position:absolute;top:8px;right:84px;display:flex;gap:2px;background:rgba(20,20,22,.55);border-radius:8px;padding:2px;z-index:4}
+.eraseBar button{width:26px;height:24px;padding:0;display:flex;align-items:center;justify-content:center;background:transparent;color:var(--muted);border-radius:6px}
+.eraseBar button:hover{background:rgba(255,255,255,.12);color:var(--text)}
+.eraseBar button.on{background:var(--accent);color:#2a2115}
+.eraseBar svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .stage{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .stage canvas{display:block;border-radius:6px;box-shadow:0 8px 30px rgba(0,0,0,.28);touch-action:none;cursor:crosshair;max-width:100%;max-height:100%}
-.stage .tag{position:absolute;left:14px;top:10px;right:90px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;display:flex;gap:8px;align-items:center;pointer-events:none;font-size:14px;color:var(--muted)}
+.stage .tag{position:absolute;left:14px;top:10px;right:150px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;display:flex;gap:8px;align-items:center;pointer-events:none;font-size:14px;color:var(--muted)}
 .stage .tag b{color:var(--text);font-weight:500}
 .camBar{position:absolute;right:10px;bottom:10px;display:none;flex-direction:column;align-items:center;gap:6px;z-index:4;user-select:none}
 .camBar.show{display:flex}
@@ -169,7 +174,14 @@ footer.book{background:var(--panel);border:1px solid var(--line);border-radius:v
 .bookHead small{color:var(--muted);font-size:11.5px}
 .bookRow{display:flex;gap:8px;overflow-x:auto;flex:1;min-width:0;padding:4px 2px;min-height:72px;align-items:center}
 .bookRow .empty{color:var(--muted);font-size:12.5px}
-.page{position:relative;flex:none;height:64px;border-radius:6px;overflow:hidden;background:var(--panel2);border:2px solid transparent;cursor:grab;user-select:none}
+.spreadBox{display:flex;flex:none;gap:0;padding:3px;border-radius:8px;background:rgba(255,255,255,.04);position:relative}
+.spreadBox .gutter{width:2px;background:rgba(0,0,0,.6);flex:none;pointer-events:none}
+.spreadBox.warn{box-shadow:0 0 0 2px #e8566a inset}
+.page .pno{position:absolute;bottom:2px;left:50%;transform:translateX(-50%);font-family:var(--num);font-size:10px;color:#fff;background:rgba(20,20,22,.75);padding:0 5px;border-radius:4px;pointer-events:none}
+.page.slotEmpty{background:transparent;border-color:transparent;cursor:default}
+.page.blank{cursor:pointer}
+.bookHead select{font-size:11px;padding:1px 18px 1px 6px;border-radius:6px;background-size:9px 6px;background-position:right 5px center}
+.page{position:relative;flex:none;height:64px;border-radius:2px;overflow:hidden;background:var(--panel2);border:2px solid transparent;cursor:grab;user-select:none}
 .page canvas{display:block;height:100%;width:auto}
 .page.sel{border-color:var(--accent)}
 .page.dragging{opacity:.4}
@@ -227,12 +239,12 @@ footer.book{background:var(--panel);border:1px solid var(--line);border-radius:v
   main{grid-template-columns:minmax(0,1fr) minmax(170px,20%)}
   .thumbs{grid-template-columns:minmax(0,1fr)}
   .props{position:absolute;right:0;top:0;bottom:0;width:min(270px,70%);z-index:3;box-shadow:-8px 0 24px rgba(0,0,0,.35)}
-  .editor,.editor.closed{grid-template-columns:64px minmax(0,1fr)}
+  .editor,.editor.closed{grid-template-columns:50px minmax(0,1fr)}
 }
 @container (max-width:860px){
   #app{height:auto;min-height:100%}
   main{grid-template-columns:minmax(0,1fr)}
-  .editor,.editor.closed{grid-template-columns:52px minmax(0,1fr)}
+  .editor,.editor.closed{grid-template-columns:46px minmax(0,1fr)}
   .stage{min-height:56vh}
   .grid{max-height:60vh}
   .thumbs{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
@@ -248,7 +260,7 @@ footer.book{background:var(--panel);border:1px solid var(--line);border-radius:v
       <div class="tabs" id="appTabs"><button data-app="make" class="on">構図をつくる</button><button data-app="crit" title="描きかけの絵を読み込むと、疏密・明度・主次・図底・主力線などを診断して、案を採点して返します。画像はこの端末の外に出ません">描きかけを添削</button></div>
       <div class="minor" style="margin-left:auto">
         <label class="field" title="画面全体の文字と部品の大きさ（ピンチでも変えられます）">表示 <select id="zoomSel"><option value="1.15">大</option><option value="1">中</option><option value="0.85">小</option><option value="0.7">極小</option></select></label>
-        <label class="field">サイズ <select id="sizeSel"></select></label><label class="field">書き出し <select id="resSel"></select></label>
+        <label class="field">サイズ <select id="sizeSel"></select></label><label class="field" title="チェックで横に2倍（見開き）。外すと閉じて1ページに戻ります"><input type="checkbox" id="spreadChk" style="accent-color:var(--accent)"> 見開き</label><label class="field">書き出し <select id="resSel"></select></label>
       </div>
     </div>
     <div class="hrow">
@@ -280,8 +292,6 @@ footer.book{background:var(--panel);border:1px solid var(--line);border-radius:v
         <button data-tool="marker" title="マーカーで見せ場を塗る"><svg viewBox="0 0 24 24"><path d="M4 17l9-9 4 4-9 9H4z"/><path d="M13 8l3-3 4 4-3 3"/></svg>マーカー</button>
         <div class="sep"></div>
         <button data-tool="vp" title="消失点を置く"><svg viewBox="0 0 24 24"><path d="M12 10L3 20M12 10l9 10M12 10L5 4M12 10l7-6"/><circle cx="12" cy="10" r="1.6"/></svg>消失点</button>
-        <button data-tool="erase" title="消しゴム"><svg viewBox="0 0 24 24"><path d="M4 16l9-9 6 6-6 6H8z"/><path d="M8 19h12"/></svg>消す</button>
-        <button id="clearAllBtn" title="全部消す（Ctrl+Zで戻せます）"><svg viewBox="0 0 24 24"><path d="M5 7h14M9 7V4h6v3M7 7l1 13h8l1-13"/><path d="M10 11v6M14 11v6"/></svg>全消し</button>
         <div class="sep"></div>
         <button id="undoBtn" title="元に戻す (Ctrl+Z)"><svg viewBox="0 0 24 24"><path d="M8 7H4v4"/><path d="M4 11c2-4 7-6 11-4 3 2 4 6 2 9"/></svg>戻す</button>
         <button id="redoBtn" title="やり直し (Ctrl+Y)"><svg viewBox="0 0 24 24"><path d="M16 7h4v4"/><path d="M20 11c-2-4-7-6-11-4-3 2-4 6-2 9"/></svg>やり直し</button>
@@ -289,6 +299,7 @@ footer.book{background:var(--panel);border:1px solid var(--line);border-radius:v
 
       <div class="stage" id="stage">
         <canvas id="main"></canvas>
+        <div class="eraseBar" id="eraseBar"><button data-tool="erase" title="消しゴム"><svg viewBox="0 0 24 24"><path d="M4 16l9-9 6 6-6 6H8z"/><path d="M8 19h12"/></svg></button><button id="clearAllBtn" title="全部消す（Ctrl+Zで戻せます）"><svg viewBox="0 0 24 24"><path d="M5 7h14M9 7V4h6v3M7 7l1 13h8l1-13"/><path d="M10 11v6M14 11v6"/></svg></button></div>
         <button class="drawerBtn" id="drawerBtn" title="設定パネルを開閉"><span id="drawerIcon">▸</span><span id="drawerLabel">設定</span></button>
         <div class="tag" id="stageTag"></div>
         <div class="hint" id="stageHint"></div>
@@ -338,9 +349,9 @@ footer.book{background:var(--panel);border:1px solid var(--line);border-radius:v
     <div class="recoRow" id="recoRow"></div>
   </footer>
   <footer class="book">
-    <div class="bookHead"><b>構図を連続で配置</b><span class="n" id="bookCount" style="font-family:var(--num);color:var(--accent);font-weight:600"></span></div>
+    <div class="bookHead"><b>構図を連続で配置</b><span class="n" id="bookCount" style="font-family:var(--num);color:var(--accent);font-weight:600"></span><select id="bookBindSel" title="本の綴じ方（見開きの左右が変わります）"><option value="R">右綴じ</option><option value="L">左綴じ</option></select><label style="font-size:11px;color:var(--muted);display:flex;gap:3px;align-items:center" title="オン：1ページ目を表紙として単独に（2-3 ページが最初の見開き）。オフ：1-2 ページから見開き"><input type="checkbox" id="bookCoverChk" checked style="accent-color:var(--accent)">1p 単独</label></div>
     <div class="bookRow" id="bookRow"></div>
-    <div class="bookActs"><button class="primary" id="bookPng" title="並んだ順に番号を付けて PNG にし、ZIP で一括保存">PNG 一括書き出し</button><button class="ghost" id="bookClip" title="並んだ順にレイヤー分け PSD（ZIP）">CLIP 一括書き出し</button><button class="ghost" id="bookClear">配置をリセット</button></div>
+    <div class="bookActs"><button class="primary" id="bookPng" title="並んだ順に番号を付けて PNG にし、ZIP で一括保存">PNG 一括書き出し</button><button class="ghost" id="bookClip" title="並んだ順にレイヤー分け PSD（ZIP）">CLIP 一括書き出し</button><button class="ghost" id="bookBlank" title="選んでいるページの後ろ（なければ最後）にベタ塗りの1ページを挟みます。クリックで色が変わります">ベタ塗りページを挟む</button><button class="ghost" id="bookClear">配置をリセット</button></div>
   </footer>
 </div></div>
 
@@ -1578,7 +1589,10 @@ let trace = null;        // {tpl, img, queue:[File], isNew}
 let gridTab = 'comps';
 let triTaps = [];
 let undoStack = [];
-let pageOrder = []; // 本の並び：チェックした構図の id を順に
+let pageOrder = []; // 本の並び：チェックした構図の id（とベタ塗りページ 'blank:…'）を順に
+let pageBlanks = {}, bookBind = 'R', spread = false, bookCover = true; // ベタ塗りの色／綴じ（R＝右綴じ、L＝左綴じ）／見開き
+const pageAspect = () => spread ? aspect/2 : aspect;
+function sizeAspect(){ return SIZES[+$('sizeSel').value][1]*(spread ? 2 : 1); }
 function storeTemplates(){ try { localStorage.setItem('kouzu-templates', JSON.stringify(templates)); } catch(e) { toast('テンプレートの保存に失敗しました（容量不足かも）'); } }
 let seedBase = (Date.now() % 100000) | 0;
 
@@ -1594,7 +1608,7 @@ const rgba = (h, a) => { const [r,g,b] = hexToRgb(h); return `rgba(${r},${g},${b
 const mix = (h1, h2, t) => { const a = hexToRgb(h1), b = hexToRgb(h2); return `rgb(${Math.round(lerp(a[0],b[0],t))},${Math.round(lerp(a[1],b[1],t))},${Math.round(lerp(a[2],b[2],t))})`; };
 let uid = 1; const nextId = () => 'c' + (uid++) + '_' + Date.now().toString(36);
 function toast(msg){ const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 1800); }
-function store(){ try { localStorage.setItem('kouzu-fabrica', JSON.stringify({sketch, comps, selected, viewMode, aspect, sizeIdx: $('sizeSel').value, resIdx: $('resSel').value, genCount, seedBase, b5: true, pageOrder})); } catch(e){} }
+function store(){ try { localStorage.setItem('kouzu-fabrica', JSON.stringify({sketch, comps, selected, viewMode, aspect, sizeIdx: $('sizeSel').value, resIdx: $('resSel').value, genCount, seedBase, b5: true, pageOrder, pageBlanks, bookBind, spread, bookCover})); } catch(e){} }
 const storeLater = () => { clearTimeout(store._t); store._t = setTimeout(store, 400); };
 
 function scalePts(obj, sx, sy){
@@ -3307,7 +3321,7 @@ function finishTrace(save){
   if (q && q.length) { const next = q.shift(); startTrace(next, q); return; }
   setTool('select'); fitCanvas(); renderAll();
 }
-function setTool(name){ tool = name; [...$('rail').querySelectorAll('[data-tool]')].forEach(x => x.classList.toggle('on', x.dataset.tool === name)); main.style.cursor = name === 'select' ? 'default' : 'crosshair'; triTaps = []; if (name !== 'hairmass') hairCur = null; try { renderHairPanel(); } catch(e) {} }
+function setTool(name){ tool = name; [...document.querySelectorAll('#rail [data-tool], #eraseBar [data-tool]')].forEach(x => x.classList.toggle('on', x.dataset.tool === name)); main.style.cursor = name === 'select' ? 'default' : 'crosshair'; triTaps = []; if (name !== 'hairmass') hairCur = null; try { renderHairPanel(); } catch(e) {} }
 function tplThumb(t, w){
   const cv = document.createElement('canvas'); const h = Math.round(w/t.aspect); cv.width = w; cv.height = h;
   const ctx = cv.getContext('2d'); ctx.fillStyle = COL.canvas; ctx.fillRect(0, 0, w, h);
@@ -3505,9 +3519,9 @@ function renderAll(){ renderMain(); renderThumbs(); renderRecos(); renderProps()
 
 // ---------- undo ----------
 let redoStack = [];
-function pushUndo(){ undoStack.push(JSON.stringify({sketch, comps, selected, pageOrder})); if (undoStack.length > 30) undoStack.shift(); redoStack = []; }
-function redo(){ const s = redoStack.pop(); if (!s) { toast('やり直せる操作がありません'); return; } undoStack.push(JSON.stringify({sketch, comps, selected, pageOrder})); const o = JSON.parse(s); sketch = o.sketch; comps = o.comps; selected = o.selected; if (o.pageOrder) pageOrder = o.pageOrder; if (selected && !curComp()) selected = null; if (selected) makeRecos(); renderAll(); storeLater(); }
-function undo(){ const s = undoStack.pop(); if (!s) { toast('戻せる操作がありません'); return; } redoStack.push(JSON.stringify({sketch, comps, selected, pageOrder})); const o = JSON.parse(s); sketch = o.sketch; comps = o.comps; selected = o.selected; if (o.pageOrder) pageOrder = o.pageOrder; if (selected && !curComp()) selected = null; if (selected) makeRecos(); renderAll(); storeLater(); }
+function pushUndo(){ undoStack.push(JSON.stringify({sketch, comps, selected, pageOrder, pageBlanks})); if (undoStack.length > 30) undoStack.shift(); redoStack = []; }
+function redo(){ const s = redoStack.pop(); if (!s) { toast('やり直せる操作がありません'); return; } undoStack.push(JSON.stringify({sketch, comps, selected, pageOrder, pageBlanks})); const o = JSON.parse(s); sketch = o.sketch; comps = o.comps; selected = o.selected; if (o.pageOrder) pageOrder = o.pageOrder; if (o.pageBlanks) pageBlanks = o.pageBlanks; if (selected && !curComp()) selected = null; if (selected) makeRecos(); renderAll(); storeLater(); }
+function undo(){ const s = undoStack.pop(); if (!s) { toast('戻せる操作がありません'); return; } redoStack.push(JSON.stringify({sketch, comps, selected, pageOrder, pageBlanks})); const o = JSON.parse(s); sketch = o.sketch; comps = o.comps; selected = o.selected; if (o.pageOrder) pageOrder = o.pageOrder; if (o.pageBlanks) pageBlanks = o.pageBlanks; if (selected && !curComp()) selected = null; if (selected) makeRecos(); renderAll(); storeLater(); }
 
 // ---------- pointer interaction ----------
 let drag = null;
@@ -3689,45 +3703,74 @@ function buildZip(files){ // [{name, data: Uint8Array}]
   return new Blob(parts, {type: 'application/zip'});
 }
 // ---------- 本の並び：チェックした構図を順に並べて、イラスト本の構成を眺める ----------
-function syncPageOrder(){ const ids = new Set(comps.map(c => c.id)); pageOrder = pageOrder.filter(id => ids.has(id)); comps.forEach(c => { if (c.checked && !pageOrder.includes(c.id)) pageOrder.push(c.id); }); return pageOrder.map(id => comps.find(c => c.id === id)).filter(Boolean); }
+const BLANK_COLS = ['#111111', '#ffffff', '#7f7f7f', '#f2b45c', '#3b6cb8'];
+function syncPageOrder(){ const ids = new Set(comps.map(c => c.id)); pageOrder = pageOrder.filter(id => id.startsWith('blank:') ? !!pageBlanks[id] : ids.has(id)); comps.forEach(c => { if (c.checked && !pageOrder.includes(c.id)) pageOrder.push(c.id); }); return pageOrder.map(id => id.startsWith('blank:') ? {type: 'blank', id, color: pageBlanks[id]} : {type: 'comp', id, c: comps.find(c => c.id === id)}).filter(e => e.type === 'blank' || e.c); }
+function pageComps(){ return syncPageOrder().filter(e => e.type === 'comp').map(e => e.c); }
 function setPage(id, on){ pageOrder = pageOrder.filter(x => x !== id); if (on) pageOrder.push(id); renderBook(); }
-let bookDrag = null;
+function bookSlots(){ // エントリ → ページ（見開き構図は2ページ）。右綴じでは見開き構図の右半分が若いページ
+  const slots = []; syncPageOrder().forEach((e, ei) => { if (e.type === 'comp' && spread) { const first = bookBind === 'R' ? 'R' : 'L'; slots.push({e, ei, half: first}, {e, ei, half: first === 'R' ? 'L' : 'R'}); } else slots.push({e, ei, half: null}); });
+  slots.forEach((s0, k) => s0.no = k + 1); return slots; }
+function bookSpreads(slots){ // 表紙あり：1ページ目は単独、あとは 2-3, 4-5 … ／表紙なし：1-2, 3-4 …
+  const out = [], st = bookCover ? 1 : 0; if (bookCover && slots.length) out.push([slots[0]]); for (let k = st; k < slots.length; k += 2) out.push(slots.slice(k, k + 2)); return out; }
+let bookDrag = null; const bookCache = new Map();
+function bookPageCanvas(sl, h){ const pa = pageAspect(), w = Math.round(h*pa), cv = document.createElement('canvas'); cv.width = w*2; cv.height = h*2; cv.style.width = w + 'px'; cv.style.height = h + 'px'; const g = cv.getContext('2d');
+  if (sl.e.type === 'blank') { g.fillStyle = sl.e.color; g.fillRect(0, 0, cv.width, cv.height); return cv; }
+  const c = sl.e.c; if (!sl.half) { drawComp(g, c, cv.width, cv.height, {mode: viewMode}); return cv; }
+  const key = c.id + ':' + viewMode + ':' + JSON.stringify([c.faces, c.cam, c.pose, c.light, c.hairMasses && c.hairMasses.length]); let full = bookCache.get(key); if (!full) { full = document.createElement('canvas'); full.width = cv.width*2; full.height = cv.height; drawComp(full.getContext('2d'), c, full.width, full.height, {mode: viewMode}); bookCache.set(key, full); if (bookCache.size > 60) bookCache.delete(bookCache.keys().next().value); }
+  g.drawImage(full, sl.half === 'L' ? 0 : -cv.width, 0); return cv; }
 function renderBook(){
-  const row = $('bookRow'); if (!row) return; row.innerHTML = ''; const list = syncPageOrder();
-  $('bookCount').textContent = list.length ? `${list.length}p` : '';
-  if (!list.length) { row.innerHTML = `<div class="empty">チェックで構図を採用・ドラッグ＆ドロップで順番を変えられます</div>`; return; }
-  list.forEach((c, i) => { const el = document.createElement('div'); el.className = 'page' + (selected === c.id ? ' sel' : ''); el.draggable = true; el.dataset.id = c.id; el.title = c.name;
-    const cv = document.createElement('canvas'); const h = 64, w = Math.round(h*aspect); cv.width = w*2; cv.height = h*2; drawComp(cv.getContext('2d'), c, w*2, h*2, {mode: viewMode}); cv.style.width = w + 'px'; el.appendChild(cv);
-    const no = document.createElement('span'); no.className = 'no'; no.textContent = i + 1; el.appendChild(no);
-    const rm = document.createElement('button'); rm.className = 'rm'; rm.textContent = '×'; rm.title = '並びから外す'; rm.addEventListener('click', e => { e.stopPropagation(); c.checked = false; setPage(c.id, false); renderThumbs(); storeLater(); }); el.appendChild(rm);
-    el.addEventListener('click', () => { selected = c.id; makeRecos(); renderAll(); storeLater(); });
-    el.addEventListener('dragstart', e => { bookDrag = c.id; el.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', c.id); } catch(err) {} });
-    el.addEventListener('dragend', () => { bookDrag = null; row.querySelectorAll('.page').forEach(x => x.classList.remove('dragging', 'before', 'after')); });
-    el.addEventListener('dragover', e => { if (!bookDrag || bookDrag === c.id) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; const r = el.getBoundingClientRect(); const after = e.clientX > r.left + r.width/2; el.classList.toggle('before', !after); el.classList.toggle('after', after); });
-    el.addEventListener('dragleave', () => el.classList.remove('before', 'after'));
-    el.addEventListener('drop', e => { if (!bookDrag || bookDrag === c.id) return; e.preventDefault(); const r = el.getBoundingClientRect(); const after = e.clientX > r.left + r.width/2; const from = pageOrder.indexOf(bookDrag); if (from < 0) return; pageOrder.splice(from, 1); let to = pageOrder.indexOf(c.id) + (after ? 1 : 0); pageOrder.splice(to, 0, bookDrag); bookDrag = null; renderBook(); storeLater(); });
-    row.appendChild(el); });
-  // 行の空きに落としたら末尾へ
-  row.ondragover = e => { if (bookDrag && e.target === row) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; } };
-  row.ondrop = e => { if (bookDrag && e.target === row) { e.preventDefault(); pageOrder = pageOrder.filter(x => x !== bookDrag); pageOrder.push(bookDrag); bookDrag = null; renderBook(); storeLater(); } };
+  const row = $('bookRow'); if (!row) return; row.innerHTML = ''; $('bookBindSel').value = bookBind; $('bookCoverChk').checked = bookCover;
+  const slots = bookSlots(); $('bookCount').textContent = slots.length ? `全 ${slots.length} ページ` : '';
+  if (!slots.length) { row.innerHTML = `<div class="empty">チェックで構図を採用・ドラッグ＆ドロップで順番を変えられます</div>`; return; }
+  const H = 64, sel = selected;
+  bookSpreads(slots).forEach((sp, si) => { const box = document.createElement('div'); box.className = 'spreadBox';
+    // 見開き構図が別の見開きに割れていないか
+    if (sp.some(sl => sl.half) && !(sp.length === 2 && sp[0].e === sp[1].e) && sp.some(sl => sl.half)) box.classList.add('warn'), box.title = '見開き構図が2つの見開きにまたがっています。ベタ塗りページを挟んでずらしてください';
+    let cells = sp.slice(); if (cells.length === 1) cells = (si === 0 && bookCover) ? (bookBind === 'R' ? [cells[0], null] : [null, cells[0]]) : [cells[0], null];
+    if (bookBind === 'R' && cells.every(Boolean)) cells = [cells[1], cells[0]]; // 右綴じ：若いページが右
+    if (bookBind === 'R' && !(si === 0 && bookCover) && cells[1] === null) cells = [null, cells[0]];
+    cells.forEach((sl, k) => { if (k) { const gt = document.createElement('div'); gt.className = 'gutter'; box.appendChild(gt); }
+      const el = document.createElement('div');
+      if (!sl) { el.className = 'page slotEmpty'; el.style.width = Math.round(H*pageAspect()) + 'px'; box.appendChild(el); return; }
+      el.className = 'page' + (sl.e.type === 'blank' ? ' blank' : '') + (sl.e.type === 'comp' && sel === sl.e.id ? ' sel' : ''); el.draggable = true; el.dataset.ei = sl.ei; el.title = sl.e.type === 'blank' ? 'ベタ塗りページ（クリックで色を変える）' : sl.e.c.name;
+      el.appendChild(bookPageCanvas(sl, H));
+      const no = document.createElement('span'); no.className = 'pno'; no.textContent = sl.no; el.appendChild(no);
+      const rm = document.createElement('button'); rm.className = 'rm'; rm.textContent = '×'; rm.title = '並びから外す'; rm.addEventListener('click', ev => { ev.stopPropagation(); if (sl.e.type === 'comp') { sl.e.c.checked = false; renderThumbs(); } else delete pageBlanks[sl.e.id]; setPage(sl.e.id, false); storeLater(); }); el.appendChild(rm);
+      el.addEventListener('click', () => { if (sl.e.type === 'blank') { const k2 = (BLANK_COLS.indexOf(sl.e.color) + 1) % BLANK_COLS.length; pageBlanks[sl.e.id] = BLANK_COLS[k2]; renderBook(); storeLater(); return; } selected = sl.e.id; makeRecos(); renderAll(); storeLater(); });
+      el.addEventListener('dragstart', ev => { bookDrag = sl.e.id; el.classList.add('dragging'); ev.dataTransfer.effectAllowed = 'move'; try { ev.dataTransfer.setData('text/plain', sl.e.id); } catch(err) {} });
+      el.addEventListener('dragend', () => { bookDrag = null; row.querySelectorAll('.page').forEach(x => x.classList.remove('dragging', 'before', 'after')); });
+      const afterOf = ev => { const r = el.getBoundingClientRect(); const right = ev.clientX > r.left + r.width/2; return bookBind === 'R' ? !right : right; }; // 右綴じは左が「後ろ」
+      el.addEventListener('dragover', ev => { if (!bookDrag || bookDrag === sl.e.id) return; ev.preventDefault(); ev.dataTransfer.dropEffect = 'move'; const r = el.getBoundingClientRect(), right = ev.clientX > r.left + r.width/2; el.classList.toggle('after', right); el.classList.toggle('before', !right); });
+      el.addEventListener('dragleave', () => el.classList.remove('before', 'after'));
+      el.addEventListener('drop', ev => { if (!bookDrag || bookDrag === sl.e.id) return; ev.preventDefault(); const after = afterOf(ev); const from = pageOrder.indexOf(bookDrag); if (from < 0) return; pageOrder.splice(from, 1); pageOrder.splice(pageOrder.indexOf(sl.e.id) + (after ? 1 : 0), 0, bookDrag); bookDrag = null; renderBook(); storeLater(); });
+      box.appendChild(el); });
+    row.appendChild(box); });
+  row.ondragover = ev => { if (bookDrag && ev.target === row) { ev.preventDefault(); ev.dataTransfer.dropEffect = 'move'; } };
+  row.ondrop = ev => { if (bookDrag && ev.target === row) { ev.preventDefault(); pageOrder = pageOrder.filter(x => x !== bookDrag); pageOrder.push(bookDrag); bookDrag = null; renderBook(); storeLater(); } };
 }
 async function saveFile(blob, fname, doneMsg){ let dl = null; try { dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null; } catch(e) { dl = null; }
   if (dl) { try { await dl.save({filename: fname, data: blob}); toast(doneMsg || '書き出しました'); return true; } catch(err) { if (err && err.code === 'declined') return false; } }
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = fname; document.body.appendChild(a); a.click(); a.remove(); toast(doneMsg || '書き出しました'); return true; }
 async function exportBookPNG(){
   const list = syncPageOrder(); if (!list.length) { toast('まだ空です。右の一覧でチェックを入れてください'); return; }
-  const long = +$('resSel').value; const W = aspect >= 1 ? long : Math.round(long*aspect), H = aspect >= 1 ? Math.round(long/aspect) : long;
-  toast(`${list.length} 枚を書き出しています…`); await new Promise(r => setTimeout(r, 30));
-  const files = []; const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const ctx = cv.getContext('2d');
-  for (let i = 0; i < list.length; i++) { const c = list[i]; ctx.clearRect(0, 0, W, H); drawComp(ctx, c, W, H, {mode: viewMode}); const blob = await new Promise(res => cv.toBlob(res, 'image/png')); files.push({name: `${String(i+1).padStart(2, '0')}_${c.name.replace(/・/g, '_')}.png`, data: new Uint8Array(await blob.arrayBuffer())}); await new Promise(r => setTimeout(r, 0)); }
-  await saveFile(buildZip(files), `kouzu_book_${list.length}p_${W}x${H}.zip`, `${list.length} 枚を ZIP で書き出しました（番号順）`);
+  const long = +$('resSel').value, pa = pageAspect(); const PW = pa >= 1 ? long : Math.round(long*pa), PH = pa >= 1 ? Math.round(long/pa) : long;
+  toast(`${list.length} 件を書き出しています…`); await new Promise(r => setTimeout(r, 30));
+  const files = []; let no = 1; const pad = n => String(n).padStart(2, '0');
+  for (const e of list) { const pages = e.type === 'comp' && spread ? 2 : 1, W = PW*pages, cv = document.createElement('canvas'); cv.width = W; cv.height = PH; const ctx = cv.getContext('2d');
+    if (e.type === 'blank') { ctx.fillStyle = e.color; ctx.fillRect(0, 0, W, PH); } else drawComp(ctx, e.c, W, PH, {mode: viewMode});
+    const blob = await new Promise(res => cv.toBlob(res, 'image/png')); const range = pages === 2 ? `${pad(no)}-${pad(no + 1)}` : pad(no);
+    files.push({name: `p${range}_${e.type === 'blank' ? 'beta' : e.c.name.replace(/・/g, '_')}.png`, data: new Uint8Array(await blob.arrayBuffer())}); no += pages; await new Promise(r => setTimeout(r, 0)); }
+  await saveFile(buildZip(files), `kouzu_book_${no - 1}p_${PW}x${PH}.zip`, `${no - 1} ページ分を ZIP で書き出しました（ページ番号順）`);
 }
 $('bookPng').addEventListener('click', exportBookPNG);
 $('bookClip').addEventListener('click', exportClip);
-$('bookClear').addEventListener('click', () => { if (!pageOrder.length) return; pushUndo(); comps.forEach(c => { c.checked = false; }); pageOrder = []; renderThumbs(); renderBook(); storeLater(); toast('配置をリセットしました（Ctrl+Z で戻せます）'); });
+$('bookBindSel').addEventListener('change', e => { bookBind = e.target.value; renderBook(); storeLater(); });
+$('bookCoverChk').addEventListener('change', e => { bookCover = e.target.checked; renderBook(); storeLater(); });
+$('bookBlank').addEventListener('click', () => { pushUndo(); syncPageOrder(); const id = 'blank:' + Date.now().toString(36) + Math.floor(Math.random()*1e4); pageBlanks[id] = BLANK_COLS[0]; const at = selected ? pageOrder.indexOf(selected) : -1; if (at >= 0) pageOrder.splice(at + 1, 0, id); else pageOrder.push(id); renderBook(); storeLater(); toast('ベタ塗りページを挟みました（クリックで色、ドラッグで移動）'); });
+$('bookClear').addEventListener('click', () => { if (!pageOrder.length) return; pushUndo(); comps.forEach(c => { c.checked = false; }); pageOrder = []; pageBlanks = {}; renderThumbs(); renderBook(); storeLater(); toast('配置をリセットしました（Ctrl+Z で戻せます）'); });
 function updateClipCount(){ const n = comps.filter(c => c.checked).length; $('clipCount').textContent = n ? `(${n})` : ''; }
 async function exportClip(){
-  let list = syncPageOrder(); if (!list.length && curComp()) list = [curComp()];
+  let list = pageComps(); if (!list.length && curComp()) list = [curComp()];
   if (!list.length) { toast('サムネイルにチェックを入れるか、構図案を選んでください'); return; }
   const long = Math.min(+$('resSel').value, 3000); const W = aspect >= 1 ? long : Math.round(long*aspect), H = aspect >= 1 ? Math.round(long/aspect) : long;
   toast(`${list.length} 案をレイヤー分けしています…`);
@@ -3788,7 +3831,14 @@ const ZH = {
   '画面全体の文字と部品の大きさ（ピンチでも変えられます）': '整個畫面的文字與元件大小（也可用雙指縮放）', '表示': '顯示', '極小': '極小', '大': '大', '中': '中', '小': '小',
   '見せ場に向けて構図を組み直しました': '已朝看點重新組合構圖',
   'CLIPで読み込む構図に含める': '納入要用 CLIP 讀入的構圖',
-  '構図を連続で配置': '連續排列構圖', 'チェックで構図を採用・ドラッグ＆ドロップで順番を変えられます': '勾選即採用構圖・拖放可調整順序',
+  '構図を連続で配置': '連續排列構圖', '全 ': '共 ', ' ページ': ' 頁', '右綴じ': '右翻', '左綴じ': '左翻', '本の綴じ方（見開きの左右が変わります）': '書的裝訂方向（跨頁的左右會改變）',
+  '1p 単独': '第1頁單獨', 'オン：1ページ目を表紙として単独に（2-3 ページが最初の見開き）。オフ：1-2 ページから見開き': '開啟：第 1 頁作為封面單獨放（2-3 頁是第一個跨頁）。關閉：從 1-2 頁開始跨頁',
+  'ベタ塗りページを挟む': '插入滿版色頁', '選んでいるページの後ろ（なければ最後）にベタ塗りの1ページを挟みます。クリックで色が変わります': '在選取頁之後（沒有則放最後）插入一張滿版色頁。點擊可換色',
+  'ベタ塗りページ（クリックで色を変える）': '滿版色頁（點擊換色）', 'ベタ塗りページを挟みました（クリックで色、ドラッグで移動）': '已插入滿版色頁（點擊換色、拖曳移動）',
+  '見開き構図が2つの見開きにまたがっています。ベタ塗りページを挟んでずらしてください': '跨頁構圖被拆到兩個跨頁上。請插入滿版色頁來錯開',
+  'チェックで横に2倍（見開き）。外すと閉じて1ページに戻ります': '勾選後橫向變 2 倍（跨頁）。取消即闔上回到單頁', '見開き': '跨頁',
+  '見開きにしました（横に2倍）。構図は2ページ分として数えます': '已改為跨頁（橫向 2 倍）。構圖算作 2 頁', '見開きを閉じて1ページに戻しました': '已闔上跨頁，回到單頁',
+  '件を書き出しています…': '件正在匯出…', ' ページ分を ZIP で書き出しました（ページ番号順）': ' 頁已以 ZIP 匯出（依頁碼）', 'チェックで構図を採用・ドラッグ＆ドロップで順番を変えられます': '勾選即採用構圖・拖放可調整順序',
   '並んだ順に番号を付けて PNG にし、ZIP で一括保存': '依排列順序編號輸出 PNG，並以 ZIP 一次儲存', '並んだ順にレイヤー分け PSD（ZIP）': '依排列順序輸出分圖層 PSD（ZIP）', 'PNG 一括書き出し': '一次匯出 PNG', 'CLIP 一括書き出し': 'CLIP 一次匯出', '配置をリセット': '重設排列', '並びから外す': '從排序移除',
   'まだ空です。右の一覧でチェックを入れてください': '還是空的。請在右側列表勾選', '枚を書き出しています…': '張正在匯出…', '枚を ZIP で書き出しました（番号順）': '張已以 ZIP 匯出（依編號）', '配置をリセットしました（Ctrl+Z で戻せます）': '已重設排列（可用 Ctrl+Z 復原）',
   '」をテンプレートに保存しました': '」已儲存為範本',
@@ -4369,9 +4419,11 @@ applyDrawer();
 SIZES.forEach(([l, a], i) => { const o = document.createElement('option'); o.value = i; o.textContent = l; $('sizeSel').appendChild(o); });
 RES.forEach(([l, v]) => { const o = document.createElement('option'); o.value = v; o.textContent = l; $('resSel').appendChild(o); });
 $('resSel').value = 2048;
-$('sizeSel').addEventListener('change', e => { setAspect(SIZES[+e.target.value][1]); if (curComp()) makeRecos(); renderAll(); storeLater(); });
+$('sizeSel').addEventListener('change', e => { setAspect(sizeAspect()); if (curComp()) makeRecos(); renderAll(); storeLater(); });
+$('spreadChk').addEventListener('change', e => { pushUndo(); spread = e.target.checked; setAspect(sizeAspect()); if (curComp()) makeRecos(); renderAll(); storeLater(); toast(spread ? '見開きにしました（横に2倍）。構図は2ページ分として数えます' : '見開きを閉じて1ページに戻しました'); });
 $('resSel').addEventListener('change', storeLater);
 $('modes').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; viewMode = b.dataset.mode; [...$('modes').children].forEach(x => x.classList.toggle('on', x === b)); renderAll(); storeLater(); });
+$('eraseBar').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; if (b.id === 'clearAllBtn') { clearAll(); return; } setTool(b.dataset.tool); renderMain(); });
 $('rail').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; if (b.id === 'undoBtn') { if (trace) traceUndoPop(); else undo(); return; } if (b.id === 'redoBtn') { if (trace) traceRedoPop(); else redo(); return; } if (b.id === 'clearAllBtn') { clearAll(); return; } setTool(b.dataset.tool); renderMain(); });
 function clearAll(){
   if (trace) { tracePush(); const t = trace.tpl; t.faces = []; t.strokes = []; t.tris = []; t.vp = null; t.emph = []; t.hands = []; t.pose = null; triTaps = []; renderMain(); renderProps(); toast('なぞりを全部消しました（Ctrl+Z で戻せます）'); return; }
@@ -4432,9 +4484,9 @@ if (window.innerWidth < 700 && uiZoom > 0.7) applyZoom(0.7, false);
   try { const t = JSON.parse(localStorage.getItem('kouzu-templates') || '[]'); if (Array.isArray(t)) templates = t.filter(x => x && x.id && Array.isArray(x.faces)); } catch(e) { templates = []; }
   let saved = null; try { saved = JSON.parse(localStorage.getItem('kouzu-fabrica') || 'null'); } catch(e) { saved = null; }
   if (saved && saved.sketch && Array.isArray(saved.comps)) {
-    sketch = saved.sketch; comps = saved.comps; selected = saved.selected; viewMode = saved.viewMode || 'line'; genCount = saved.genCount || 24; seedBase = saved.seedBase || seedBase; pageOrder = Array.isArray(saved.pageOrder) ? saved.pageOrder : comps.filter(c => c.checked).map(c => c.id);
+    sketch = saved.sketch; comps = saved.comps; selected = saved.selected; viewMode = saved.viewMode || 'line'; genCount = saved.genCount || 24; seedBase = saved.seedBase || seedBase; pageBlanks = saved.pageBlanks || {}; bookBind = saved.bookBind || 'R'; spread = !!saved.spread; bookCover = saved.bookCover !== false; $('spreadChk').checked = spread; pageOrder = Array.isArray(saved.pageOrder) ? saved.pageOrder : comps.filter(c => c.checked).map(c => c.id);
     if (saved.sizeIdx != null && saved.b5) $('sizeSel').value = saved.sizeIdx; else $('sizeSel').value = DEFAULT_SIZE; if (saved.resIdx) $('resSel').value = saved.resIdx;
-    setAspect(SIZES[+$('sizeSel').value][1], true);
+    setAspect(sizeAspect(), true);
     comps.forEach(c => { c.VW = VW; c.VH = VH; if (c.vis.hairMass == null) c.vis.hairMass = true; (c.hairMasses || []).forEach(hm => { if (!hm.pts) refluff(hm, c); }); rebuildBodies(c); scoreComp(c); });
     [...$('modes').children].forEach(x => x.classList.toggle('on', x.dataset.mode === viewMode));
     if (selected && !curComp()) selected = null;
