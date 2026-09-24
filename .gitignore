@@ -1,0 +1,5 @@
+*.vrm
+*.glb
+index.v*.html
+index.new.html
+*.v36.md

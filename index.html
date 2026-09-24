@@ -2298,7 +2298,8 @@ function drawComp(ctx, c, W, H, o){
   if (mode !== 'line' && v.valueC !== false && c.contrast === 'high' && on('figure')) { const hd = c.faces[0], bb = c.bodies[0]; const cx = (hd.x + bb.hipC.x)/2, cy = (hd.y + bb.hipC.y)/2, rr = Math.max(hd.r*4.5, dist(hd, bb.hipC)*1.1); const g = ctx.createRadialGradient(cx, cy, rr*0.35, cx, cy, rr); const light = mode === 'flat' ? 'rgba(236,237,240,.85)' : 'rgba(240,236,228,.55)'; g.addColorStop(0, light); g.addColorStop(1, 'rgba(240,236,228,0)'); ctx.fillStyle = g; ctx.fillRect(cx - rr, cy - rr, rr*2, rr*2); }
   // figures
   const figs = c.bodies.map((b, i) => ({b, f: c.faces[i], i})).sort((a, b) => a.f.r - b.f.r);
-  if (on('figure')) figs.forEach(({b, f, i}) => drawFigure(ctx, c, b, f, i, mode, lw));
+  const long3d = o.export3d || (W >= 700 ? 1024 : 360);
+  if (on('figure')) figs.forEach(({b, f, i}) => { if (i === 0 && mode === 'concept' && k3draw(ctx, c, long3d)) return; drawFigure(ctx, c, b, f, i, mode, lw); });
   // near solids & hands (foreground)
   if (v.solids && on('solidsNear')) solidsSorted.filter(x => x.d >= 0.7).forEach(drawSolid);
   if (v.hands && on('hands')) c.hands.forEach(h => {
@@ -2682,6 +2683,144 @@ function bootstrapLearning(){ // 残してある 160px サムネイルからも�
   let left = todo.length; todo.forEach(t => { const im = new Image(); im.onload = () => { try { const feat = cellFeatures(im), L = cellLabels(feat, t), q = new Uint8Array(feat.F.length); for (let i = 0; i < q.length; i++) q[i] = Math.round(feat.F[i]*255); learnSet.push({id: t.id, cw: feat.cw, ch: feat.ch, f: q, l: L}); } catch(e) {} if (--left === 0) { while (learnSet.length > MAX_LEARN) learnSet.shift(); trainCellModel(); storeLearn(); if (trace) renderProps(); } }; im.onerror = () => { if (--left === 0) { trainCellModel(); storeLearn(); } }; im.src = t.thumb; });
 }
 
+
+// ---------- 3D素体（配布版のみ）：VRM（VRoid など）を three.js で描き、構図の骨格でポーズを取らせる。モデルは端末内（IndexedDB）にだけ残る ----------
+let K3 = null, k3 = null, k3use = true, k3gray = false, k3loading = false;
+const k3cache = new Map();
+try { k3use = localStorage.getItem('kouzu-k3use') !== '0'; k3gray = localStorage.getItem('kouzu-k3gray') === '1'; } catch(e) {}
+function k3db(){ return new Promise((res, rej) => { const rq = indexedDB.open('kouzu-fabrica', 1); rq.onupgradeneeded = () => rq.result.createObjectStore('files'); rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error); }); }
+async function k3store(key, val){ try { const db = await k3db(); await new Promise((res, rej) => { const tx = db.transaction('files', 'readwrite'); tx.objectStore('files').put(val, key); tx.oncomplete = res; tx.onerror = () => rej(tx.error); }); } catch(e) {} }
+async function k3fetch(key){ try { const db = await k3db(); return await new Promise((res, rej) => { const tx = db.transaction('files', 'readonly'); const rq = tx.objectStore('files').get(key); rq.onsuccess = () => res(rq.result || null); rq.onerror = () => rej(rq.error); }); } catch(e) { return null; } }
+async function k3init(){
+  if (k3) return k3; if (!PLUS) return null;
+  K3 = await import('./vendor/kouzu3d.js'); const {THREE} = K3;
+  const renderer = new THREE.WebGLRenderer({alpha: true, antialias: true, preserveDrawingBuffer: true}); renderer.setPixelRatio(1); renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.setClearColor(0x000000, 0);
+  const scene = new THREE.Scene(); const camera = new THREE.PerspectiveCamera(30, 1, 0.05, 100);
+  const key = new THREE.DirectionalLight(0xfff4e6, 2.4), fill = new THREE.HemisphereLight(0xe8e6e0, 0x4a4744, 0.9), rim = new THREE.DirectionalLight(0xfff0d8, 0); scene.add(key, fill, rim, key.target, rim.target);
+  k3 = {renderer, scene, camera, key, fill, rim, vrm: null, meta: null, name: '', bones: null, grayMats: null, origMats: null};
+  return k3;
+}
+async function k3loadVRM(buf, name){
+  await k3init(); const {GLTFLoader, VRMLoaderPlugin, VRMUtils} = K3;
+  const loader = new GLTFLoader(); loader.register(p => new VRMLoaderPlugin(p));
+  const gltf = await loader.parseAsync(buf.slice(0), ''); const vrm = gltf.userData.vrm; if (!vrm) throw new Error('VRM ではありません');
+  VRMUtils.removeUnnecessaryVertices(gltf.scene); VRMUtils.removeUnnecessaryJoints(gltf.scene); if (VRMUtils.rotateVRM0) VRMUtils.rotateVRM0(vrm);
+  if (k3.vrm) k3.scene.remove(k3.vrm.scene);
+  vrm.scene.traverse(o => { o.frustumCulled = false; });
+  k3.vrm = vrm; k3.meta = vrm.meta || null; k3.name = (vrm.meta && (vrm.meta.name || vrm.meta.title)) || name || 'VRM'; k3.scene.add(vrm.scene);
+  // グレーの素体用マテリアル
+  const {THREE} = K3; k3.origMats = new Map(); k3.grayMat = new THREE.MeshStandardMaterial({color: 0xc9c4bb, roughness: 0.75, metalness: 0});
+  vrm.scene.traverse(o => { if (o.isMesh) k3.origMats.set(o, o.material); });
+  k3cache.clear(); return vrm;
+}
+function k3applyGray(on){ // グレー素体：髪・服・目のハイライトは隠し、残りをグレーに（VRoid の材質名で判定）
+  if (!k3 || !k3.vrm) return;
+  k3.vrm.scene.traverse(o => { if (!o.isMesh) return; const orig = k3.origMats.get(o); const nm = (orig && orig.name) || o.name || ''; const hide = on && /_HAIR|_CLOTH|EyeHighlight|_EYE\b|Accessory|_ACCESSORY/i.test(nm); o.visible = !hide; o.material = on ? k3.grayMat : orig; });
+}
+function k3pose(c){ // 構図の素体（bodies[0]・faces[0]・skel）から VRM のボーン回転をつくる
+  const {THREE} = K3, vrm = k3.vrm, H = vrm.humanoid; if (!H) return;
+  H.resetNormalizedPose && H.resetNormalizedPose();
+  const b = c.bodies[0], f = c.faces[0], sk = c.skel || {}; const R = f.r || 100;
+  const Z = k => (sk[k] && typeof sk[k].z === 'number') ? sk[k].z*VW : 0; // MediaPipe の奥行き（画像幅と同じ単位）
+  const P3 = (p, k) => new THREE.Vector3(p.x, -p.y, -Z(k));
+  const hipL = P3(b.hipL, 'hipL'), hipR = P3(b.hipR, 'hipR'), shL = P3(b.shL, 'shL'), shR = P3(b.shR, 'shR'), hipC = hipL.clone().add(hipR).multiplyScalar(0.5), shC = shL.clone().add(shR).multiplyScalar(0.5);
+  const head = P3(f, 'head'), neck = P3(b.neck, 'neck'), elL = P3(b.elbowL, 'elL'), elR = P3(b.elbowR, 'elR'), knL = P3(b.kneeL, 'knL'), knR = P3(b.kneeR, 'knR'), ftL = P3(b.footL, 'ftL'), ftR = P3(b.footR, 'ftR');
+  const wrL = sk.wrL ? P3(sk.wrL, 'wrL') : null, wrR = sk.wrR ? P3(sk.wrR, 'wrR') : null;
+  const dir = (a, b0) => b0.clone().sub(a).normalize();
+  const basis = (xAxis, yAxis) => { const x = xAxis.clone().normalize(); const z = new THREE.Vector3().crossVectors(x, yAxis).normalize(); if (z.lengthSq() < 1e-6) z.set(0, 0, 1); const y = new THREE.Vector3().crossVectors(z, x).normalize(); const m = new THREE.Matrix4().makeBasis(x, y, z); return new THREE.Quaternion().setFromRotationMatrix(m); };
+  const one = (rest, target) => new THREE.Quaternion().setFromUnitVectors(rest, target.clone().normalize());
+  // 画面の左側（x が小さい）＝モデルの右。VRM はカメラ（+Z）を向いている前提
+  const targets = {
+    hips: basis(hipR.clone().sub(hipL), shC.clone().sub(hipC)),
+    spine: basis(shR.clone().sub(shL), shC.clone().sub(hipC)),
+    chest: basis(shR.clone().sub(shL), shC.clone().sub(hipC)),
+    upperChest: basis(shR.clone().sub(shL), shC.clone().sub(hipC)),
+    neck: one(new THREE.Vector3(0, 1, 0), dir(shC, head)),
+    head: one(new THREE.Vector3(0, 1, 0), dir(neck, head)),
+    rightUpperArm: one(new THREE.Vector3(-1, 0, 0), dir(shL, elL)), leftUpperArm: one(new THREE.Vector3(1, 0, 0), dir(shR, elR)),
+    rightLowerArm: wrL ? one(new THREE.Vector3(-1, 0, 0), dir(elL, wrL)) : one(new THREE.Vector3(-1, 0, 0), dir(shL, elL)),
+    leftLowerArm: wrR ? one(new THREE.Vector3(1, 0, 0), dir(elR, wrR)) : one(new THREE.Vector3(1, 0, 0), dir(shR, elR)),
+    rightUpperLeg: one(new THREE.Vector3(0, -1, 0), dir(hipL, knL)), leftUpperLeg: one(new THREE.Vector3(0, -1, 0), dir(hipR, knR)),
+    rightLowerLeg: one(new THREE.Vector3(0, -1, 0), dir(knL, ftL)), leftLowerLeg: one(new THREE.Vector3(0, -1, 0), dir(knR, ftR))
+  };
+  const order = ['hips', 'spine', 'chest', 'upperChest', 'neck', 'head', 'rightUpperArm', 'rightLowerArm', 'leftUpperArm', 'leftLowerArm', 'rightUpperLeg', 'rightLowerLeg', 'leftUpperLeg', 'leftLowerLeg'];
+  const pq = new THREE.Quaternion();
+  order.forEach(name => { const node = H.getNormalizedBoneNode(name); if (!node || !targets[name]) return; node.parent.updateWorldMatrix(true, false); node.parent.getWorldQuaternion(pq); node.quaternion.copy(pq.invert().multiply(targets[name])); node.updateWorldMatrix(false, false); });
+  vrm.humanoid.update && vrm.humanoid.update();
+}
+function k3render(c, W, H){ // → renderer.domElement（透明背景）。頭が顔の丸に重なるようにモデルを置く
+  const {THREE} = K3, r = k3.renderer, cam = k3.camera, vrm = k3.vrm; if (!vrm) return null;
+  r.setSize(W, H, false); cam.aspect = W/H; cam.updateProjectionMatrix();
+  const f = c.faces[0], R = f.r;
+  // カメラ：あおり／ふかん（消失点があればそこから）
+  let pitch = c.angle === 'low' ? -0.32 : c.angle === 'high' ? 0.32 : 0, yaw = 0;
+  if (c.vp) { pitch = clamp((c.vp.y/VH - 0.5)*0.9, -0.7, 0.7); yaw = clamp((c.vp.x/VW - 0.5)*0.6, -0.5, 0.5); }
+  const D = 6; cam.position.set(Math.sin(yaw)*Math.cos(pitch)*D, Math.sin(pitch)*D, Math.cos(yaw)*Math.cos(pitch)*D); cam.lookAt(0, 0, 0); cam.updateMatrixWorld(true);
+  // ポーズ
+  vrm.scene.position.set(0, 0, 0); vrm.scene.scale.setScalar(1); vrm.scene.updateMatrixWorld(true);
+  k3pose(c); vrm.scene.updateMatrixWorld(true);
+  // 頭の位置と大きさを合わせる（頭ボーン＋少し上を頭の中心とみなす）
+  const headNode = vrm.humanoid.getNormalizedBoneNode('head') || vrm.humanoid.getRawBoneNode('head');
+  const headW = new THREE.Vector3(); headNode.getWorldPosition(headW); const up = new THREE.Vector3(0, 1, 0).applyQuaternion(headNode.getWorldQuaternion(new THREE.Quaternion())); headW.addScaledVector(up, 0.09);
+  const tanH = Math.tan(cam.fov*PI/360), zc = D;
+  const rWorld = 0.115; // VRM の頭の半径（およそ）
+  const scale = (R/VH*2)*zc*tanH/rWorld; vrm.scene.scale.setScalar(scale); vrm.scene.updateMatrixWorld(true);
+  headNode.getWorldPosition(headW); headW.addScaledVector(up, 0.09*scale);
+  const tx = (f.x/VW*2 - 1), ty = -(f.y/VH*2 - 1);
+  const want = new THREE.Vector3(tx*zc*tanH*cam.aspect, ty*zc*tanH, -zc); cam.localToWorld(want);
+  vrm.scene.position.add(want.sub(headW)); vrm.scene.updateMatrixWorld(true);
+  // ライト
+  const lp = lightPoint(c); const ld = new THREE.Vector3((lp.x - f.x)/VW, -(lp.y - f.y)/VH, c.light.kind === 'rim' ? -0.35 : 0.7).normalize();
+  k3.key.position.copy(ld).multiplyScalar(6); k3.key.target.position.set(0, 0, 0); k3.key.intensity = c.contrast === 'high' ? 3.0 : 2.2; k3.fill.intensity = c.contrast === 'high' ? 0.55 : 0.95;
+  k3.rim.intensity = c.light.kind === 'rim' ? 3.5 : 0; k3.rim.position.set(-ld.x, ld.y + 0.5, -3); k3.rim.target.position.set(0, 0, 0);
+  k3applyGray(k3gray);
+  r.render(k3.scene, cam); return r.domElement;
+}
+function k3key(c, W){ const b = c.bodies[0]; return JSON.stringify([c.faces[0], b.shL, b.shR, b.hipL, b.hipR, b.elbowL, b.elbowR, b.kneeL, b.kneeR, b.footL, b.footR, c.skel, c.light, c.angle, c.vp, c.contrast, W, k3gray, k3.name]); }
+function k3draw(ctx, c, long){ // drawComp から：虚座標系（scale 済み）の ctx に描く。まだ準備できていなければ false
+  if (!k3 || !k3.vrm || !k3use) return false;
+  const W = VW >= VH ? long : Math.round(long*VW/VH), H = VW >= VH ? Math.round(long*VH/VW) : long; const key = k3key(c, W);
+  let cv = k3cache.get(key);
+  if (!cv) { const el = k3render(c, W, H); if (!el) return false; cv = document.createElement('canvas'); cv.width = W; cv.height = H; cv.getContext('2d').drawImage(el, 0, 0); k3cache.set(key, cv); if (k3cache.size > 40) k3cache.delete(k3cache.keys().next().value); }
+  ctx.drawImage(cv, 0, 0, VW, VH); return true;
+}
+async function k3bootstrap(){ if (!PLUS) return; try { const saved = await k3fetch('vrm'); if (saved && saved.buf) { await k3init(); await k3loadVRM(saved.buf, saved.name); k3cache.clear(); renderAll(); } } catch(e) { console.warn('vrm boot', e); } }
+async function k3loadFile(file){
+  if (!PLUS) return; if (!/\.(vrm|glb)$/i.test(file.name)) { toast('VRM（または GLB）ファイルを選んでください'); return; }
+  toast('3D素体を読み込んでいます…（端末内だけ）'); k3loading = true;
+  try { const buf = await file.arrayBuffer(); await k3init(); await k3loadVRM(buf, file.name.replace(/\.[^.]+$/, '')); await k3store('vrm', {buf, name: k3.name}); toast(`3D素体「${k3.name}」を読み込みました（このブラウザ内に保存）`); renderAll(); }
+  catch(e) { toast('3D素体を読み込めませんでした：' + (e && e.message ? e.message : e)); }
+  finally { k3loading = false; renderProps(); }
+}
+async function k3clear(){ if (k3 && k3.vrm) { k3.scene.remove(k3.vrm.scene); k3.vrm = null; k3.name = ''; } k3cache.clear(); await k3store('vrm', null); renderAll(); toast('3D素体を外しました'); }
+async function k3exportOBJ(c){
+  if (!k3 || !k3.vrm) { toast('先に VRM を読み込んでください'); return; } const {THREE, OBJExporter} = K3;
+  k3render(c, 512, 512); // ポーズ・位置を確定
+  const group = new THREE.Group(); const v = new THREE.Vector3();
+  k3.vrm.scene.traverse(o => { if (!o.isMesh) return; const g = o.geometry.clone(); const pos = g.attributes.position; const out = new Float32Array(pos.count*3);
+    for (let i = 0; i < pos.count; i++) { v.fromBufferAttribute(pos, i); if (o.isSkinnedMesh) o.applyBoneTransform(i, v); v.applyMatrix4(o.matrixWorld); out[i*3] = v.x; out[i*3+1] = v.y; out[i*3+2] = v.z; }
+    g.setAttribute('position', new THREE.BufferAttribute(out, 3)); g.deleteAttribute('skinIndex'); g.deleteAttribute('skinWeight'); g.computeVertexNormals(); const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial()); m.name = o.name || 'part'; group.add(m); });
+  const s0 = k3.vrm.scene.scale.x || 1; group.scale.setScalar(1/s0); group.updateMatrixWorld(true); // 元の大きさ（m）に戻す
+  { const box = new THREE.Box3().setFromObject(group); group.position.set(-(box.min.x + box.max.x)/2/1, -box.min.y, -(box.min.z + box.max.z)/2); group.updateMatrixWorld(true); } // 足元を原点に
+  const txt = new OBJExporter().parse(group); const blob = new Blob([txt], {type: 'text/plain'});
+  const fname = `sotai_${(k3.name || 'vrm').replace(/[^\w\-]+/g, '_')}_${c.name.replace(/・/g, '_')}.obj`;
+  let dl = null; try { dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null; } catch(e) { dl = null; }
+  if (dl) { try { await dl.save({filename: fname, data: blob}); toast('OBJ を書き出しました'); return; } catch(err) { if (err && err.code === 'declined') return; } }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = fname; document.body.appendChild(a); a.click(); a.remove(); toast('OBJ を書き出しました（クリスタ：ファイル → 読み込み → 3Dデータ）');
+}
+function k3props(box, c){ // 設定パネルの「3D素体」グループ（配布版のみ）
+  if (!PLUS) return;
+  const g = document.createElement('div'); g.className = 'group';
+  const has = !!(k3 && k3.vrm);
+  g.innerHTML = `<h3>3D素体（VRM）</h3><p class="note">${has ? `読み込み中の素体：<b>${k3.name}</b>${k3.meta && k3.meta.authors ? `（${[].concat(k3.meta.authors).join('・')}）` : ''}` : 'VRoid Studio などで作った VRM を読み込むと、コンセプト表示の素体が本物の 3D になり、この構図のポーズを取ります。モデルはこのブラウザ内にだけ保存され、送信しません。'}</p><div class="row" style="display:flex;gap:6px;flex-wrap:wrap"><button class="ghost" id="vrmLoad" style="flex:1">${has ? '別の VRM に替える' : 'VRM を読み込む'}</button>${has ? '<button class="ghost" id="vrmClear">外す</button>' : ''}</div>${has ? `<div class="chips"><button class="tg${k3use ? ' on' : ''}" id="vrmUse">コンセプト表示で使う</button><button class="tg${k3gray ? ' on' : ''}" id="vrmGray">グレーの素体</button></div>${c ? '<div class="row" style="display:flex;gap:6px"><button class="ghost" id="vrmObj" style="flex:1">OBJ 書き出し（この構図のポーズ）</button></div><p class="note">クリスタ：ファイル → 読み込み → 3Dデータ で OBJ を開くと、ポーズ済みの素体がキャンバスに乗ります（関節はクリスタでは動かせません）。</p>' : ''}` : ''}<input type="file" id="vrmFile" accept=".vrm,.glb" hidden>`;
+  g.querySelector('#vrmLoad').addEventListener('click', () => g.querySelector('#vrmFile').click());
+  g.querySelector('#vrmFile').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if (f) k3loadFile(f); });
+  const cl = g.querySelector('#vrmClear'); if (cl) cl.addEventListener('click', k3clear);
+  const us = g.querySelector('#vrmUse'); if (us) us.addEventListener('click', () => { k3use = !k3use; try { localStorage.setItem('kouzu-k3use', k3use ? '1' : '0'); } catch(e) {} renderAll(); });
+  const gr = g.querySelector('#vrmGray'); if (gr) gr.addEventListener('click', () => { k3gray = !k3gray; try { localStorage.setItem('kouzu-k3gray', k3gray ? '1' : '0'); } catch(e) {} k3cache.clear(); renderAll(); });
+  const ob = g.querySelector('#vrmObj'); if (ob) ob.addEventListener('click', () => k3exportOBJ(c));
+  box.appendChild(g);
+}
 // ---------- 骨格検出（配布版のみ）：MediaPipe Pose をこのサイトから読み込み、ブラウザ内で推論する。画像は外に出ない ----------
 let poseDet = null, poseBusy = false;
 async function getPoseDet(){
@@ -2705,8 +2844,10 @@ function poseToTrace(lm, img){ // → {face:{x,y,r}|null, pose:{shL..ftR}, hands
     let r = 0; if (earL && earR) r = dpx(earL, earR)*0.8; else if (eL && eR) r = dpx(eL, eR)*2.0; if (!r && shA && shB) r = dpx(shA, shB)*0.28; if (r) face = {x: cx, y: cy, r: Math.max(0.03, r/mn)}; }
   // 骨格：画像上で左にある方を L にする
   const side = (a, b) => { const A = P(a, 0.25), B = P(b, 0.25); if (A && B) return A.x <= B.x ? [A, B] : [B, A]; return A ? [A, null] : [null, B]; };
-  const [shL, shR] = side(11, 12), [elL, elR] = side(13, 14), [hipL, hipR] = side(23, 24), [knL, knR] = side(25, 26), [ftL, ftR] = side(31, 32);
-  const pose = (shL && shR) ? {shL, shR, elL, elR, hipL, hipR, knL, knR, ftL, ftR} : null;
+  const P3 = (i, th) => lm[i] && (lm[i].visibility == null || lm[i].visibility > (th == null ? 0.3 : th)) ? {x: lm[i].x, y: lm[i].y, z: lm[i].z || 0} : null;
+  const side3 = (a, b) => { const A = P3(a, 0.25), B = P3(b, 0.25); if (A && B) return A.x <= B.x ? [A, B] : [B, A]; return A ? [A, null] : [null, B]; };
+  const [shL, shR] = side3(11, 12), [elL, elR] = side3(13, 14), [hipL, hipR] = side3(23, 24), [knL, knR] = side3(25, 26), [ftL, ftR] = side3(31, 32), [wrL, wrR] = side3(15, 16);
+  const pose = (shL && shR) ? {shL, shR, elL, elR, hipL, hipR, knL, knR, ftL, ftR, wrL, wrR} : null;
   const raw = {face: face ? Object.assign({}, face) : null, pose: pose ? JSON.parse(JSON.stringify(pose)) : null};
   // 直された癖を足す：関節ごとの平均ずれ（肩幅単位）と、顔の丸の倍率・上下ずれ
   if (pose && autoModel.poseN >= 2 && autoModel.poseBias) { const sw = Math.hypot((shR.x - shL.x)*iw, (shR.y - shL.y)*ih) || mn*0.2; Object.entries(autoModel.poseBias).forEach(([k, b]) => { if (pose[k] && b) { pose[k] = {x: pose[k].x + b.dx*sw/iw, y: pose[k].y + b.dy*sw/ih}; } }); }
@@ -3048,6 +3189,7 @@ function renderProps(){
     if (underlay) { const b = document.createElement('button'); b.className = 'ghost'; b.textContent = '下絵を外す'; b.addEventListener('click', () => { underlay = null; renderMain(); }); u.appendChild(b); }
     box.appendChild(u);
     if (sketch.vp) box.appendChild(vpSliders(() => sketch.vp, () => renderMain(), () => { renderAll(); storeLater(); }));
+    k3props(box, null);
     const a = document.createElement('div'); a.className = 'actions';
     a.innerHTML = `<button class="primary" id="genBtn2">構図を生成</button><div class="row"><button class="ghost" id="clearSketch">スケッチを白紙に</button></div>`;
     a.querySelector('#genBtn2').addEventListener('click', generateAll);
@@ -3083,6 +3225,7 @@ function renderProps(){
   box.appendChild(dial);
   box.appendChild(chipGroup('コントラスト', CONTRASTS, c.contrast, k => { pushUndo(); c.contrast = k; c.edited = true; scoreComp(c); renderAll(); storeLater(); }));
   if (c.vp) box.appendChild(vpSliders(() => c.vp, () => { c.vis.grid = true; c.angle = inferAngleFromVp(c.vp); rebuildBodies(c); c.name = `${SHOTS[c.shot]}・${ANGLES[c.angle]}・${PATTERNS[c.pattern]}`; c.edited = true; scoreComp(c); renderMain(); }, () => { renderAll(); storeLater(); }));
+  k3props(box, c);
   const lg = document.createElement('div'); lg.className = 'group'; lg.innerHTML = `<h3>表示する要素</h3>`; const ch = document.createElement('div'); ch.className = 'chips';
   Object.entries(LAYERS).forEach(([k, l]) => { const b = document.createElement('button'); b.className = 'tg' + (c.vis[k] ? ' on' : ''); b.textContent = l; b.addEventListener('click', () => { c.vis[k] = !c.vis[k]; scoreComp(c); renderAll(); storeLater(); }); ch.appendChild(b); });
   const lb = document.createElement('button'); lb.className = 'tg' + (showLabels ? ' on' : ''); lb.textContent = '名札'; lb.title = 'メイン画面だけに、手・固形物などの名前を添える'; lb.addEventListener('click', () => { showLabels = !showLabels; renderProps(); renderMain(); }); ch.appendChild(lb);
@@ -3641,6 +3784,13 @@ const ZH = {
   '骨格を検出（AI・端末内）': '偵測骨架（AI・裝置內）',
   '骨格を消しました（Ctrl+Z で戻せます）': '已清除骨架（可用 Ctrl+Z 復原）',
   '・骨格あり': '・有骨架',
+  '3D素体（VRM）': '3D素體（VRM）', '読み込み中の素体：': '目前的素體：', '別の VRM に替える': '換成別的 VRM', 'VRM を読み込む': '讀入 VRM', '外す': '移除',
+  'VRoid Studio などで作った VRM を読み込むと、コンセプト表示の素体が本物の 3D になり、この構図のポーズを取ります。モデルはこのブラウザ内にだけ保存され、送信しません。': '讀入用 VRoid Studio 等製作的 VRM 後，概念顯示的素體會變成真正的 3D，並擺出這個構圖的姿勢。模型只保存在這個瀏覽器內，不會傳送。',
+  'コンセプト表示で使う': '在概念顯示中使用', 'グレーの素体': '灰色素體', 'OBJ 書き出し（この構図のポーズ）': '匯出 OBJ（此構圖的姿勢）',
+  'クリスタ：ファイル → 読み込み → 3Dデータ で OBJ を開くと、ポーズ済みの素体がキャンバスに乗ります（関節はクリスタでは動かせません）。': 'CLIP STUDIO：檔案 → 讀入 → 3D 資料，開啟 OBJ 後，擺好姿勢的素體就會放到畫布上（關節無法在 CLIP STUDIO 內移動）。',
+  'VRM（または GLB）ファイルを選んでください': '請選擇 VRM（或 GLB）檔案', '3D素体を読み込んでいます…（端末内だけ）': '正在讀入 3D 素體…（只在裝置內）',
+  '3D素体「': '3D 素體「', '」を読み込みました（このブラウザ内に保存）': '」已讀入（保存在這個瀏覽器內）', '3D素体を読み込めませんでした：': '無法讀入 3D 素體：', '3D素体を外しました': '已移除 3D 素體',
+  '先に VRM を読み込んでください': '請先讀入 VRM', 'OBJ を書き出しました（クリスタ：ファイル → 読み込み → 3Dデータ）': '已匯出 OBJ（CLIP STUDIO：檔案 → 讀入 → 3D 資料）', 'OBJ を書き出しました': '已匯出 OBJ',
   '消失点（画面外もOK）': '消失點（也可放在畫面外）', '消失点 画面外 ': '消失點 畫面外 ',
   '消失点ツールでドラッグしたまま枠の外へ出しても置けます。枠のふちの矢印をドラッグしても動きます。': '用消失點工具按住拖到框外也能放置。拖曳框邊的箭頭也能移動。',
   '横': '橫', '縦': '直',
@@ -3917,6 +4067,7 @@ document.addEventListener('dragenter', e => { if (![...e.dataTransfer.types].inc
 document.addEventListener('dragover', e => { if ([...e.dataTransfer.types].includes('Files')) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } });
 document.addEventListener('dragleave', e => { if (![...e.dataTransfer.types].includes('Files')) return; dragDepth = Math.max(0, dragDepth - 1); if (!dragDepth) $('dropHint').classList.remove('show'); });
 document.addEventListener('drop', e => { if (![...e.dataTransfer.types].includes('Files')) return; e.preventDefault(); dragDepth = 0; $('dropHint').classList.remove('show');
+  const vrmF = [...e.dataTransfer.files].find(f => /\.(vrm|glb)$/i.test(f.name)); if (vrmF) { k3loadFile(vrmF); return; }
   const files = [...e.dataTransfer.files].filter(isImageFile); if (!files.length) { toast('画像ファイルをドロップしてください'); return; }
   if (appTab === 'crit') { startCrit(files[0]); return; }
   if (trace) { startTrace(files[0], [...trace.queue, ...files.slice(1)], trace.tpl); return; }
@@ -3972,6 +4123,7 @@ if (uiZoom === 1 && window.innerWidth < 700) applyZoom(0.6, false);
   }
   if (lang === 'zh') retranslate();
   try { bootstrapLearning(); } catch(e) {}
+  k3bootstrap();
 })();
 })();
 </script>

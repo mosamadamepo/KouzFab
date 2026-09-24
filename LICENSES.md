@@ -15,3 +15,11 @@ Unless required by applicable law or agreed to in writing, software distributed 
 ## UTIF.js（`index.html` 内に同梱）
 
 Copyright (c) Photopea. MIT License.
+
+## three.js（`vendor/kouzu3d.js` に同梱）
+
+Copyright © 2010-2024 three.js authors. MIT License. https://github.com/mrdoob/three.js
+
+## @pixiv/three-vrm（`vendor/kouzu3d.js` に同梱）
+
+Copyright (c) 2019 pixiv Inc. MIT License. https://github.com/pixiv/three-vrm

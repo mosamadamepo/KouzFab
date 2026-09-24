@@ -27,11 +27,19 @@ git push -u origin main
 
 以後の更新は、差し替えた `index.html` を置いて `git add . && git commit -m "更新" && git push` だけです。
 
+## 3D素体（VRM）
+
+- 「構図をつくる」の設定パネル **「3D素体（VRM）」→「VRM を読み込む」**（またはアプリに .vrm をドロップ）。VRoid Studio で書き出した VRM 1.0 / 0.x が読めます。
+- コンセプト表示の主役が、その VRM を構図の骨格（肩・腰の傾き、肘・膝、あおり／ふかん、光源）どおりにポーズさせた 3D になります。「グレーの素体」で髪・服・目のハイライトを隠し、灰色の素体として表示できます。
+- **OBJ 書き出し（この構図のポーズ）** → CLIP STUDIO PAINT の「ファイル → 読み込み → 3Dデータ」でキャンバスに乗せられます（足元が原点、単位は m）。
+- モデルはこのブラウザ（IndexedDB）にだけ保存され、送信しません。`vendor/kouzu3d.js` は three.js と @pixiv/three-vrm（いずれも MIT）を一つにまとめたものです。
+
 ## 構成
 
 ```
 index.html              アプリ本体（一枚 HTML 版と同じ。骨格検出は mediapipe/pose があるときだけ有効）
 mediapipe/pose/         MediaPipe Pose（Apache-2.0）— pose.js, wasm, モデル（full）
+vendor/kouzu3d.js       three.js ＋ @pixiv/three-vrm（MIT）のバンドル。3D素体の表示と OBJ 書き出しに使用
 LICENSES.md             同梱ライブラリのライセンス表記
 .nojekyll               GitHub Pages で _ 始まりのファイルも配信するための印
 ```
