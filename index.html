@@ -2203,12 +2203,16 @@ function drawSketchCanvas(ctx, W, H, o){
   drawEmph(ctx, sketch.emph, lw);
   sketch.faces.forEach((f, i) => { ctx.strokeStyle = COL.face; ctx.lineWidth = lw(i ? 2 : 3); ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, TAU); ctx.stroke(); ctx.fillStyle = rgba(COL.face, .12); ctx.fill();
     ctx.beginPath(); ctx.moveTo(f.x - f.r*0.5, f.y); ctx.lineTo(f.x + f.r*0.5, f.y); ctx.moveTo(f.x, f.y - f.r*0.6); ctx.lineTo(f.x, f.y + f.r*0.6); ctx.lineWidth = lw(1); ctx.strokeStyle = rgba(COL.face, .6); ctx.stroke(); });
-  if (o.handles) { sketch.faces.forEach(f => { handle(ctx, f, lw, COL.face); handle(ctx, {x: f.x + f.r, y: f.y}, lw, COL.face, true); }); (sketch.hands || []).forEach(h => handle(ctx, h, lw, COL.face, true)); if (sketch.vp) handle(ctx, sketch.vp, lw, '#fff'); }
+  if (o.handles) { sketch.faces.forEach(f => { handle(ctx, f, lw, COL.face); handle(ctx, {x: f.x + f.r, y: f.y}, lw, COL.face, true); }); (sketch.hands || []).forEach(h => handle(ctx, h, lw, COL.face, true)); if (sketch.vp) handle(ctx, vpOnEdge(sketch.vp, lw(26)), lw, '#fff'); }
   ctx.restore();
 }
 function drawUnderlay(ctx){
   const iw = underlay.naturalWidth || underlay.width, ih = underlay.naturalHeight || underlay.height, k = Math.max(VW/iw, VH/ih);
   ctx.save(); ctx.globalAlpha = underlayAlpha; ctx.drawImage(underlay, (VW - iw*k)/2, (VH - ih*k)/2, iw*k, ih*k); ctx.restore();
+}
+function vpOnEdge(vp, pad){ // 画面外の消失点は、枠の内側（pad）に寄せた位置に印を出す
+  const inside = vp.x >= 0 && vp.x <= VW && vp.y >= 0 && vp.y <= VH; if (inside) return {x: vp.x, y: vp.y, off: false};
+  return {x: clamp(vp.x, pad, VW - pad), y: clamp(vp.y, pad, VH - pad), off: true};
 }
 function drawGrid(ctx, vp, lw, alpha){
   ctx.save(); ctx.strokeStyle = `rgba(255,255,255,${0.2*alpha})`; ctx.lineWidth = lw(1);
@@ -2220,6 +2224,9 @@ function drawGrid(ctx, vp, lw, alpha){
   ctx.beginPath(); for (let i = 1; i < 7; i++) { const t = Math.pow(i/7, 2.2); const y = vp.y + (VH*1.1 - vp.y)*t; if (y > vp.y) { ctx.moveTo(0, y); ctx.lineTo(VW, y); } const y2 = vp.y - (vp.y + VH*0.1)*t; if (y2 < vp.y) { ctx.moveTo(0, y2); ctx.lineTo(VW, y2); } }
   ctx.stroke();
   ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.beginPath(); ctx.arc(vp.x, vp.y, lw(4), 0, TAU); ctx.fill();
+  const e = vpOnEdge(vp, lw(26)); if (e.off) { // 画面外：枠のふちに矢印と距離
+    const ang = Math.atan2(vp.y - e.y, vp.x - e.x), L = lw(12); ctx.fillStyle = `rgba(255,255,255,${0.85*alpha})`; ctx.beginPath(); ctx.moveTo(e.x + Math.cos(ang)*L, e.y + Math.sin(ang)*L); ctx.lineTo(e.x + Math.cos(ang + 2.5)*L, e.y + Math.sin(ang + 2.5)*L); ctx.lineTo(e.x + Math.cos(ang - 2.5)*L, e.y + Math.sin(ang - 2.5)*L); ctx.closePath(); ctx.fill();
+    ctx.font = `500 ${lw(11)}px ${getComputedStyle(document.body).fontFamily}`; ctx.textBaseline = 'middle'; ctx.textAlign = 'center'; const d = Math.round(Math.hypot(vp.x - e.x, vp.y - e.y)/VW*100); ctx.fillText(`消失点 画面外 ${d}%`, clamp(e.x, lw(50), VW - lw(50)), clamp(e.y + (e.y < VH/2 ? lw(20) : -lw(20)), lw(10), VH - lw(10))); }
   ctx.restore();
 }
 function smoothPath(ctx, pts, closed, eps){
@@ -2441,7 +2448,7 @@ function handlesOf(c){
   c.hands.forEach((hd, i) => h.push({t: 'hand', i, x: hd.x, y: hd.y, c: COL.face, sq: true}));
   if (c.hino) h.push({t: 'hino', x: c.hino.x, y: c.hino.y, c: COL.hino});
   if (c.skel) Object.entries(c.skel).forEach(([k, q]) => { if (q) h.push({t: 'skel', k, x: q.x, y: q.y, c: COL.body, sq: true}); });
-  if (c.vp) h.push({t: 'vp', x: c.vp.x, y: c.vp.y, c: '#ffffff'});
+  if (c.vp) { const e = vpOnEdge(c.vp, 26/(mainW/VW)); h.push({t: 'vp', x: e.x, y: e.y, off: e.off, c: '#ffffff'}); }
   const lp = lightPoint(c); h.push({t: 'light', x: clamp(lp.x, 40, VW - 40), y: clamp(lp.y, 40, VH - 40), c: '#ffe9b0'});
   return h;
 }
@@ -2482,7 +2489,8 @@ function drawTrace(ctx, W, H, o){
   ctx.save(); ctx.fillStyle = 'rgba(40,40,44,.18)'; ctx.fillRect(0, 0, W, H); ctx.restore();
   const P = p => ({x: p.x*W, y: p.y*H});
   ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  if (t.vp) { const v = P(t.vp); ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(-W, v.y); ctx.lineTo(W*2, v.y); for (let i = 0; i < 16; i++) { const a = i/16*TAU; ctx.moveTo(v.x, v.y); ctx.lineTo(v.x + Math.cos(a)*W*2, v.y + Math.sin(a)*W*2); } ctx.stroke(); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(v.x, v.y, 5, 0, TAU); ctx.fill(); }
+  if (t.vp) { const v = P(t.vp); ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(-W, v.y); ctx.lineTo(W*2, v.y); for (let i = 0; i < 16; i++) { const a = i/16*TAU; ctx.moveTo(v.x, v.y); ctx.lineTo(v.x + Math.cos(a)*W*2, v.y + Math.sin(a)*W*2); } ctx.stroke(); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(v.x, v.y, 5, 0, TAU); ctx.fill();
+    const inside = t.vp.x >= 0 && t.vp.x <= 1 && t.vp.y >= 0 && t.vp.y <= 1; if (!inside) { const e = {x: clamp(v.x, 26, W - 26), y: clamp(v.y, 26, H - 26)}, ang = Math.atan2(v.y - e.y, v.x - e.x), L = 12; ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.beginPath(); ctx.moveTo(e.x + Math.cos(ang)*L, e.y + Math.sin(ang)*L); ctx.lineTo(e.x + Math.cos(ang + 2.5)*L, e.y + Math.sin(ang + 2.5)*L); ctx.lineTo(e.x + Math.cos(ang - 2.5)*L, e.y + Math.sin(ang - 2.5)*L); ctx.closePath(); ctx.fill(); if (o.handles) { ctx.fillStyle = '#fff'; ctx.strokeStyle = '#999'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(e.x, e.y, 6, 0, TAU); ctx.fill(); ctx.stroke(); } ctx.font = `500 11px ${getComputedStyle(document.body).fontFamily}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.fillText(`消失点 画面外 ${Math.round(Math.hypot(v.x - e.x, v.y - e.y)/W*100)}%`, clamp(e.x, 50, W - 50), clamp(e.y + (e.y < H/2 ? 20 : -20), 10, H - 10)); } }
   t.tris.forEach((tri, i) => { const col = TRI_COL[Math.min(i, 3)]; ctx.beginPath(); tri.forEach((p, k) => { const q = P(p); k ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y); }); ctx.closePath(); ctx.setLineDash([14, 8]); ctx.lineWidth = i ? 3 : 4.5; ctx.strokeStyle = rgba(col, i ? .6 : .8); ctx.stroke(); ctx.setLineDash([]); });
   t.strokes.forEach(s => { ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 3; ctx.beginPath(); s.forEach((p, i) => { const q = P(p); i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y); }); ctx.stroke(); });
   (t.emph || []).forEach(e => { if (e.kind === 'marker') { ctx.strokeStyle = rgba(COL.marker, .35); ctx.lineWidth = m*0.046; } else { ctx.strokeStyle = rgba(COL.marker, .9); ctx.lineWidth = 2.5; ctx.setLineDash([7, 5]); } smoothPath(ctx, e.pts.map(P), e.kind === 'loop', 3); if (e.kind === 'loop') { ctx.fillStyle = rgba(COL.marker, .14); ctx.fill(); } ctx.stroke(); ctx.setLineDash([]); });
@@ -2770,7 +2778,7 @@ function tracePointerDown(e){
   const p = toN(e), t = trace.tpl, r = main.getBoundingClientRect(), m = Math.min(r.width, r.height), hit = 14/m;
   const tl = e.button === 2 ? 'erase' : tool; // 右クリックは消しゴム
   const distN = (a, b) => Math.hypot((a.x - b.x)*r.width, (a.y - b.y)*r.height)/m;
-  if (tl === 'select') { let best = null, bd = hit; t.faces.forEach((f, i) => { const dr = distN({x: f.x + f.r*m/r.width, y: f.y}, p), d = distN(f, p); if (dr < bd) { bd = dr; best = {t: 'faceR', i}; } else if (d < bd) { bd = d; best = {t: 'face', i}; } }); if (t.vp && distN(t.vp, p) < bd) best = {t: 'vp'}; if (t.pose) Object.entries(t.pose).forEach(([k, q]) => { if (q && distN(q, p) < bd) { bd = distN(q, p); best = {t: 'pose', k}; } }); if (!best) { const hi = (t.hands || []).findIndex(h => distN(h, p) < h.s*0.9); if (hi >= 0) best = {t: 'hand', i: hi}; } if (best) { tracePush(); drag = {kind: 'traceHandle', h: best}; } return; }
+  if (tl === 'select') { let best = null, bd = hit; t.faces.forEach((f, i) => { const dr = distN({x: f.x + f.r*m/r.width, y: f.y}, p), d = distN(f, p); if (dr < bd) { bd = dr; best = {t: 'faceR', i}; } else if (d < bd) { bd = d; best = {t: 'face', i}; } }); if (t.vp) { const inside = t.vp.x >= 0 && t.vp.x <= 1 && t.vp.y >= 0 && t.vp.y <= 1; const e = inside ? t.vp : {x: clamp(t.vp.x, 26/r.width, 1 - 26/r.width), y: clamp(t.vp.y, 26/r.height, 1 - 26/r.height)}; if (distN(e, p) < bd) { bd = distN(e, p); best = {t: 'vp', off: !inside, x: e.x, y: e.y}; } } if (t.pose) Object.entries(t.pose).forEach(([k, q]) => { if (q && distN(q, p) < bd) { bd = distN(q, p); best = {t: 'pose', k}; } }); if (!best) { const hi = (t.hands || []).findIndex(h => distN(h, p) < h.s*0.9); if (hi >= 0) best = {t: 'hand', i: hi}; } if (best) { tracePush(); drag = {kind: 'traceHandle', h: best}; } return; }
   if (tl === 'tri') { if (!triTaps.length) tracePush(); }
   else tracePush();
   if (tl === 'face') { const f = {x: p.x, y: p.y, r: 0.03}; t.faces.push(f); drag = {kind: 'traceFace', f, start: p}; }
@@ -2778,27 +2786,33 @@ function tracePointerDown(e){
   else if (tl === 'loop' || tl === 'marker') { t.emph = t.emph || []; const em = {kind: tl, pts: [p]}; t.emph.push(em); drag = {kind: 'traceEmph', e: em}; }
   else if (tl === 'hand') { drag = {kind: 'traceHand', pts: [p]}; }
   else if (tl === 'tri') { triTaps.push(p); if (triTaps.length === 3) { t.tris.push(triTaps.map(q => ({x: q.x, y: q.y}))); triTaps = []; } }
-  else if (tl === 'vp') t.vp = {x: p.x, y: p.y};
-  else if (tl === 'erase') {
-    const near = (pts, rr) => pts.some(q => distN(q, p) < rr);
-    let i = (t.emph || []).findIndex(e => near(e.pts, 0.04)); if (i >= 0) t.emph.splice(i, 1);
-    else if ((i = t.strokes.findIndex(s => near(s, 0.03))) >= 0) t.strokes.splice(i, 1);
-    else if ((i = t.tris.findIndex(tr => near(tr, 0.04))) >= 0) t.tris.splice(i, 1);
-    else if ((i = (t.hands || []).findIndex(h => distN(h, p) < h.s*1.1)) >= 0) t.hands.splice(i, 1);
-    else if ((i = t.faces.findIndex(f => distN(f, p) < f.r)) >= 0) t.faces.splice(i, 1);
-    else if (t.vp && distN(t.vp, p) < 0.04) t.vp = null;
-    else if (t.pose && Object.values(t.pose).some(q => q && distN(q, p) < 0.04)) { t.pose = null; toast('骨格を消しました（Ctrl+Z で戻せます）'); }
-  }
+  else if (tl === 'vp') { t.vp = {x: p.x, y: p.y}; drag = {kind: 'traceVp'}; }
+  else if (tl === 'erase') { traceEraseAt(p); if (e.button === 2) drag = {kind: 'traceErase'}; }
   renderMain(); renderProps();
+}
+function traceEraseAt(p){ // なぞり画面の消しゴム（右クリックのドラッグでも呼ばれる）
+  const t = trace.tpl, r = main.getBoundingClientRect(), m = Math.min(r.width, r.height);
+  const distN = (a, b) => Math.hypot((a.x - b.x)*r.width, (a.y - b.y)*r.height)/m;
+  const near = (pts, rr) => pts.some(q => distN(q, p) < rr);
+  let i = (t.emph || []).findIndex(e => near(e.pts, 0.04)); if (i >= 0) { t.emph.splice(i, 1); return true; }
+  if ((i = t.strokes.findIndex(s => near(s, 0.03))) >= 0) { t.strokes.splice(i, 1); return true; }
+  if ((i = t.tris.findIndex(tr => near(tr, 0.04))) >= 0) { t.tris.splice(i, 1); return true; }
+  if ((i = (t.hands || []).findIndex(h => distN(h, p) < h.s*1.1)) >= 0) { t.hands.splice(i, 1); return true; }
+  if ((i = t.faces.findIndex(f => distN(f, p) < f.r)) >= 0) { t.faces.splice(i, 1); return true; }
+  if (t.vp && distN(t.vp, p) < 0.04) { t.vp = null; return true; }
+  if (t.pose && Object.values(t.pose).some(q => q && distN(q, p) < 0.04)) { t.pose = null; toast('骨格を消しました（Ctrl+Z で戻せます）'); return true; }
+  return false;
 }
 function tracePointerMove(e){
   const p = toN(e), t = trace.tpl, r = main.getBoundingClientRect(), m = Math.min(r.width, r.height);
   if (drag.kind === 'traceFace') drag.f.r = Math.max(0.015, Math.hypot((p.x - drag.start.x)*r.width, (p.y - drag.start.y)*r.height)/m);
+  else if (drag.kind === 'traceVp') t.vp = {x: p.x, y: p.y};
+  else if (drag.kind === 'traceErase') { if (traceEraseAt(p)) renderProps(); }
   else if (drag.kind === 'traceStroke' || drag.kind === 'traceEmph' || drag.kind === 'traceHand') { const arr = drag.kind === 'traceEmph' ? drag.e.pts : drag.pts; const l = arr[arr.length-1]; if (Math.hypot((l.x - p.x)*r.width, (l.y - p.y)*r.height) > 5) arr.push(p);
     if (drag.kind === 'traceStroke') { renderMain(); mctx.save(); mctx.strokeStyle = '#fff'; mctx.lineWidth = 3; mctx.lineCap = 'round'; mctx.beginPath(); arr.forEach((q, i) => i ? mctx.lineTo(q.x*mainW, q.y*mainH) : mctx.moveTo(q.x*mainW, q.y*mainH)); mctx.stroke(); mctx.restore(); return; }
     if (drag.kind === 'traceHand') { const now = performance.now(); if (trace.img && arr.length >= 4 && now - (drag.lastSil || 0) > 90) { drag.lastSil = now; try { const sil = handSilhouette(trace.img, arr.map(q => ({x: q.x*trace.img.width, y: q.y*trace.img.height}))); drag.preview = sil ? sil.pts.map(q => ({x: q.x/trace.img.width, y: q.y/trace.img.height})) : null; } catch(e) { drag.preview = null; } }
       renderMain(); drawLoopPreview(arr, drag.preview, q => ({x: q.x*mainW, y: q.y*mainH})); return; } }
-  else if (drag.kind === 'traceHandle') { const h = drag.h; if (h.t === 'face') { t.faces[h.i].x = p.x; t.faces[h.i].y = p.y; } else if (h.t === 'faceR') { const f = t.faces[h.i]; f.r = Math.max(0.015, Math.abs(p.x - f.x)*r.width/m); } else if (h.t === 'vp') { t.vp = {x: p.x, y: p.y}; } else if (h.t === 'pose') { t.pose[h.k] = {x: p.x, y: p.y}; } else if (h.t === 'hand') { const hd = t.hands[h.i]; const dx = p.x - hd.x, dy = p.y - hd.y; hd.x = p.x; hd.y = p.y; if (hd.pts) hd.pts.forEach(q => { q.x += dx; q.y += dy; }); } }
+  else if (drag.kind === 'traceHandle') { const h = drag.h; if (h.t === 'face') { t.faces[h.i].x = p.x; t.faces[h.i].y = p.y; } else if (h.t === 'faceR') { const f = t.faces[h.i]; f.r = Math.max(0.015, Math.abs(p.x - f.x)*r.width/m); } else if (h.t === 'vp') { if (h.off) { t.vp = {x: t.vp.x + p.x - h.x, y: t.vp.y + p.y - h.y}; h.x = p.x; h.y = p.y; } else t.vp = {x: p.x, y: p.y}; } else if (h.t === 'pose') { t.pose[h.k] = {x: p.x, y: p.y}; } else if (h.t === 'hand') { const hd = t.hands[h.i]; const dx = p.x - hd.x, dy = p.y - hd.y; hd.x = p.x; hd.y = p.y; if (hd.pts) hd.pts.forEach(q => { q.x += dx; q.y += dy; }); } }
   renderMain();
 }
 function drawLoopPreview(loop, sil, T){
@@ -2929,6 +2943,14 @@ function renderRecos(){
     el.addEventListener('click', () => { pushUndo(); const nc = JSON.parse(JSON.stringify(c)); nc.id = nextId(); delete nc.recoLabel; comps.push(nc); selected = nc.id; makeRecos(); renderAll(); storeLater(); toast('一覧に追加しました'); });
     row.appendChild(el); });
 }
+function vpSliders(get, onInput, onChange){ // 消失点を画面の外（-100%〜200%）にも置けるスライダー
+  const vp = get(), g = document.createElement('div'); g.className = 'group';
+  g.innerHTML = `<h3>消失点（画面外もOK）</h3><div class="lightdial"><span style="color:var(--muted);font-size:14px;min-width:2em">横</span><input type="range" id="vpX" min="-100" max="200" value="${Math.round(vp.x/VW*100)}"><em style="font-family:var(--num);min-width:3.2em;text-align:right;font-style:normal">${Math.round(vp.x/VW*100)}%</em></div><div class="lightdial"><span style="color:var(--muted);font-size:14px;min-width:2em">縦</span><input type="range" id="vpY" min="-100" max="200" value="${Math.round(vp.y/VH*100)}"><em style="font-family:var(--num);min-width:3.2em;text-align:right;font-style:normal">${Math.round(vp.y/VH*100)}%</em></div><p class="note">消失点ツールでドラッグしたまま枠の外へ出しても置けます。枠のふちの矢印をドラッグしても動きます。</p>`;
+  const ix = g.querySelector('#vpX'), iy = g.querySelector('#vpY');
+  ix.addEventListener('input', e => { get().x = e.target.value/100*VW; ix.nextElementSibling.textContent = e.target.value + '%'; onInput(); }); iy.addEventListener('input', e => { get().y = e.target.value/100*VH; iy.nextElementSibling.textContent = e.target.value + '%'; onInput(); });
+  ix.addEventListener('change', onChange); iy.addEventListener('change', onChange);
+  return g;
+}
 function chipGroup(title, map, cur, onPick){
   const g = document.createElement('div'); g.className = 'group'; g.innerHTML = `<h3>${title}</h3>`;
   const ch = document.createElement('div'); ch.className = 'chips';
@@ -2983,6 +3005,7 @@ function renderProps(){
     u.appendChild(rg);
     if (underlay) { const b = document.createElement('button'); b.className = 'ghost'; b.textContent = '下絵を外す'; b.addEventListener('click', () => { underlay = null; renderMain(); }); u.appendChild(b); }
     box.appendChild(u);
+    if (sketch.vp) box.appendChild(vpSliders(() => sketch.vp, () => renderMain(), () => { renderAll(); storeLater(); }));
     const a = document.createElement('div'); a.className = 'actions';
     a.innerHTML = `<button class="primary" id="genBtn2">構図を生成</button><div class="row"><button class="ghost" id="clearSketch">スケッチを白紙に</button></div>`;
     a.querySelector('#genBtn2').addEventListener('click', generateAll);
@@ -3017,6 +3040,7 @@ function renderProps(){
   dial.querySelector('input').addEventListener('change', () => { renderAll(); storeLater(); });
   box.appendChild(dial);
   box.appendChild(chipGroup('コントラスト', CONTRASTS, c.contrast, k => { pushUndo(); c.contrast = k; c.edited = true; scoreComp(c); renderAll(); storeLater(); }));
+  if (c.vp) box.appendChild(vpSliders(() => c.vp, () => { c.vis.grid = true; c.angle = inferAngleFromVp(c.vp); rebuildBodies(c); c.name = `${SHOTS[c.shot]}・${ANGLES[c.angle]}・${PATTERNS[c.pattern]}`; c.edited = true; scoreComp(c); renderMain(); }, () => { renderAll(); storeLater(); }));
   const lg = document.createElement('div'); lg.className = 'group'; lg.innerHTML = `<h3>表示する要素</h3>`; const ch = document.createElement('div'); ch.className = 'chips';
   Object.entries(LAYERS).forEach(([k, l]) => { const b = document.createElement('button'); b.className = 'tg' + (c.vis[k] ? ' on' : ''); b.textContent = l; b.addEventListener('click', () => { c.vis[k] = !c.vis[k]; scoreComp(c); renderAll(); storeLater(); }); ch.appendChild(b); });
   const lb = document.createElement('button'); lb.className = 'tg' + (showLabels ? ' on' : ''); lb.textContent = '名札'; lb.title = 'メイン画面だけに、手・固形物などの名前を添える'; lb.addEventListener('click', () => { showLabels = !showLabels; renderProps(); renderMain(); }); ch.appendChild(lb);
@@ -3044,7 +3068,7 @@ function toV(e){ const r = main.getBoundingClientRect(); return {x: (e.clientX -
 const activePointers = new Set();
 main.addEventListener('contextmenu', e => e.preventDefault()); // 右クリックは消しゴム
 main.addEventListener('pointerdown', e => {
-  if (e.button === 2) { if (trace) { tracePointerDown(e); return; } const p = toV(e), c = curComp(); pushUndo(); eraseAt(p, c); if (c) makeRecos(); renderAll(); storeLater(); return; }
+  if (e.button === 2) { main.setPointerCapture(e.pointerId); if (trace) { tracePointerDown(e); return; } const p = toV(e), c = curComp(); pushUndo(); eraseAt(p, c); drag = {kind: 'rerase', c}; renderAll(); return; }
   if (e.button !== 0) return;
   activePointers.add(e.pointerId);
   if (activePointers.size > 1) { if (drag) { drag = null; if (trace) traceUndoPop(); else undo(); } return; }
@@ -3055,7 +3079,7 @@ main.addEventListener('pointerdown', e => {
   if (tool === 'select') {
     if (c) { const hs = handlesOf(c); let best = null, bd = hitR; hs.forEach(h => { const d = dist(h, p); if (d < bd) { bd = d; best = h; } });
       if (best) { pushUndo(); drag = {kind: 'handle', h: best, c}; return; } }
-    else { let best = null, bd = hitR; sketch.faces.forEach((f, i) => { const d = dist(f, p), dr = dist({x: f.x + f.r, y: f.y}, p); if (dr < bd) { bd = dr; best = {t: 'faceR', i}; } else if (d < bd || (d < f.r && !best)) { bd = Math.min(d, bd); best = {t: 'face', i}; } }); if (sketch.vp && dist(sketch.vp, p) < bd) best = {t: 'vp'};
+    else { let best = null, bd = hitR; sketch.faces.forEach((f, i) => { const d = dist(f, p), dr = dist({x: f.x + f.r, y: f.y}, p); if (dr < bd) { bd = dr; best = {t: 'faceR', i}; } else if (d < bd || (d < f.r && !best)) { bd = Math.min(d, bd); best = {t: 'face', i}; } }); if (sketch.vp) { const e = vpOnEdge(sketch.vp, 26/(mainW/VW)); if (dist(e, p) < bd) best = {t: 'vp', off: e.off, x: e.x, y: e.y}; }
       if (!best) { const hi = (sketch.hands || []).findIndex(h => dist(h, p) < h.s*0.9); if (hi >= 0) best = {t: 'hand', i: hi}; }
       if (best) { pushUndo(); drag = {kind: 'sketchHandle', h: best}; return; } }
     return;
@@ -3065,7 +3089,7 @@ main.addEventListener('pointerdown', e => {
   else if (tool === 'flow') { drag = {kind: 'stroke', pts: [p], c}; }
   else if (tool === 'loop' || tool === 'marker') { drag = {kind: 'emph', e: {kind: tool, pts: [p]}, c}; (c ? c.emph : sketch.emph).push(drag.e); }
   else if (tool === 'hand') { drag = {kind: 'handloop', pts: [p], c}; }
-  else if (tool === 'vp') { if (c) { c.vp = {x: p.x, y: p.y}; c.vis.grid = true; c.angle = inferAngleFromVp(c.vp); rebuildBodies(c); c.name = `${SHOTS[c.shot]}・${ANGLES[c.angle]}・${PATTERNS[c.pattern]}`; c.edited = true; scoreComp(c); } else sketch.vp = {x: p.x, y: p.y}; renderAll(); storeLater(); }
+  else if (tool === 'vp') { if (c) { c.vp = {x: p.x, y: p.y}; c.vis.grid = true; c.angle = inferAngleFromVp(c.vp); rebuildBodies(c); c.name = `${SHOTS[c.shot]}・${ANGLES[c.angle]}・${PATTERNS[c.pattern]}`; c.edited = true; scoreComp(c); } else sketch.vp = {x: p.x, y: p.y}; drag = {kind: 'vpPlace', c}; renderAll(); storeLater(); }
   else if (tool === 'erase') { eraseAt(p, c); renderAll(); storeLater(); }
   renderMain();
 });
@@ -3078,7 +3102,9 @@ main.addEventListener('pointermove', e => {
     if (drag.kind === 'handloop') { const now = performance.now(); if (underlay && arr.length >= 4 && now - (drag.lastSil || 0) > 90) { drag.lastSil = now; const iw = underlay.naturalWidth || underlay.width, ih = underlay.naturalHeight || underlay.height, k = Math.max(VW/iw, VH/ih), ox = (VW - iw*k)/2, oy = (VH - ih*k)/2; try { const sil = handSilhouette(underlay, arr.map(q => ({x: (q.x - ox)/k, y: (q.y - oy)/k}))); drag.preview = sil ? sil.pts.map(q => ({x: ox + q.x*k, y: oy + q.y*k})) : null; } catch(e) { drag.preview = null; } }
       renderMain(); const sc = mainW/VW; drawLoopPreview(arr, drag.preview, q => ({x: q.x*sc, y: q.y*sc})); return; } }
   else if (drag.kind === 'handle') { moveHandle(drag.c, drag.h, p); }
-  else if (drag.kind === 'sketchHandle') { const h = drag.h; if (h.t === 'face') { const f = sketch.faces[h.i]; f.x = p.x; f.y = p.y; } else if (h.t === 'faceR') { const f = sketch.faces[h.i]; f.r = Math.max(22, Math.abs(p.x - f.x)); } else if (h.t === 'vp') { sketch.vp.x = p.x; sketch.vp.y = p.y; } else if (h.t === 'hand') { const hd = sketch.hands[h.i]; const dx = p.x - hd.x, dy = p.y - hd.y; hd.x = p.x; hd.y = p.y; if (hd.pts) hd.pts.forEach(q => { q.x += dx; q.y += dy; }); } }
+  else if (drag.kind === 'vpPlace') { const vp = c ? c.vp : sketch.vp; if (vp) { vp.x = p.x; vp.y = p.y; } }
+  else if (drag.kind === 'rerase') { eraseAt(p, c); }
+  else if (drag.kind === 'sketchHandle') { const h = drag.h; if (h.t === 'face') { const f = sketch.faces[h.i]; f.x = p.x; f.y = p.y; } else if (h.t === 'faceR') { const f = sketch.faces[h.i]; f.r = Math.max(22, Math.abs(p.x - f.x)); } else if (h.t === 'vp') { if (h.off) { sketch.vp.x += p.x - h.x; sketch.vp.y += p.y - h.y; h.x = p.x; h.y = p.y; } else { sketch.vp.x = p.x; sketch.vp.y = p.y; } } else if (h.t === 'hand') { const hd = sketch.hands[h.i]; const dx = p.x - hd.x, dy = p.y - hd.y; hd.x = p.x; hd.y = p.y; if (hd.pts) hd.pts.forEach(q => { q.x += dx; q.y += dy; }); } }
   renderMain();
 });
 function drawStrokePreview(pts, isHand){ renderMain(); const s = mainW/VW; mctx.save(); mctx.scale(s, s); mctx.strokeStyle = isHand ? COL.face : COL.hair; mctx.lineWidth = 2.5/s; mctx.lineCap = 'round'; mctx.lineJoin = 'round'; if (isHand) mctx.setLineDash([8/s, 6/s]); mctx.beginPath(); pts.forEach((p, i) => i ? mctx.lineTo(p.x, p.y) : mctx.moveTo(p.x, p.y)); if (isHand) mctx.closePath(); mctx.stroke(); mctx.restore(); }
@@ -3095,6 +3121,8 @@ function endDrag(e){
       if (!h) { h = fitHand(d.pts, face, VMIN); const lib = handLib(); if (lib.length) h = dressHand(h, lib[Math.floor(Math.random()*lib.length)], face ? h.x < face.x : false); }
       if (c) { c.hands.push(h); c.vis.hands = true; c.edited = true; scoreComp(c); } else { sketch.hands = sketch.hands || []; sketch.hands.push(h); } toast(h.from ? `読ませた手「${h.from}」の形で置きました` : h.pts ? `下絵から手のシルエットを拾いました（${h.pts.length}点）` : '囲んだ大きさ・向きで手を置きました'); } }
   else if (d.kind === 'handle') { if (d.h.t === 'face' || d.h.t === 'faceR') rebuildBodies(d.c); d.c.edited = true; scoreComp(d.c); }
+  else if (d.kind === 'rerase') { if (c) scoreComp(c); }
+  else if (d.kind === 'vpPlace' && c) { c.angle = inferAngleFromVp(c.vp); rebuildBodies(c); c.name = `${SHOTS[c.shot]}・${ANGLES[c.angle]}・${PATTERNS[c.pattern]}`; scoreComp(c); }
   if (c) makeRecos();
   renderAll(); storeLater();
 }
@@ -3107,7 +3135,7 @@ function moveHandle(c, h, p){
   else if (h.t === 'solid') { c.solids[h.i].x = p.x; c.solids[h.i].y = p.y; }
   else if (h.t === 'hand') { const hd = c.hands[h.i]; const dx = p.x - hd.x, dy = p.y - hd.y; hd.x = p.x; hd.y = p.y; if (hd.pts) hd.pts.forEach(q => { q.x += dx; q.y += dy; }); }
   else if (h.t === 'hino') { c.hino.x = p.x; c.hino.y = p.y; }
-  else if (h.t === 'vp') { c.vp.x = p.x; c.vp.y = p.y; }
+  else if (h.t === 'vp') { if (h.off) { c.vp.x += p.x - h.x; c.vp.y += p.y - h.y; } else { c.vp.x = p.x; c.vp.y = p.y; } }
   else if (h.t === 'light') { c.light.dir = Math.atan2((p.y - VH/2)/VH, (p.x - VW/2)/VW); }
   h.x = p.x; h.y = p.y;
 }
@@ -3571,6 +3599,9 @@ const ZH = {
   '骨格を検出（AI・端末内）': '偵測骨架（AI・裝置內）',
   '骨格を消しました（Ctrl+Z で戻せます）': '已清除骨架（可用 Ctrl+Z 復原）',
   '・骨格あり': '・有骨架',
+  '消失点（画面外もOK）': '消失點（也可放在畫面外）', '消失点 画面外 ': '消失點 畫面外 ',
+  '消失点ツールでドラッグしたまま枠の外へ出しても置けます。枠のふちの矢印をドラッグしても動きます。': '用消失點工具按住拖到框外也能放置。拖曳框邊的箭頭也能移動。',
+  '横': '橫', '縦': '直',
   '右クリック：消す': '右鍵：清除',
   '骨格の学習：': '骨架學習：', '枚分の関節・顔の直しから、ずれの癖を補正中（2枚から効きます）': '張的關節・臉修正中學習偏差習慣（從 2 張開始生效）',
   'まだ0枚。検出したあと関節や顔の丸を直して保存すると、次からそのずれを先に補正します': '還是 0 張。偵測後修正關節或臉的圓並儲存，下次就會先補正該偏差',
