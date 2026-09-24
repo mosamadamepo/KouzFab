@@ -22,7 +22,7 @@
 *{box-sizing:border-box}
 html,body{height:100%}
 html{background:var(--bg)}
-body{margin:0;background:linear-gradient(180deg,var(--bg) 0%,var(--bg) 40%,#2e2e2e 100%) fixed;color:var(--text);font-family:var(--jp);font-size:16px;line-height:1.45;overflow:hidden}
+body{margin:0;background:linear-gradient(180deg,var(--bg) 0%,var(--bg) 35%,#363636 100%) fixed;color:var(--text);font-family:var(--jp);font-size:16px;line-height:1.45;overflow:hidden}
 button,select,input{font:inherit;color:inherit}
 button{cursor:pointer;border:0;background:var(--panel2);border-radius:9px;padding:5px 12px;line-height:1.35;font-weight:500;transition:background .12s}
 button:hover{background:var(--hover)}
@@ -151,7 +151,8 @@ footer.reco{background:var(--panel);border:1px solid var(--line);border-radius:v
 .recoRow{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px}
 .recoRow .thumb{flex:none;width:128px}
 footer.book{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:6px 12px;display:flex;align-items:center;gap:10px;min-width:0}
-.bookHead{display:flex;flex-direction:column;gap:2px;font-size:13px;flex:none;width:118px;line-height:1.3}
+.bookHead{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:13px;flex:none;line-height:1.3;text-align:center;white-space:nowrap;padding:0 6px}
+.bookHead b{font-weight:700;color:var(--text)}
 .bookHead small{color:var(--muted);font-size:11.5px}
 .bookRow{display:flex;gap:8px;overflow-x:auto;flex:1;min-width:0;padding:4px 2px;min-height:72px;align-items:center}
 .bookRow .empty{color:var(--muted);font-size:12.5px}
@@ -314,7 +315,7 @@ footer.book{background:var(--panel);border:1px solid var(--line);border-radius:v
     <div class="recoRow" id="recoRow"></div>
   </footer>
   <footer class="book">
-    <div class="bookHead">本の並び <span class="n" id="bookCount" style="font-family:var(--num);color:var(--accent);font-weight:600"></span><small>右の一覧でチェック → 順に並ぶ。ドラッグで入れ替え</small></div>
+    <div class="bookHead"><b>構図を連続で配置</b><span class="n" id="bookCount" style="font-family:var(--num);color:var(--accent);font-weight:600"></span></div>
     <div class="bookRow" id="bookRow"></div>
     <div class="bookActs"><button class="primary" id="bookPng" title="並んだ順に番号を付けて PNG にし、ZIP で一括保存">PNG 一括書き出し</button><button class="ghost" id="bookClip" title="並んだ順にレイヤー分け PSD（ZIP）">CLIP 一括</button><button class="ghost" id="bookClear">並びを空に</button></div>
   </footer>
@@ -3638,7 +3639,7 @@ let bookDrag = null;
 function renderBook(){
   const row = $('bookRow'); if (!row) return; row.innerHTML = ''; const list = syncPageOrder();
   $('bookCount').textContent = list.length ? `${list.length}p` : '';
-  if (!list.length) { row.innerHTML = `<div class="empty">右の一覧のチェックを入れた構図が、ここに順番に並びます。</div>`; return; }
+  if (!list.length) { row.innerHTML = `<div class="empty">チェックで構図を採用・ドラッグ＆ドロップで順番を変えられます</div>`; return; }
   list.forEach((c, i) => { const el = document.createElement('div'); el.className = 'page' + (selected === c.id ? ' sel' : ''); el.draggable = true; el.dataset.id = c.id; el.title = c.name;
     const cv = document.createElement('canvas'); const h = 64, w = Math.round(h*aspect); cv.width = w*2; cv.height = h*2; drawComp(cv.getContext('2d'), c, w*2, h*2, {mode: viewMode}); cv.style.width = w + 'px'; el.appendChild(cv);
     const no = document.createElement('span'); no.className = 'no'; no.textContent = i + 1; el.appendChild(no);
@@ -3658,7 +3659,7 @@ async function saveFile(blob, fname, doneMsg){ let dl = null; try { dl = window.
   if (dl) { try { await dl.save({filename: fname, data: blob}); toast(doneMsg || '書き出しました'); return true; } catch(err) { if (err && err.code === 'declined') return false; } }
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = fname; document.body.appendChild(a); a.click(); a.remove(); toast(doneMsg || '書き出しました'); return true; }
 async function exportBookPNG(){
-  const list = syncPageOrder(); if (!list.length) { toast('本の並びが空です。右の一覧でチェックを入れてください'); return; }
+  const list = syncPageOrder(); if (!list.length) { toast('まだ空です。右の一覧でチェックを入れてください'); return; }
   const long = +$('resSel').value; const W = aspect >= 1 ? long : Math.round(long*aspect), H = aspect >= 1 ? Math.round(long/aspect) : long;
   toast(`${list.length} 枚を書き出しています…`); await new Promise(r => setTimeout(r, 30));
   const files = []; const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const ctx = cv.getContext('2d');
@@ -3667,7 +3668,7 @@ async function exportBookPNG(){
 }
 $('bookPng').addEventListener('click', exportBookPNG);
 $('bookClip').addEventListener('click', exportClip);
-$('bookClear').addEventListener('click', () => { if (!pageOrder.length) return; pushUndo(); comps.forEach(c => { c.checked = false; }); pageOrder = []; renderThumbs(); renderBook(); storeLater(); toast('本の並びを空にしました（Ctrl+Z で戻せます）'); });
+$('bookClear').addEventListener('click', () => { if (!pageOrder.length) return; pushUndo(); comps.forEach(c => { c.checked = false; }); pageOrder = []; renderThumbs(); renderBook(); storeLater(); toast('並びを空にしました（Ctrl+Z で戻せます）'); });
 function updateClipCount(){ const n = comps.filter(c => c.checked).length; $('clipCount').textContent = n ? `(${n})` : ''; }
 async function exportClip(){
   let list = syncPageOrder(); if (!list.length && curComp()) list = [curComp()];
@@ -3731,9 +3732,9 @@ const ZH = {
   '画面全体の文字と部品の大きさ（ピンチでも変えられます）': '整個畫面的文字與元件大小（也可用雙指縮放）', '表示': '顯示', '極小': '極小', '大': '大', '中': '中', '小': '小',
   '見せ場に向けて構図を組み直しました': '已朝看點重新組合構圖',
   'CLIPで読み込む構図に含める': '納入要用 CLIP 讀入的構圖',
-  '本の並び': '書的排序', '右の一覧でチェック → 順に並ぶ。ドラッグで入れ替え': '在右側列表勾選 → 依序排列。拖曳可調換', '右の一覧のチェックを入れた構図が、ここに順番に並びます。': '在右側列表勾選的構圖，會依序排在這裡。',
+  '構図を連続で配置': '連續排列構圖', 'チェックで構図を採用・ドラッグ＆ドロップで順番を変えられます': '勾選即採用構圖・拖放可調整順序',
   '並んだ順に番号を付けて PNG にし、ZIP で一括保存': '依排列順序編號輸出 PNG，並以 ZIP 一次儲存', '並んだ順にレイヤー分け PSD（ZIP）': '依排列順序輸出分圖層 PSD（ZIP）', 'PNG 一括書き出し': '一次匯出 PNG', 'CLIP 一括': 'CLIP 一次匯出', '並びを空に': '清空排序', '並びから外す': '從排序移除',
-  '本の並びが空です。右の一覧でチェックを入れてください': '書的排序是空的。請在右側列表勾選', '枚を書き出しています…': '張正在匯出…', '枚を ZIP で書き出しました（番号順）': '張已以 ZIP 匯出（依編號）', '本の並びを空にしました（Ctrl+Z で戻せます）': '已清空書的排序（可用 Ctrl+Z 復原）',
+  'まだ空です。右の一覧でチェックを入れてください': '還是空的。請在右側列表勾選', '枚を書き出しています…': '張正在匯出…', '枚を ZIP で書き出しました（番号順）': '張已以 ZIP 匯出（依編號）', '並びを空にしました（Ctrl+Z で戻せます）': '已清空排列（可用 Ctrl+Z 復原）',
   '」をテンプレートに保存しました': '」已儲存為範本',
   '書き出す構図案を選んでください': '請選擇要匯出的構圖方案',
   '（読ませた構図を混ぜています）': '（已混入讀入的構圖）',
