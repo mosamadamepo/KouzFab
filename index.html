@@ -41,7 +41,7 @@ label.field{display:flex;align-items:center;gap:6px;color:var(--muted);font-size
 .zoomctl span{min-width:44px;font-size:12px}
 
 #zoom{--z:1;width:calc(100% / var(--z));height:calc(100% / var(--z));transform:scale(var(--z));transform-origin:0 0;container-type:inline-size;overflow:hidden;overscroll-behavior:contain}
-#app{height:100%;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto;gap:10px;padding-inline:16px;padding-block:10px}
+#app{height:100%;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto auto;gap:10px;padding-inline:16px;padding-block:10px}
 .zoomctl{display:flex;align-items:center;gap:2px;background:var(--panel);border-radius:10px;padding:3px}
 .zoomctl button{background:transparent;padding:3px 9px;font-family:var(--num);font-weight:600}
 .zoomctl span{font-family:var(--num);font-variant-numeric:tabular-nums;min-width:52px;text-align:center;color:var(--muted);font-size:14px}
@@ -58,6 +58,20 @@ main{display:grid;grid-template-columns:minmax(0,1fr) minmax(200px,22%);gap:12px
 .editor{display:grid;grid-template-columns:64px minmax(0,1fr) 250px;gap:10px;min-height:0;min-width:0;position:relative}
 .editor.closed{grid-template-columns:64px minmax(0,1fr)}
 .editor.closed .props{display:none}
+.hairPanel{position:absolute;right:8px;top:44px;max-height:calc(100% - 56px);width:60px;display:none;flex-direction:column;align-items:center;gap:6px;background:rgba(20,20,22,.8);border-radius:12px;padding:8px 4px;z-index:4;overflow:auto;font-size:11px;color:var(--muted)}
+.hairPanel.show{display:flex}
+.hairPanel .hp-title{font-size:11px;color:var(--text);text-align:center;line-height:1.2;max-width:54px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hairPanel .hp-sel{display:flex;flex-direction:column;gap:3px;align-items:center}
+.hairPanel .hp-sel button{width:22px;height:22px;padding:0;border-radius:50%;font-size:11px;font-family:var(--num);color:#fff;border:2px solid transparent;text-shadow:0 0 3px rgba(0,0,0,.8)}
+.hairPanel .hp-sel button.on{border-color:#fff}
+.hairPanel .hp-pal{display:grid;grid-template-columns:repeat(2,20px);gap:4px}
+.hairPanel .hp-pal button{width:20px;height:20px;padding:0;border-radius:50%;border:2px solid transparent}
+.hairPanel .hp-pal button.on{border-color:#fff}
+.hairPanel input[type=color]{width:26px;height:26px;padding:0;border:0;background:none;cursor:pointer}
+.hairPanel input[type=range]{writing-mode:vertical-lr;direction:rtl;appearance:slider-vertical;-webkit-appearance:slider-vertical;width:22px;height:88px;accent-color:var(--accent);margin:0}
+.hairPanel .hp-btn{width:50px;padding:3px 0;font-size:11px;border-radius:7px;background:rgba(255,255,255,.08);color:var(--text)}
+.hairPanel .hp-btn.on{background:var(--accent);color:#2a2115;font-weight:700}
+.hairPanel .hp-sep{width:36px;height:1px;background:rgba(255,255,255,.15)}
 .drawerBtn{position:absolute;right:8px;top:8px;display:flex;align-items:center;gap:4px;padding:3px 9px;font-size:13px;background:rgba(20,20,22,.55);color:var(--muted);border-radius:8px;z-index:4}
 .drawerBtn:hover{background:rgba(20,20,22,.8);color:var(--text)}
 .rail{display:flex;flex-direction:column;gap:6px;background:var(--panel);border-radius:var(--r);padding:8px 6px;overflow:auto}
@@ -135,6 +149,22 @@ footer.reco{background:var(--panel);border-radius:var(--r);padding:8px 12px;disp
 .recoHead small{color:var(--muted);font-size:14px}
 .recoRow{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px}
 .recoRow .thumb{flex:none;width:128px}
+footer.book{background:var(--panel);border-radius:var(--r);padding:6px 12px;display:flex;align-items:center;gap:10px;min-width:0}
+.bookHead{display:flex;flex-direction:column;gap:2px;font-size:13px;flex:none;width:118px;line-height:1.3}
+.bookHead small{color:var(--muted);font-size:11.5px}
+.bookRow{display:flex;gap:8px;overflow-x:auto;flex:1;min-width:0;padding:4px 2px;min-height:72px;align-items:center}
+.bookRow .empty{color:var(--muted);font-size:12.5px}
+.page{position:relative;flex:none;height:64px;border-radius:6px;overflow:hidden;background:var(--panel2);border:2px solid transparent;cursor:grab;user-select:none}
+.page canvas{display:block;height:100%;width:auto}
+.page.sel{border-color:var(--accent)}
+.page.dragging{opacity:.4}
+.page.before{box-shadow:-4px 0 0 var(--marker)}
+.page.after{box-shadow:4px 0 0 var(--marker)}
+.page .no{position:absolute;left:3px;top:3px;background:rgba(20,20,22,.8);color:var(--accent);font-family:var(--num);font-weight:600;font-size:11px;padding:1px 5px;border-radius:5px;pointer-events:none}
+.page .rm{position:absolute;right:2px;top:2px;width:16px;height:16px;border-radius:4px;background:rgba(20,20,22,.7);color:var(--text);font-size:11px;line-height:16px;text-align:center;padding:0;display:none}
+.page:hover .rm{display:block}
+.bookActs{display:flex;flex-direction:column;gap:5px;flex:none}
+.bookActs button{font-size:12.5px;padding:4px 10px;white-space:nowrap}
 .recoRow .thumb .pic{height:72px;width:calc(72px * var(--ar,1));max-width:100%;padding-top:0;margin:0 auto}
 .recoRow .thumb .cap{font-size:11.5px;padding:3px 6px}
 
@@ -147,7 +177,7 @@ footer.reco{background:var(--panel);border-radius:var(--r);padding:8px 12px;disp
 #appTabs{margin-left:12px}
 #appTabs button{padding:3px 12px;font-size:14px}
 #critique{display:none;grid-template-columns:minmax(0,1fr) minmax(250px,30%);gap:12px;min-height:0;min-width:0}
-#app.crit main,#app.crit footer.reco{display:none}
+#app.crit main,#app.crit footer.reco,#app.crit footer.book{display:none}
 #app.crit #critique{display:grid}
 .cside{background:var(--panel);border-radius:var(--r);padding:12px;overflow:auto;display:flex;flex-direction:column;gap:10px;font-size:14px;min-width:0}
 .cside h3{margin:0;font-size:13px;letter-spacing:.12em;color:var(--dim);font-weight:500;text-transform:uppercase;font-family:var(--num)}
@@ -202,7 +232,7 @@ footer.reco{background:var(--panel);border-radius:var(--r);padding:8px 12px;disp
       <div class="brand"><span class="logo">構図ファブリカ</span><span class="sub">Compositio Fabrica</span></div>
       <div class="tabs" id="appTabs"><button data-app="make" class="on">構図をつくる</button><button data-app="crit" title="描きかけの絵を読み込むと、疏密・明度・主次・図底・主力線などを診断して、案を採点して返します。画像はこの端末の外に出ません">描きかけを添削</button></div>
       <div class="minor" style="margin-left:auto">
-        <div class="zoomctl" title="画面全体の縮小・拡大（ピンチでも）"><button id="zoomOut" aria-label="縮小">−</button><span id="zoomVal">100%</span><button id="zoomIn" aria-label="拡大">＋</button></div>
+        <label class="field" title="画面全体の文字と部品の大きさ（ピンチでも変えられます）">表示 <select id="zoomSel"><option value="1.15">大</option><option value="1">中</option><option value="0.85">小</option><option value="0.7">極小</option></select></label>
         <label class="field">サイズ <select id="sizeSel"></select></label><label class="field">書き出し <select id="resSel"></select></label>
       </div>
     </div>
@@ -248,6 +278,7 @@ footer.reco{background:var(--panel);border-radius:var(--r);padding:8px 12px;disp
         <div class="tag" id="stageTag"></div>
         <div class="hint" id="stageHint"></div>
         <div class="toast" id="toast"></div>
+        <div class="hairPanel" id="hairPanel"></div>
         <div class="dropHint" id="dropHint"><span>ここに絵をドロップ → 線と丸をなぞる（Ctrl+V の貼り付けでも）</span></div>
       </div>
 
@@ -280,6 +311,11 @@ footer.reco{background:var(--panel);border-radius:var(--r);padding:8px 12px;disp
   <footer class="reco">
     <div class="recoHead">変化させるならこれも <small id="recoNote">同じキャラで飽きさせない、対になる構図</small></div>
     <div class="recoRow" id="recoRow"></div>
+  </footer>
+  <footer class="book">
+    <div class="bookHead">本の並び <span class="n" id="bookCount" style="font-family:var(--num);color:var(--accent);font-weight:600"></span><small>右の一覧でチェック → 順に並ぶ。ドラッグで入れ替え</small></div>
+    <div class="bookRow" id="bookRow"></div>
+    <div class="bookActs"><button class="primary" id="bookPng" title="並んだ順に番号を付けて PNG にし、ZIP で一括保存">PNG 一括書き出し</button><button class="ghost" id="bookClip" title="並んだ順にレイヤー分け PSD（ZIP）">CLIP 一括</button><button class="ghost" id="bookClear">並びを空に</button></div>
   </footer>
 </div></div>
 
@@ -1517,6 +1553,7 @@ let trace = null;        // {tpl, img, queue:[File], isNew}
 let gridTab = 'comps';
 let triTaps = [];
 let undoStack = [];
+let pageOrder = []; // 本の並び：チェックした構図の id を順に
 function storeTemplates(){ try { localStorage.setItem('kouzu-templates', JSON.stringify(templates)); } catch(e) { toast('テンプレートの保存に失敗しました（容量不足かも）'); } }
 let seedBase = (Date.now() % 100000) | 0;
 
@@ -1532,7 +1569,7 @@ const rgba = (h, a) => { const [r,g,b] = hexToRgb(h); return `rgba(${r},${g},${b
 const mix = (h1, h2, t) => { const a = hexToRgb(h1), b = hexToRgb(h2); return `rgb(${Math.round(lerp(a[0],b[0],t))},${Math.round(lerp(a[1],b[1],t))},${Math.round(lerp(a[2],b[2],t))})`; };
 let uid = 1; const nextId = () => 'c' + (uid++) + '_' + Date.now().toString(36);
 function toast(msg){ const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 1800); }
-function store(){ try { localStorage.setItem('kouzu-fabrica', JSON.stringify({sketch, comps, selected, viewMode, aspect, sizeIdx: $('sizeSel').value, resIdx: $('resSel').value, genCount, seedBase, b5: true})); } catch(e){} }
+function store(){ try { localStorage.setItem('kouzu-fabrica', JSON.stringify({sketch, comps, selected, viewMode, aspect, sizeIdx: $('sizeSel').value, resIdx: $('resSel').value, genCount, seedBase, b5: true, pageOrder})); } catch(e){} }
 const storeLater = () => { clearTimeout(store._t); store._t = setTimeout(store, 400); };
 
 function scalePts(obj, sx, sy){
@@ -2227,22 +2264,35 @@ function drawHairMass(ctx, hm, mode, lw, alphaK){ // mode: 'line' | 'flat' | 'co
       ctx.strokeStyle = rgba(light, .35*a); ctx.lineWidth = lw(1.4); hm.tips.forEach((t, i) => { if (i % 2) return; ctx.beginPath(); ctx.moveTo(hm.c.x + (t.root.x - hm.c.x)*0.25, hm.c.y + (t.root.y - hm.c.y)*0.25); ctx.quadraticCurveTo(hm.c.x + (t.root.x - hm.c.x)*0.6 + (t.root.y - hm.c.y)*0.15, hm.c.y + (t.root.y - hm.c.y)*0.6 - (t.root.x - hm.c.x)*0.15, t.tip.x, t.tip.y); ctx.stroke(); }); } }
   ctx.restore();
 }
-function hairMassProps(box, owner, ctxFlow, onChange){ // 設定パネル：髪の毛1・髪の毛2… の色・ぶわぶわ・風
-  const list = owner.hairMasses || []; if (!list.length) return;
-  const g = document.createElement('div'); g.className = 'group'; g.innerHTML = `<h3>髪の毛（囲み）</h3>`;
-  list.forEach((hm, i) => { const row = document.createElement('div'); row.style.cssText = 'display:flex;flex-direction:column;gap:5px;background:var(--panel2);border-radius:9px;padding:6px 8px';
-    row.innerHTML = `<div style="display:flex;align-items:center;gap:6px"><input type="color" value="${hm.color}" style="width:30px;height:24px;padding:0;border:0;background:none;cursor:pointer" aria-label="色"><input type="text" value="${hm.name.replace(/"/g, '&quot;')}" maxlength="12" style="flex:1;padding:3px 8px"><button class="ghost" style="padding:2px 8px;font-size:12px" data-act="del">消す</button></div><div class="chips">${HAIR_PAL.map(cc => `<button data-col="${cc}" title="${cc}" style="width:18px;height:18px;padding:0;border-radius:50%;background:${cc};border:2px solid ${cc === hm.color ? '#fff' : 'transparent'}"></button>`).join('')}</div><div class="lightdial"><span style="color:var(--muted);font-size:13px">ぶわぶわ</span><input type="range" min="0" max="100" value="${Math.round((hm.fluff == null ? 0.6 : hm.fluff)*100)}" aria-label="ぶわぶわ"><button class="tg${hm.wind ? ' on' : ''}" style="padding:2px 8px;font-size:12px;border-radius:999px" data-act="wind">風になびく</button><button class="ghost" style="padding:2px 8px;font-size:12px" data-act="reroll">別の房</button></div>`;
-    const [colIn, nameIn] = row.querySelectorAll('input'); const rng_ = row.querySelector('input[type=range]');
-    colIn.addEventListener('input', e => { hm.color = e.target.value; onChange(false); }); colIn.addEventListener('change', () => onChange(true));
-    nameIn.addEventListener('input', e => { hm.name = e.target.value; onChange(false); });
-    row.querySelectorAll('[data-col]').forEach(b => b.addEventListener('click', () => { hm.color = b.dataset.col; colIn.value = hm.color; onChange(true); }));
-    rng_.addEventListener('input', e => { hm.fluff = e.target.value/100; refluff(hm, ctxFlow.c, ctxFlow.flow); onChange(false); }); rng_.addEventListener('change', () => onChange(true));
-    row.querySelector('[data-act=wind]').addEventListener('click', () => { hm.wind = !hm.wind; refluff(hm, ctxFlow.c, ctxFlow.flow); onChange(true); });
-    row.querySelector('[data-act=reroll]').addEventListener('click', () => { hm.seed = 1 + Math.floor(Math.random()*1e6); refluff(hm, ctxFlow.c, ctxFlow.flow); onChange(true); });
-    row.querySelector('[data-act=del]').addEventListener('click', () => { pushUndo(); list.splice(i, 1); onChange(true); });
-    g.appendChild(row); });
-  const note = document.createElement('p'); note.className = 'note'; note.textContent = '囲んだ形を、風（動線の向き）と重さで膨らませています。選択ツールで真ん中の点をドラッグすると動きます。髪以外（布・飾り）の塊にも使えます。'; g.appendChild(note);
-  box.appendChild(g);
+let hairCur = null; // {id: 構図id|null(スケッチ), i}
+function hairOwner(cur){ if (!cur) return null; const o = cur.id ? comps.find(x => x.id === cur.id) : sketch; if (!o || !o.hairMasses || !o.hairMasses[cur.i]) return null; return o; }
+function hairPanelSig(){ const c = trace ? null : curComp(); const o = c || sketch; const list = (o && o.hairMasses) || []; return [trace ? 'T' : (c ? c.id : 'S'), tool, hairCur ? hairCur.id + ':' + hairCur.i : '-', list.map(h => h.name + '/' + (h.wind ? 1 : 0)).join('|')].join('#'); }
+let hairPanelLast = '';
+function renderHairPanel(){ // 画面の中（右のサイドバーの左）に縦に出す：色・ぶわぶわ・風。髪の毛ツール中か、髪の毛を選んでいるとき
+  const box = $('hairPanel'); const c = trace ? null : curComp(); const owner = c || sketch;
+  if (hairCur && (hairCur.id || null) !== (c ? c.id : null)) hairCur = null;
+  const list = (owner && owner.hairMasses) || [];
+  if (hairCur && !list[hairCur.i]) hairCur = null;
+  if (!hairCur && list.length && tool === 'hairmass') hairCur = {id: c ? c.id : null, i: list.length - 1};
+  const show = !trace && (tool === 'hairmass' || !!hairCur);
+  const sig = show ? hairPanelSig() : ''; if (sig === hairPanelLast && box.classList.contains('show') === show) return; hairPanelLast = sig;
+  box.classList.toggle('show', show); box.innerHTML = ''; if (!show) return;
+  const hm = hairCur ? list[hairCur.i] : null;
+  const flow = c ? c.flow : sketchFlow();
+  const onChange = full => { if (c) { c.edited = true; scoreComp(c); } renderMain(); if (full) { renderThumbs(); storeLater(); } };
+  if (list.length) { const sel = document.createElement('div'); sel.className = 'hp-sel'; list.forEach((h, i) => { const b = document.createElement('button'); b.textContent = i + 1; b.title = h.name; b.style.background = h.color; b.className = hairCur && hairCur.i === i ? 'on' : ''; b.addEventListener('click', () => { hairCur = {id: c ? c.id : null, i}; hairPanelLast = ''; renderHairPanel(); }); sel.appendChild(b); }); box.appendChild(sel); }
+  if (!hm) { const t = document.createElement('div'); t.className = 'hp-title'; t.textContent = list.length ? '髪の毛' : '囲む'; box.appendChild(t); const n = document.createElement('div'); n.style.cssText = 'font-size:10px;text-align:center;line-height:1.3;max-width:54px'; n.textContent = list.length ? '番号で選ぶ' : '塊をなげなわで囲む'; box.appendChild(n); return; }
+  const title = document.createElement('input'); title.type = 'text'; title.value = hm.name; title.maxLength = 12; title.className = 'hp-title'; title.style.cssText = 'width:54px;padding:2px 4px;background:rgba(255,255,255,.08);border:0;border-radius:6px;color:var(--text);font-size:11px;text-align:center'; title.addEventListener('input', e => { hm.name = e.target.value; onChange(false); }); title.addEventListener('change', () => { hairPanelLast = ''; renderHairPanel(); renderThumbs(); storeLater(); }); box.appendChild(title);
+  const colIn = document.createElement('input'); colIn.type = 'color'; colIn.value = hm.color; colIn.title = '色（自由）'; colIn.addEventListener('input', e => { hm.color = e.target.value; pal.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.col === hm.color)); onChange(false); }); colIn.addEventListener('change', () => onChange(true)); box.appendChild(colIn);
+  const pal = document.createElement('div'); pal.className = 'hp-pal'; HAIR_PAL.forEach(cc => { const b = document.createElement('button'); b.dataset.col = cc; b.title = cc; b.style.background = cc; if (cc === hm.color) b.classList.add('on'); b.addEventListener('click', () => { hm.color = cc; colIn.value = cc; pal.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); onChange(true); }); pal.appendChild(b); }); box.appendChild(pal);
+  const sep = () => { const d = document.createElement('div'); d.className = 'hp-sep'; box.appendChild(d); }; sep();
+  const lab = document.createElement('div'); lab.textContent = 'ぶわぶわ'; lab.style.cssText = 'font-size:10px'; box.appendChild(lab);
+  const rg = document.createElement('input'); rg.type = 'range'; rg.min = 0; rg.max = 100; rg.value = Math.round((hm.fluff == null ? 0.6 : hm.fluff)*100); rg.setAttribute('aria-label', 'ぶわぶわ'); rg.addEventListener('input', e => { hm.fluff = e.target.value/100; refluff(hm, c, flow); onChange(false); }); rg.addEventListener('change', () => onChange(true)); box.appendChild(rg);
+  const mk = (label, on, fn, cls) => { const b = document.createElement('button'); b.className = 'hp-btn' + (on ? ' on' : '') + (cls ? ' ' + cls : ''); b.textContent = label; b.addEventListener('click', fn); box.appendChild(b); return b; };
+  mk('風', hm.wind, () => { hm.wind = !hm.wind; refluff(hm, c, flow); onChange(true); hairPanelLast = ''; renderHairPanel(); });
+  mk('別の房', false, () => { hm.seed = 1 + Math.floor(Math.random()*1e6); refluff(hm, c, flow); onChange(true); });
+  sep();
+  mk('消す', false, () => { pushUndo(); list.splice(hairCur.i, 1); hairCur = list.length ? {id: c ? c.id : null, i: Math.min(hairCur.i, list.length - 1)} : null; onChange(true); hairPanelLast = ''; renderHairPanel(); });
 }
 // ---------- geometry helpers ----------
 function samplePts(s, n){
@@ -2617,7 +2667,7 @@ function fitCanvas(){
 function curComp(){ return comps.find(c => c.id === selected) || null; }
 function renderMain(){
   const c = trace ? null : curComp();
-  mctx.clearRect(0, 0, mainW, mainH);
+  mctx.clearRect(0, 0, mainW, mainH); try { renderHairPanel(); } catch(e) {}
   if (trace) drawTrace(mctx, mainW, mainH, {handles: tool === 'select'});
   else if (c) drawComp(mctx, c, mainW, mainH, {mode: viewMode, handles: tool === 'select', emph: true, underlay: true, labels: showLabels});
   else drawSketchCanvas(mctx, mainW, mainH, {handles: tool === 'select', underlay: true});
@@ -3199,7 +3249,7 @@ function finishTrace(save){
   if (q && q.length) { const next = q.shift(); startTrace(next, q); return; }
   setTool('select'); fitCanvas(); renderAll();
 }
-function setTool(name){ tool = name; [...$('rail').querySelectorAll('[data-tool]')].forEach(x => x.classList.toggle('on', x.dataset.tool === name)); main.style.cursor = name === 'select' ? 'default' : 'crosshair'; triTaps = []; }
+function setTool(name){ tool = name; [...$('rail').querySelectorAll('[data-tool]')].forEach(x => x.classList.toggle('on', x.dataset.tool === name)); main.style.cursor = name === 'select' ? 'default' : 'crosshair'; triTaps = []; if (name !== 'hairmass') hairCur = null; try { renderHairPanel(); } catch(e) {} }
 function tplThumb(t, w){
   const cv = document.createElement('canvas'); const h = Math.round(w/t.aspect); cv.width = w; cv.height = h;
   const ctx = cv.getContext('2d'); ctx.fillStyle = COL.canvas; ctx.fillRect(0, 0, w, h);
@@ -3259,9 +3309,9 @@ function renderThumbs(){
     if (c === 'sketch') cap.innerHTML = `<span>あなたのスケッチ</span>`; else cap.innerHTML = `<span>${c.name}</span><span class="score">${c.score.total}</span>`;
     el.appendChild(cap); if (c !== 'sketch' && c.edited) { const e = document.createElement('span'); e.className = 'edited'; e.textContent = '編集済'; el.appendChild(e); }
     if (c !== 'sketch') { const l = document.createElement('label'); l.className = 'chk'; l.title = 'CLIPで読み込む構図に含める'; l.innerHTML = `<input type="checkbox" ${c.checked ? 'checked' : ''} aria-label="CLIPで読み込む">`;
-      l.addEventListener('click', e => e.stopPropagation()); l.querySelector('input').addEventListener('change', e => { c.checked = e.target.checked; el.classList.toggle('checked', c.checked); updateClipCount(); storeLater(); }); el.appendChild(l); }
+      l.addEventListener('click', e => e.stopPropagation()); l.querySelector('input').addEventListener('change', e => { c.checked = e.target.checked; el.classList.toggle('checked', c.checked); setPage(c.id, c.checked); updateClipCount(); storeLater(); }); el.appendChild(l); }
     el._cid = c === 'sketch' ? null : c.id;
-    const open = () => { selected = c === 'sketch' ? null : c.id; if (selected) makeRecos(); [...box.children].forEach(x => { if ('_cid' in x) x.classList.toggle('sel', x._cid === selected); }); renderMain(); renderRecos(); renderProps(); storeLater(); };
+    const open = () => { selected = c === 'sketch' ? null : c.id; if (selected) makeRecos(); [...box.children].forEach(x => { if ('_cid' in x) x.classList.toggle('sel', x._cid === selected); }); renderMain(); renderRecos(); renderProps(); document.querySelectorAll('#bookRow .page').forEach(x => x.classList.toggle('sel', x.dataset.id === selected)); storeLater(); };
     el.addEventListener('click', open); el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
     return el; };
   box.appendChild(mk('sketch'));
@@ -3341,7 +3391,6 @@ function renderProps(){
     if (underlay) { const b = document.createElement('button'); b.className = 'ghost'; b.textContent = '下絵を外す'; b.addEventListener('click', () => { underlay = null; renderMain(); }); u.appendChild(b); }
     box.appendChild(u);
     if (sketch.vp) box.appendChild(vpSliders(() => sketch.vp, () => renderMain(), () => { renderAll(); storeLater(); }));
-    hairMassProps(box, sketch, {c: null, flow: sketchFlow()}, full => { renderMain(); if (full) { renderThumbs(); storeLater(); renderProps(); } });
     k3props(box, null);
     const a = document.createElement('div'); a.className = 'actions';
     a.innerHTML = `<button class="primary" id="genBtn2">構図を生成</button><div class="row"><button class="ghost" id="clearSketch">スケッチを白紙に</button></div>`;
@@ -3380,7 +3429,6 @@ function renderProps(){
   box.appendChild(dial);
   box.appendChild(chipGroup('コントラスト', CONTRASTS, c.contrast, k => { pushUndo(); c.contrast = k; c.edited = true; scoreComp(c); renderAll(); storeLater(); }));
   if (c.vp) box.appendChild(vpSliders(() => c.vp, () => { c.vis.grid = true; c.angle = inferAngleFromVp(c.vp); rebuildBodies(c); c.name = `${SHOTS[c.shot]}・${ANGLES[c.angle]}・${PATTERNS[c.pattern]}`; c.edited = true; scoreComp(c); renderMain(); }, () => { renderAll(); storeLater(); }));
-  hairMassProps(box, c, {c, flow: c.flow}, full => { c.edited = true; scoreComp(c); renderMain(); if (full) { renderThumbs(); storeLater(); renderProps(); } });
   k3props(box, c);
   const lg = document.createElement('div'); lg.className = 'group'; lg.innerHTML = `<h3>表示する要素</h3>`; const ch = document.createElement('div'); ch.className = 'chips';
   Object.entries(LAYERS).forEach(([k, l]) => { const b = document.createElement('button'); b.className = 'tg' + (c.vis[k] ? ' on' : ''); b.textContent = l; b.addEventListener('click', () => { c.vis[k] = !c.vis[k]; scoreComp(c); renderAll(); storeLater(); }); ch.appendChild(b); });
@@ -3395,13 +3443,13 @@ function renderProps(){
   a.querySelector('#clearEmph').addEventListener('click', () => { pushUndo(); c.emph = []; c.focus = null; c.leads = []; scoreComp(c); renderAll(); storeLater(); });
   box.appendChild(a);
 }
-function renderAll(){ renderMain(); renderThumbs(); renderRecos(); renderProps(); }
+function renderAll(){ renderMain(); renderThumbs(); renderRecos(); renderProps(); renderBook(); }
 
 // ---------- undo ----------
 let redoStack = [];
-function pushUndo(){ undoStack.push(JSON.stringify({sketch, comps, selected})); if (undoStack.length > 30) undoStack.shift(); redoStack = []; }
-function redo(){ const s = redoStack.pop(); if (!s) { toast('やり直せる操作がありません'); return; } undoStack.push(JSON.stringify({sketch, comps, selected})); const o = JSON.parse(s); sketch = o.sketch; comps = o.comps; selected = o.selected; if (selected && !curComp()) selected = null; if (selected) makeRecos(); renderAll(); storeLater(); }
-function undo(){ const s = undoStack.pop(); if (!s) { toast('戻せる操作がありません'); return; } redoStack.push(JSON.stringify({sketch, comps, selected})); const o = JSON.parse(s); sketch = o.sketch; comps = o.comps; selected = o.selected; if (selected && !curComp()) selected = null; if (selected) makeRecos(); renderAll(); storeLater(); }
+function pushUndo(){ undoStack.push(JSON.stringify({sketch, comps, selected, pageOrder})); if (undoStack.length > 30) undoStack.shift(); redoStack = []; }
+function redo(){ const s = redoStack.pop(); if (!s) { toast('やり直せる操作がありません'); return; } undoStack.push(JSON.stringify({sketch, comps, selected, pageOrder})); const o = JSON.parse(s); sketch = o.sketch; comps = o.comps; selected = o.selected; if (o.pageOrder) pageOrder = o.pageOrder; if (selected && !curComp()) selected = null; if (selected) makeRecos(); renderAll(); storeLater(); }
+function undo(){ const s = undoStack.pop(); if (!s) { toast('戻せる操作がありません'); return; } redoStack.push(JSON.stringify({sketch, comps, selected, pageOrder})); const o = JSON.parse(s); sketch = o.sketch; comps = o.comps; selected = o.selected; if (o.pageOrder) pageOrder = o.pageOrder; if (selected && !curComp()) selected = null; if (selected) makeRecos(); renderAll(); storeLater(); }
 
 // ---------- pointer interaction ----------
 let drag = null;
@@ -3419,11 +3467,11 @@ main.addEventListener('pointerdown', e => {
   if (tool === 'tri') { triTaps.push(p); if (triTaps.length === 3) { pushUndo(); const t = triTaps.map(q => ({x: q.x, y: q.y})); triTaps = []; if (c) { c.tris.push(t); c.vis.tri = true; c.edited = true; scoreComp(c); } else { sketch.tris = sketch.tris || []; sketch.tris.push(t); } renderAll(); storeLater(); } else renderMain(); return; }
   if (tool === 'select') {
     if (c) { const hs = handlesOf(c); let best = null, bd = hitR; hs.forEach(h => { const d = dist(h, p); if (d < bd) { bd = d; best = h; } });
-      if (best) { pushUndo(); drag = {kind: 'handle', h: best, c}; return; } }
+      if (best) { pushUndo(); if (best.t === 'hairm') { hairCur = {id: c.id, i: best.i}; hairPanelLast = ''; } drag = {kind: 'handle', h: best, c}; return; } }
     else { let best = null, bd = hitR; sketch.faces.forEach((f, i) => { const d = dist(f, p), dr = dist({x: f.x + f.r, y: f.y}, p); if (dr < bd) { bd = dr; best = {t: 'faceR', i}; } else if (d < bd || (d < f.r && !best)) { bd = Math.min(d, bd); best = {t: 'face', i}; } }); if (sketch.vp) { const e = vpOnEdge(sketch.vp, 26/(mainW/VW)); if (dist(e, p) < bd) best = {t: 'vp', off: e.off, x: e.x, y: e.y}; }
       if (!best) { const hi = (sketch.hands || []).findIndex(h => dist(h, p) < h.s*0.9); if (hi >= 0) best = {t: 'hand', i: hi}; }
       if (!best) { const hi = (sketch.hairMasses || []).findIndex(hm => dist(hm.c, p) < hitR*1.5); if (hi >= 0) best = {t: 'hairm', i: hi}; }
-      if (best) { pushUndo(); drag = {kind: 'sketchHandle', h: best}; return; } }
+      if (best) { pushUndo(); if (best.t === 'hairm') { hairCur = {id: null, i: best.i}; hairPanelLast = ''; } drag = {kind: 'sketchHandle', h: best}; return; } }
     return;
   }
   pushUndo();
@@ -3441,7 +3489,7 @@ main.addEventListener('pointermove', e => {
   if (trace) return tracePointerMove(e);
   const p = toV(e), c = curComp();
   if (drag.kind === 'face') { drag.f.r = Math.max(22, dist(drag.start, p)); if (c) rebuildBodies(c); }
-  else if (drag.kind === 'stroke' || drag.kind === 'emph' || drag.kind === 'handloop' || drag.kind === 'hairloop') { const arr = drag.kind === 'emph' ? drag.e.pts : drag.pts; if (dist(arr[arr.length-1], p) > 6) arr.push(p); if (drag.kind === 'stroke') { drawStrokePreview(arr, false); return; } if (drag.kind === 'hairloop') { drawStrokePreview(arr, true); return; }
+  else if (drag.kind === 'stroke' || drag.kind === 'emph' || drag.kind === 'handloop' || drag.kind === 'hairloop') { const arr = drag.kind === 'emph' ? drag.e.pts : drag.pts; if (dist(arr[arr.length-1], p) > 6) arr.push(p); if (drag.kind === 'stroke') { drawStrokePreview(arr, false); return; } if (drag.kind === 'hairloop') { drawStrokePreview(arr, 'dot'); return; }
     if (drag.kind === 'handloop') { const now = performance.now(); if (underlay && arr.length >= 4 && now - (drag.lastSil || 0) > 90) { drag.lastSil = now; const iw = underlay.naturalWidth || underlay.width, ih = underlay.naturalHeight || underlay.height, k = Math.max(VW/iw, VH/ih), ox = (VW - iw*k)/2, oy = (VH - ih*k)/2; try { const sil = handSilhouette(underlay, arr.map(q => ({x: (q.x - ox)/k, y: (q.y - oy)/k}))); drag.preview = sil ? sil.pts.map(q => ({x: ox + q.x*k, y: oy + q.y*k})) : null; } catch(e) { drag.preview = null; } }
       renderMain(); const sc = mainW/VW; drawLoopPreview(arr, drag.preview, q => ({x: q.x*sc, y: q.y*sc})); return; } }
   else if (drag.kind === 'handle') { moveHandle(drag.c, drag.h, p); }
@@ -3450,7 +3498,8 @@ main.addEventListener('pointermove', e => {
   else if (drag.kind === 'sketchHandle') { const h = drag.h; if (h.t === 'face') { const f = sketch.faces[h.i]; f.x = p.x; f.y = p.y; } else if (h.t === 'faceR') { const f = sketch.faces[h.i]; f.r = Math.max(22, Math.abs(p.x - f.x)); } else if (h.t === 'vp') { if (h.off) { sketch.vp.x += p.x - h.x; sketch.vp.y += p.y - h.y; h.x = p.x; h.y = p.y; } else { sketch.vp.x = p.x; sketch.vp.y = p.y; } } else if (h.t === 'hand') { const hd = sketch.hands[h.i]; const dx = p.x - hd.x, dy = p.y - hd.y; hd.x = p.x; hd.y = p.y; if (hd.pts) hd.pts.forEach(q => { q.x += dx; q.y += dy; }); } else if (h.t === 'hairm') moveHairMass(sketch.hairMasses[h.i], p); }
   renderMain();
 });
-function drawStrokePreview(pts, isHand){ renderMain(); const s = mainW/VW; mctx.save(); mctx.scale(s, s); mctx.strokeStyle = isHand ? COL.face : COL.hair; mctx.lineWidth = 2.5/s; mctx.lineCap = 'round'; mctx.lineJoin = 'round'; if (isHand) mctx.setLineDash([8/s, 6/s]); mctx.beginPath(); pts.forEach((p, i) => i ? mctx.lineTo(p.x, p.y) : mctx.moveTo(p.x, p.y)); if (isHand) mctx.closePath(); mctx.stroke(); mctx.restore(); }
+function drawStrokePreview(pts, kind){ // kind: false＝動線、true＝手（閉じた破線）、'dot'＝髪の毛（終点は結ばない点線）
+  renderMain(); const s = mainW/VW; mctx.save(); mctx.scale(s, s); mctx.strokeStyle = kind === 'dot' ? '#c9f25a' : kind ? COL.face : COL.hair; mctx.lineWidth = (kind === 'dot' ? 3 : 2.5)/s; mctx.lineCap = 'round'; mctx.lineJoin = 'round'; if (kind === 'dot') mctx.setLineDash([0.1/s, 7/s]); else if (kind) mctx.setLineDash([8/s, 6/s]); mctx.beginPath(); pts.forEach((p, i) => i ? mctx.lineTo(p.x, p.y) : mctx.moveTo(p.x, p.y)); if (kind === true) mctx.closePath(); mctx.stroke(); mctx.restore(); }
 function endDrag(e){
   if (e && e.pointerId != null) activePointers.delete(e.pointerId);
   if (!drag) return;
@@ -3458,7 +3507,7 @@ function endDrag(e){
   const d = drag, c = curComp(); drag = null;
   if (d.kind === 'stroke') { if (d.pts.length > 3) { if (c) { const pts = d.pts, n = pts.length, a = pts[0], b = pts[n-1], m1 = pts[Math.floor(n/3)], m2 = pts[Math.floor(2*n/3)]; c.hair.push({type: 'c', pts: [a, {x: m1.x*1.3 - a.x*0.15 - m2.x*0.15, y: m1.y*1.3 - a.y*0.15 - m2.y*0.15}, {x: m2.x*1.3 - b.x*0.15 - m1.x*0.15, y: m2.y*1.3 - b.y*0.15 - m1.y*0.15}, b]}); c.vis.hair = true; c.edited = true; scoreComp(c); } else sketch.strokes.push(d.pts); } }
   else if (d.kind === 'emph') { if (d.e.pts.length < 3) { const arr = c ? c.emph : sketch.emph; arr.pop(); } else if (c) applyFocus(c); }
-  else if (d.kind === 'hairloop') { if (d.pts.length >= 6) { const owner = c || sketch; owner.hairMasses = owner.hairMasses || []; const hm = makeHairMass(d.pts, owner, c ? c.flow : sketchFlow()); owner.hairMasses.push(hm); if (c) { c.vis.hairMass = true; c.edited = true; scoreComp(c); } toast(`${hm.name} を置きました（色・ぶわぶわは設定パネルで）`); } }
+  else if (d.kind === 'hairloop') { if (d.pts.length >= 6) { const owner = c || sketch; owner.hairMasses = owner.hairMasses || []; const hm = makeHairMass(d.pts, owner, c ? c.flow : sketchFlow()); owner.hairMasses.push(hm); hairCur = {id: c ? c.id : null, i: owner.hairMasses.length - 1}; hairPanelLast = ''; if (c) { c.vis.hairMass = true; c.edited = true; scoreComp(c); } toast(`${hm.name} を置きました（色・ぶわぶわは右の縦パネルで）`); } }
   else if (d.kind === 'handloop') { if (d.pts.length >= 4) { const face = (c ? c.faces : sketch.faces)[0] || null; let h = null;
       if (underlay) { const iw = underlay.naturalWidth || underlay.width, ih = underlay.naturalHeight || underlay.height, k = Math.max(VW/iw, VH/ih), ox = (VW - iw*k)/2, oy = (VH - ih*k)/2; let sil = null; try { sil = handSilhouette(underlay, d.pts.map(q => ({x: (q.x - ox)/k, y: (q.y - oy)/k}))); } catch(e) { sil = null; }
         if (sil) h = {x: ox + sil.cx*k, y: oy + sil.cy*k, s: sil.s*k, rot: 0, pose: 'free', d: 0.6, pts: sil.pts.map(q => ({x: ox + q.x*k, y: oy + q.y*k}))}; }
@@ -3581,9 +3630,46 @@ function buildZip(files){ // [{name, data: Uint8Array}]
   parts.push(...central, le32(0x06054b50), le16(0), le16(0), le16(files.length), le16(files.length), le32(cdLen), le32(off), le16(0));
   return new Blob(parts, {type: 'application/zip'});
 }
+// ---------- 本の並び：チェックした構図を順に並べて、イラスト本の構成を眺める ----------
+function syncPageOrder(){ const ids = new Set(comps.map(c => c.id)); pageOrder = pageOrder.filter(id => ids.has(id)); comps.forEach(c => { if (c.checked && !pageOrder.includes(c.id)) pageOrder.push(c.id); }); return pageOrder.map(id => comps.find(c => c.id === id)).filter(Boolean); }
+function setPage(id, on){ pageOrder = pageOrder.filter(x => x !== id); if (on) pageOrder.push(id); renderBook(); }
+let bookDrag = null;
+function renderBook(){
+  const row = $('bookRow'); if (!row) return; row.innerHTML = ''; const list = syncPageOrder();
+  $('bookCount').textContent = list.length ? `${list.length}p` : '';
+  if (!list.length) { row.innerHTML = `<div class="empty">右の一覧のチェックを入れた構図が、ここに順番に並びます。</div>`; return; }
+  list.forEach((c, i) => { const el = document.createElement('div'); el.className = 'page' + (selected === c.id ? ' sel' : ''); el.draggable = true; el.dataset.id = c.id; el.title = c.name;
+    const cv = document.createElement('canvas'); const h = 64, w = Math.round(h*aspect); cv.width = w*2; cv.height = h*2; drawComp(cv.getContext('2d'), c, w*2, h*2, {mode: viewMode}); cv.style.width = w + 'px'; el.appendChild(cv);
+    const no = document.createElement('span'); no.className = 'no'; no.textContent = i + 1; el.appendChild(no);
+    const rm = document.createElement('button'); rm.className = 'rm'; rm.textContent = '×'; rm.title = '並びから外す'; rm.addEventListener('click', e => { e.stopPropagation(); c.checked = false; setPage(c.id, false); renderThumbs(); storeLater(); }); el.appendChild(rm);
+    el.addEventListener('click', () => { selected = c.id; makeRecos(); renderAll(); storeLater(); });
+    el.addEventListener('dragstart', e => { bookDrag = c.id; el.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', c.id); } catch(err) {} });
+    el.addEventListener('dragend', () => { bookDrag = null; row.querySelectorAll('.page').forEach(x => x.classList.remove('dragging', 'before', 'after')); });
+    el.addEventListener('dragover', e => { if (!bookDrag || bookDrag === c.id) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; const r = el.getBoundingClientRect(); const after = e.clientX > r.left + r.width/2; el.classList.toggle('before', !after); el.classList.toggle('after', after); });
+    el.addEventListener('dragleave', () => el.classList.remove('before', 'after'));
+    el.addEventListener('drop', e => { if (!bookDrag || bookDrag === c.id) return; e.preventDefault(); const r = el.getBoundingClientRect(); const after = e.clientX > r.left + r.width/2; const from = pageOrder.indexOf(bookDrag); if (from < 0) return; pageOrder.splice(from, 1); let to = pageOrder.indexOf(c.id) + (after ? 1 : 0); pageOrder.splice(to, 0, bookDrag); bookDrag = null; renderBook(); storeLater(); });
+    row.appendChild(el); });
+  // 行の空きに落としたら末尾へ
+  row.ondragover = e => { if (bookDrag && e.target === row) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; } };
+  row.ondrop = e => { if (bookDrag && e.target === row) { e.preventDefault(); pageOrder = pageOrder.filter(x => x !== bookDrag); pageOrder.push(bookDrag); bookDrag = null; renderBook(); storeLater(); } };
+}
+async function saveFile(blob, fname, doneMsg){ let dl = null; try { dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null; } catch(e) { dl = null; }
+  if (dl) { try { await dl.save({filename: fname, data: blob}); toast(doneMsg || '書き出しました'); return true; } catch(err) { if (err && err.code === 'declined') return false; } }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = fname; document.body.appendChild(a); a.click(); a.remove(); toast(doneMsg || '書き出しました'); return true; }
+async function exportBookPNG(){
+  const list = syncPageOrder(); if (!list.length) { toast('本の並びが空です。右の一覧でチェックを入れてください'); return; }
+  const long = +$('resSel').value; const W = aspect >= 1 ? long : Math.round(long*aspect), H = aspect >= 1 ? Math.round(long/aspect) : long;
+  toast(`${list.length} 枚を書き出しています…`); await new Promise(r => setTimeout(r, 30));
+  const files = []; const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const ctx = cv.getContext('2d');
+  for (let i = 0; i < list.length; i++) { const c = list[i]; ctx.clearRect(0, 0, W, H); drawComp(ctx, c, W, H, {mode: viewMode}); const blob = await new Promise(res => cv.toBlob(res, 'image/png')); files.push({name: `${String(i+1).padStart(2, '0')}_${c.name.replace(/・/g, '_')}.png`, data: new Uint8Array(await blob.arrayBuffer())}); await new Promise(r => setTimeout(r, 0)); }
+  await saveFile(buildZip(files), `kouzu_book_${list.length}p_${W}x${H}.zip`, `${list.length} 枚を ZIP で書き出しました（番号順）`);
+}
+$('bookPng').addEventListener('click', exportBookPNG);
+$('bookClip').addEventListener('click', exportClip);
+$('bookClear').addEventListener('click', () => { if (!pageOrder.length) return; pushUndo(); comps.forEach(c => { c.checked = false; }); pageOrder = []; renderThumbs(); renderBook(); storeLater(); toast('本の並びを空にしました（Ctrl+Z で戻せます）'); });
 function updateClipCount(){ const n = comps.filter(c => c.checked).length; $('clipCount').textContent = n ? `(${n})` : ''; }
 async function exportClip(){
-  let list = comps.filter(c => c.checked); if (!list.length && curComp()) list = [curComp()];
+  let list = syncPageOrder(); if (!list.length && curComp()) list = [curComp()];
   if (!list.length) { toast('サムネイルにチェックを入れるか、構図案を選んでください'); return; }
   const long = Math.min(+$('resSel').value, 3000); const W = aspect >= 1 ? long : Math.round(long*aspect), H = aspect >= 1 ? Math.round(long/aspect) : long;
   toast(`${list.length} 案をレイヤー分けしています…`);
@@ -3641,8 +3727,12 @@ const ZH = {
   '先になぞりを保存するか、やめてください': '請先儲存描摹，或取消',
   '顔の丸か線を、ひとつは入れてください': '請至少放入一個臉的圓或一條線',
   '画面全体の縮小・拡大（ピンチでも）': '整個畫面的縮小・放大（也可雙指縮放）',
+  '画面全体の文字と部品の大きさ（ピンチでも変えられます）': '整個畫面的文字與元件大小（也可用雙指縮放）', '表示': '顯示', '極小': '極小', '大': '大', '中': '中', '小': '小',
   '見せ場に向けて構図を組み直しました': '已朝看點重新組合構圖',
   'CLIPで読み込む構図に含める': '納入要用 CLIP 讀入的構圖',
+  '本の並び': '書的排序', '右の一覧でチェック → 順に並ぶ。ドラッグで入れ替え': '在右側列表勾選 → 依序排列。拖曳可調換', '右の一覧のチェックを入れた構図が、ここに順番に並びます。': '在右側列表勾選的構圖，會依序排在這裡。',
+  '並んだ順に番号を付けて PNG にし、ZIP で一括保存': '依排列順序編號輸出 PNG，並以 ZIP 一次儲存', '並んだ順にレイヤー分け PSD（ZIP）': '依排列順序輸出分圖層 PSD（ZIP）', 'PNG 一括書き出し': '一次匯出 PNG', 'CLIP 一括': 'CLIP 一次匯出', '並びを空に': '清空排序', '並びから外す': '從排序移除',
+  '本の並びが空です。右の一覧でチェックを入れてください': '書的排序是空的。請在右側列表勾選', '枚を書き出しています…': '張正在匯出…', '枚を ZIP で書き出しました（番号順）': '張已以 ZIP 匯出（依編號）', '本の並びを空にしました（Ctrl+Z で戻せます）': '已清空書的排序（可用 Ctrl+Z 復原）',
   '」をテンプレートに保存しました': '」已儲存為範本',
   '書き出す構図案を選んでください': '請選擇要匯出的構圖方案',
   '（読ませた構図を混ぜています）': '（已混入讀入的構圖）',
@@ -3823,7 +3913,8 @@ const ZH = {
   '髪の塊をざっくり囲むと、風になびくようにぶわっと膨らませて色を付けます。髪の毛1・髪の毛2…と増やせます（飾りや布にも）': '大致圈出頭髮的塊，就會像隨風飄動般蓬起並上色。可以增加為頭髮1・頭髮2…（飾品或布料也可以）',
   '髪の毛：塊を囲む': '頭髮：圈出髮塊', '髪の毛（囲み）': '頭髮（圈選）', '髪の毛': '頭髮', 'ぶわぶわ': '蓬鬆度', '風になびく': '隨風飄動', '別の房': '換一種髮束',
   '囲んだ形を、風（動線の向き）と重さで膨らませています。選択ツールで真ん中の点をドラッグすると動きます。髪以外（布・飾り）の塊にも使えます。': '把圈出的形狀，依風（動線方向）和重量蓬起。用選取工具拖曳中央的點即可移動。頭髮以外（布・飾品）的塊也可以用。',
-  ' を置きました（色・ぶわぶわは設定パネルで）': ' 已放置（顏色・蓬鬆度在設定面板調整）',
+  ' を置きました（色・ぶわぶわは右の縦パネルで）': ' 已放置（顏色・蓬鬆度在右側的直向面板調整）',
+  '番号で選ぶ': '用編號選擇', '塊をなげなわで囲む': '用套索圈出髮塊', '色（自由）': '顏色（自訂）', '風': '風',
   '三角：3点タップ／手：範囲を囲む': '三角：點 3 點／手：圈選範圍',
   'メイン画面だけに、手・固形物などの名前を添える': '只在主畫面標示手・固體物等的名稱',
   '手（手前）': '手（前景）', '手（頬）': '手（臉頰）', '手（顎）': '手（下巴）', '手（髪）': '手（頭髮）', '手（腰）': '手（腰）',
@@ -4261,12 +4352,11 @@ let uiZoom = 1;
 function applyZoom(z, persist){
   uiZoom = clamp(z, 0.45, 1.6);
   const el = $('zoom'); el.style.setProperty('--z', uiZoom.toFixed(3));
-  $('zoomVal').textContent = Math.round(uiZoom*100) + '%';
+  { const sel = $('zoomSel'); let best = null; [...sel.options].forEach(o => { if (best == null || Math.abs(+o.value - uiZoom) < Math.abs(+best.value - uiZoom)) best = o; }); if (best) sel.value = best.value; }
   el.classList.toggle('narrow', el.clientWidth <= 860);
   if (persist !== false) { try { localStorage.setItem('kouzu-zoom', String(uiZoom)); } catch(e) {} }
 }
-$('zoomOut').addEventListener('click', () => applyZoom(uiZoom - 0.1));
-$('zoomIn').addEventListener('click', () => applyZoom(uiZoom + 0.1));
+$('zoomSel').addEventListener('change', e => applyZoom(+e.target.value));
 let pinch = null;
 const tDist = t => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
 document.addEventListener('touchstart', e => { if (e.touches.length === 2) { pinch = {d0: tDist(e.touches), z0: uiZoom}; if (drag) { drag = null; if (trace) traceUndoPop(); else undo(); } } }, {passive: true});
@@ -4274,15 +4364,15 @@ document.addEventListener('touchmove', e => { if (e.touches.length === 2 && pinc
 document.addEventListener('touchend', e => { if (e.touches.length < 2 && pinch) { pinch = null; applyZoom(uiZoom); } }, {passive: true});
 document.addEventListener('gesturestart', e => e.preventDefault(), {passive: false});
 new ResizeObserver(() => $('zoom').classList.toggle('narrow', $('zoom').clientWidth <= 860)).observe($('zoom'));
-try { const z = parseFloat(localStorage.getItem('kouzu-zoom')); if (z > 0) applyZoom(z, false); } catch(e) {}
-if (uiZoom === 1 && window.innerWidth < 700) applyZoom(0.6, false);
+{ let z = 0.85; try { const v = parseFloat(localStorage.getItem('kouzu-zoom')); if (v > 0 && localStorage.getItem('kouzu-zoom-v2')) z = v; } catch(e) {} applyZoom(z, false); try { localStorage.setItem('kouzu-zoom-v2', '1'); } catch(e) {} } // 既定は「小」
+if (window.innerWidth < 700 && uiZoom > 0.7) applyZoom(0.7, false);
 
 // ---------- boot ----------
 (function boot(){
   try { const t = JSON.parse(localStorage.getItem('kouzu-templates') || '[]'); if (Array.isArray(t)) templates = t.filter(x => x && x.id && Array.isArray(x.faces)); } catch(e) { templates = []; }
   let saved = null; try { saved = JSON.parse(localStorage.getItem('kouzu-fabrica') || 'null'); } catch(e) { saved = null; }
   if (saved && saved.sketch && Array.isArray(saved.comps)) {
-    sketch = saved.sketch; comps = saved.comps; selected = saved.selected; viewMode = saved.viewMode || 'line'; genCount = saved.genCount || 24; seedBase = saved.seedBase || seedBase;
+    sketch = saved.sketch; comps = saved.comps; selected = saved.selected; viewMode = saved.viewMode || 'line'; genCount = saved.genCount || 24; seedBase = saved.seedBase || seedBase; pageOrder = Array.isArray(saved.pageOrder) ? saved.pageOrder : comps.filter(c => c.checked).map(c => c.id);
     if (saved.sizeIdx != null && saved.b5) $('sizeSel').value = saved.sizeIdx; else $('sizeSel').value = DEFAULT_SIZE; if (saved.resIdx) $('resSel').value = saved.resIdx;
     setAspect(SIZES[+$('sizeSel').value][1], true);
     comps.forEach(c => { c.VW = VW; c.VH = VH; if (c.vis.hairMass == null) c.vis.hairMass = true; (c.hairMasses || []).forEach(hm => { if (!hm.pts) refluff(hm, c); }); rebuildBodies(c); scoreComp(c); });
