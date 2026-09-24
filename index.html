@@ -2472,7 +2472,7 @@ function renderMain(){
   else if (c) tag.innerHTML = `<b>${c.name}</b><span>${POSES[c.pose]}・${LIGHTS[c.light.kind]}・${c.people}人</span>`;
   else tag.innerHTML = `<b>あなたのスケッチ</b><span>顔の丸と動線から生成します</span>`;
   const hint = $('stageHint');
-  hint.innerHTML = trace ? `<span>顔：ドラッグで丸</span><span>動線：なぞる</span><span>三角：3点タップ</span><span>手：範囲を囲む</span><span>囲む／マーカー：見せ場</span><span>消失点：クリック</span>` : c ? `<span>囲む・マーカーで見せ場を指定 → 構図が組み替わります</span><span>選択ツールで点をドラッグ</span><span>三角：3点タップ／手：範囲を囲む</span>` : `<span>顔：ドラッグで丸</span><span>動線：一本なぞる</span><span>囲む／マーカー：見せたい場所</span><span>消失点：クリック</span>`;
+  hint.innerHTML = trace ? `<span>顔：ドラッグで丸</span><span>動線：なぞる</span><span>三角：3点タップ</span><span>手：範囲を囲む</span><span>囲む／マーカー：見せ場</span><span>消失点：クリック</span><span>右クリック：消す</span>` : c ? `<span>囲む・マーカーで見せ場を指定 → 構図が組み替わります</span><span>選択ツールで点をドラッグ</span><span>三角：3点タップ／手：範囲を囲む</span><span>右クリック：消す</span>` : `<span>顔：ドラッグで丸</span><span>動線：一本なぞる</span><span>囲む／マーカー：見せたい場所</span><span>消失点：クリック</span><span>右クリック：消す</span>`;
 }
 // ---------- trace mode (the user's own artwork, in memory only) ----------
 function drawTrace(ctx, W, H, o){
@@ -2768,17 +2768,18 @@ function traceUndoPop(){ const s = traceUndo.pop(); if (!s) { toast('戻せる�
 function traceRedoPop(){ const s = traceRedo.pop(); if (!s) { toast('やり直せる操作がありません'); return; } traceUndo.push(traceSnap()); Object.assign(trace.tpl, JSON.parse(s)); triTaps = []; renderMain(); renderProps(); }
 function tracePointerDown(e){
   const p = toN(e), t = trace.tpl, r = main.getBoundingClientRect(), m = Math.min(r.width, r.height), hit = 14/m;
+  const tl = e.button === 2 ? 'erase' : tool; // 右クリックは消しゴム
   const distN = (a, b) => Math.hypot((a.x - b.x)*r.width, (a.y - b.y)*r.height)/m;
-  if (tool === 'select') { let best = null, bd = hit; t.faces.forEach((f, i) => { const dr = distN({x: f.x + f.r*m/r.width, y: f.y}, p), d = distN(f, p); if (dr < bd) { bd = dr; best = {t: 'faceR', i}; } else if (d < bd) { bd = d; best = {t: 'face', i}; } }); if (t.vp && distN(t.vp, p) < bd) best = {t: 'vp'}; if (t.pose) Object.entries(t.pose).forEach(([k, q]) => { if (q && distN(q, p) < bd) { bd = distN(q, p); best = {t: 'pose', k}; } }); if (!best) { const hi = (t.hands || []).findIndex(h => distN(h, p) < h.s*0.9); if (hi >= 0) best = {t: 'hand', i: hi}; } if (best) { tracePush(); drag = {kind: 'traceHandle', h: best}; } return; }
-  if (tool === 'tri') { if (!triTaps.length) tracePush(); }
+  if (tl === 'select') { let best = null, bd = hit; t.faces.forEach((f, i) => { const dr = distN({x: f.x + f.r*m/r.width, y: f.y}, p), d = distN(f, p); if (dr < bd) { bd = dr; best = {t: 'faceR', i}; } else if (d < bd) { bd = d; best = {t: 'face', i}; } }); if (t.vp && distN(t.vp, p) < bd) best = {t: 'vp'}; if (t.pose) Object.entries(t.pose).forEach(([k, q]) => { if (q && distN(q, p) < bd) { bd = distN(q, p); best = {t: 'pose', k}; } }); if (!best) { const hi = (t.hands || []).findIndex(h => distN(h, p) < h.s*0.9); if (hi >= 0) best = {t: 'hand', i: hi}; } if (best) { tracePush(); drag = {kind: 'traceHandle', h: best}; } return; }
+  if (tl === 'tri') { if (!triTaps.length) tracePush(); }
   else tracePush();
-  if (tool === 'face') { const f = {x: p.x, y: p.y, r: 0.03}; t.faces.push(f); drag = {kind: 'traceFace', f, start: p}; }
-  else if (tool === 'flow') drag = {kind: 'traceStroke', pts: [p]};
-  else if (tool === 'loop' || tool === 'marker') { t.emph = t.emph || []; const em = {kind: tool, pts: [p]}; t.emph.push(em); drag = {kind: 'traceEmph', e: em}; }
-  else if (tool === 'hand') { drag = {kind: 'traceHand', pts: [p]}; }
-  else if (tool === 'tri') { triTaps.push(p); if (triTaps.length === 3) { t.tris.push(triTaps.map(q => ({x: q.x, y: q.y}))); triTaps = []; } }
-  else if (tool === 'vp') t.vp = {x: p.x, y: p.y};
-  else if (tool === 'erase') {
+  if (tl === 'face') { const f = {x: p.x, y: p.y, r: 0.03}; t.faces.push(f); drag = {kind: 'traceFace', f, start: p}; }
+  else if (tl === 'flow') drag = {kind: 'traceStroke', pts: [p]};
+  else if (tl === 'loop' || tl === 'marker') { t.emph = t.emph || []; const em = {kind: tl, pts: [p]}; t.emph.push(em); drag = {kind: 'traceEmph', e: em}; }
+  else if (tl === 'hand') { drag = {kind: 'traceHand', pts: [p]}; }
+  else if (tl === 'tri') { triTaps.push(p); if (triTaps.length === 3) { t.tris.push(triTaps.map(q => ({x: q.x, y: q.y}))); triTaps = []; } }
+  else if (tl === 'vp') t.vp = {x: p.x, y: p.y};
+  else if (tl === 'erase') {
     const near = (pts, rr) => pts.some(q => distN(q, p) < rr);
     let i = (t.emph || []).findIndex(e => near(e.pts, 0.04)); if (i >= 0) t.emph.splice(i, 1);
     else if ((i = t.strokes.findIndex(s => near(s, 0.03))) >= 0) t.strokes.splice(i, 1);
@@ -3041,7 +3042,9 @@ function undo(){ const s = undoStack.pop(); if (!s) { toast('戻せる操作が�
 let drag = null;
 function toV(e){ const r = main.getBoundingClientRect(); return {x: (e.clientX - r.left)/r.width*VW, y: (e.clientY - r.top)/r.height*VH}; }
 const activePointers = new Set();
+main.addEventListener('contextmenu', e => e.preventDefault()); // 右クリックは消しゴム
 main.addEventListener('pointerdown', e => {
+  if (e.button === 2) { if (trace) { tracePointerDown(e); return; } const p = toV(e), c = curComp(); pushUndo(); eraseAt(p, c); if (c) makeRecos(); renderAll(); storeLater(); return; }
   if (e.button !== 0) return;
   activePointers.add(e.pointerId);
   if (activePointers.size > 1) { if (drag) { drag = null; if (trace) traceUndoPop(); else undo(); } return; }
@@ -3568,6 +3571,7 @@ const ZH = {
   '骨格を検出（AI・端末内）': '偵測骨架（AI・裝置內）',
   '骨格を消しました（Ctrl+Z で戻せます）': '已清除骨架（可用 Ctrl+Z 復原）',
   '・骨格あり': '・有骨架',
+  '右クリック：消す': '右鍵：清除',
   '骨格の学習：': '骨架學習：', '枚分の関節・顔の直しから、ずれの癖を補正中（2枚から効きます）': '張的關節・臉修正中學習偏差習慣（從 2 張開始生效）',
   'まだ0枚。検出したあと関節や顔の丸を直して保存すると、次からそのずれを先に補正します': '還是 0 張。偵測後修正關節或臉的圓並儲存，下次就會先補正該偏差',
   '髪': '頭髮',
