@@ -2332,7 +2332,7 @@ function drawFigure(ctx, c, b, f, i, mode, lw){
       // 素体：頭・首・胸郭・骨盤・上腕（肘まで）・太もも（膝まで）。肘から先と膝から先は描かない
       ctx.save(); ctx.strokeStyle = rgba(COL.body, i ? .4 : .7); ctx.fillStyle = rgba(COL.body, .07); ctx.lineWidth = lw(1.5); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
       const cap = (a, b0, wdt) => { const dx = b0.x - a.x, dy = b0.y - a.y, L = Math.hypot(dx, dy) || 1, nx = -dy/L*wdt/2, ny = dx/L*wdt/2, ang = Math.atan2(dy, dx); ctx.beginPath(); ctx.arc(a.x, a.y, wdt/2, ang + PI/2, ang - PI/2); ctx.lineTo(b0.x - nx, b0.y - ny); ctx.arc(b0.x, b0.y, wdt/2, ang - PI/2, ang + PI/2); ctx.closePath(); ctx.fill(); ctx.stroke(); };
-      const rw = b.fromPose ? Math.max(R*0.9, dist(b.shL, b.shR)/2*0.92) : R*1.55, rh = b.fromPose ? Math.max(R*0.7, dist(b.shC, b.hipC)*0.42) : R*1.15, pw = b.fromPose ? Math.max(R*0.8, dist(b.hipL, b.hipR)/2*1.05) : R*1.35;
+      const rw = b.fromPose ? Math.max(R*0.9, dist(b.shL, b.shR)/2*0.92) : R*1.55, rh = b.fromPose ? Math.max(R*0.7, dist(b.shC, b.hipC)*0.42) : R*1.15, pw = b.fromPose ? Math.max(R*0.8, dist(b.hipL, b.hipR)/2*1.05, dist(b.shL, b.shR)/2*0.78) : R*1.35;
       ctx.beginPath(); ctx.ellipse((b.shC.x + b.waist.x)/2, (b.shC.y + b.waist.y)/2 - R*0.1, rw, rh, b.tilt, 0, TAU); ctx.fill(); ctx.stroke();
       ctx.beginPath(); ctx.ellipse(b.hipC.x, b.hipC.y, pw, pw*0.53, b.htilt, 0, TAU); ctx.fill(); ctx.stroke();
       cap(f, b.neck, R*0.5); cap(b.shL, b.elbowL, R*0.5); cap(b.shR, b.elbowR, R*0.5); cap(b.hipL, b.kneeL, R*0.72); cap(b.hipR, b.kneeR, R*0.72);
@@ -2490,6 +2490,11 @@ function drawTrace(ctx, W, H, o){
   if (t.pose) { const ps = t.pose, g = k => ps[k] ? P(ps[k]) : null; ctx.save(); ctx.strokeStyle = rgba(COL.body, .85); ctx.fillStyle = rgba(COL.body, .9); ctx.lineWidth = 3; ctx.lineCap = 'round';
     const seg = (a, b0) => { if (a && b0) { ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b0.x, b0.y); ctx.stroke(); } };
     const shL = g('shL'), shR = g('shR'), hipL = g('hipL'), hipR = g('hipR'); const mid = (a, b0) => a && b0 ? {x: (a.x + b0.x)/2, y: (a.y + b0.y)/2} : null; const shC = mid(shL, shR), hipC = mid(hipL, hipR);
+    // 骨盤と胸郭は楕円で（肩・腰の点を動かすと追従する）
+    ctx.save(); ctx.fillStyle = rgba(COL.body, .1); ctx.strokeStyle = rgba(COL.body, .7); ctx.lineWidth = 2;
+    if (hipL && hipR) { const sw0 = shL && shR ? Math.hypot(shR.x - shL.x, shR.y - shL.y)/2 : 0; const hw = Math.max(Math.hypot(hipR.x - hipL.x, hipR.y - hipL.y)/2*1.08, sw0*0.78), ha = Math.atan2(hipR.y - hipL.y, hipR.x - hipL.x); ctx.beginPath(); ctx.ellipse(hipC.x, hipC.y, hw, hw*0.55, ha, 0, TAU); ctx.fill(); ctx.stroke(); }
+    if (shL && shR && hipC) { const sw = Math.hypot(shR.x - shL.x, shR.y - shL.y)/2*0.92, sa = Math.atan2(shR.y - shL.y, shR.x - shL.x), tl = Math.hypot(hipC.x - shC.x, hipC.y - shC.y); const cx = shC.x + (hipC.x - shC.x)*0.34, cy = shC.y + (hipC.y - shC.y)*0.34; ctx.beginPath(); ctx.ellipse(cx, cy, sw, Math.max(sw*0.5, tl*0.42), sa, 0, TAU); ctx.fill(); ctx.stroke(); }
+    ctx.restore();
     seg(shL, shR); seg(hipL, hipR); seg(shC, hipC); seg(shL, g('elL')); seg(shR, g('elR')); seg(hipL, g('knL')); seg(hipR, g('knR')); seg(g('knL'), g('ftL')); seg(g('knR'), g('ftR')); if (t.faces[0] && shC) seg(P(t.faces[0]), shC);
     Object.entries(ps).forEach(([k, q]) => { if (!q) return; const v = P(q); ctx.beginPath(); ctx.arc(v.x, v.y, 4, 0, TAU); ctx.fill(); if (o.handles) { ctx.save(); ctx.fillStyle = '#fff'; ctx.strokeStyle = COL.body; ctx.lineWidth = 2; ctx.beginPath(); ctx.rect(v.x - 5, v.y - 5, 10, 10); ctx.fill(); ctx.stroke(); ctx.restore(); } });
     ctx.restore(); }
