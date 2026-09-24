@@ -3,3 +3,4 @@
 index.v*.html
 index.new.html
 *.v36.md
+!models/moo.vrm

@@ -1466,7 +1466,35 @@ const RES = [['長辺 1080px',1080],['長辺 1600px',1600],['長辺 2048px',2048
 const PATTERNS = {tri:'三角ひとつ', tri2:'三角の対', triN:'三角いくつか', hairflow:'髪の動線', hairburst:'髪の集中線', solids:'固形物で三角', hino:'日の丸', combo:'日の丸＋三角', land:'遠近の風景', frame:'額縁', sym:'対称', fan:'扇形フレーム', radial:'中心放射', xcross:'対称交差', echo:'呼応（△と○）', ring:'密で疎を包む', s631:'大中小 6:3:1', tpl:'読ませた構図'};
 const SHOTS = {up:'アップ', mid:'ミドル', long:'ロング'};
 const ANGLES = {eye:'アイレベル', low:'あおり', high:'ふかん'};
-const POSES = {stand:'立ち', twist:'ひねり', lean:'前傾', arch:'反り'};
+const POSES = {stand:'立ち', twist:'ひねり', lean:'前傾', arch:'反り', hip:'腰に手', wave:'手を上げる', cheek:'頬に手', hug:'胸の前で腕', sit:'座り', kneel:'片膝', crouch:'しゃがみ', jump:'跳ぶ', run:'走る'};
+const FACINGS = {front:'正面', qL:'斜め（左）', qR:'斜め（右）', side:'横向き', back:'後ろ向き'};
+// 関節のオフセット（R 単位、y は下向き）。腕は肩から、脚は腰から。sgn（重心の側）で左右を反転する
+const POSE_DEF = {
+  stand: {aL: [[-0.15, 1.5], [-0.15, 3.0]], aR: [[0.15, 1.5], [0.15, 3.0]]},
+  twist: {aL: [[-0.3, 1.4], [-0.55, 2.8]], aR: [[0.4, 1.3], [0.95, 2.3]]},
+  lean:  {aL: [[-0.5, 1.3], [-0.3, 2.7]], aR: [[0.5, 1.3], [0.3, 2.7]]},
+  arch:  {aL: [[-0.6, 1.3], [-1.0, 2.6]], aR: [[0.6, 1.3], [1.0, 2.6]]},
+  hip:   {aL: [[-1.0, 1.1], [-0.2, 2.5]], aR: [[0.15, 1.5], [0.15, 3.0]]},
+  wave:  {aL: [[-0.15, 1.5], [-0.15, 3.0]], aR: [[1.0, -0.5], [0.7, -2.0]]},
+  cheek: {aL: [[-0.15, 1.5], [-0.15, 3.0]], aR: [[1.1, 0.9], [0.55, -1.75]]},
+  hug:   {aL: [[-0.7, 1.4], [1.1, 1.4]], aR: [[0.7, 1.4], [-1.1, 1.6]]},
+  sit:   {aL: [[-0.3, 1.4], [-0.6, 2.6]], aR: [[0.3, 1.4], [0.6, 2.6]], lL: [[-0.6, 1.0], [-0.6, 3.2]], lR: [[0.8, 1.0], [0.8, 3.2]]},
+  kneel: {aL: [[-0.3, 1.4], [-0.5, 2.7]], aR: [[0.6, 1.2], [0.9, 2.2]], lL: [[-0.5, 2.6], [-1.3, 2.8]], lR: [[1.0, 1.4], [1.0, 3.6]]},
+  crouch:{aL: [[-0.7, 1.3], [-0.6, 2.4]], aR: [[0.7, 1.3], [0.6, 2.4]], lL: [[-1.3, 0.3], [-1.2, 2.4]], lR: [[1.3, 0.3], [1.2, 2.4]]},
+  jump:  {aL: [[-1.0, -0.4], [-0.9, -1.9]], aR: [[1.0, -0.4], [0.9, -1.9]], lL: [[-0.5, 1.6], [-1.0, 1.3]], lR: [[0.5, 1.6], [1.0, 1.3]]},
+  run:   {aL: [[-0.9, 0.9], [0.1, 0.5]], aR: [[0.7, 1.4], [1.2, 2.6]], lL: [[-1.1, 1.4], [-1.7, 3.1]], lR: [[0.9, 2.1], [1.3, 4.0]]}
+};
+// 3D 素体用の奥行き（R 単位、＋が手前）。2D の位置に足して、座り・走りなどが正面からも横からも読めるようにする
+const POSE_Z = {
+  hip:   {elL: -0.4, wrL: 0.3},
+  cheek: {elR: 0.4, wrR: 0.6},
+  hug:   {elL: 0.5, elR: 0.5, wrL: 0.9, wrR: 0.9},
+  sit:   {knL: 1.9, knR: 1.9, ftL: 1.7, ftR: 1.7},
+  kneel: {knL: 0, ftL: -1.4, knR: 1.3, ftR: 1.3},
+  crouch:{knL: 1.5, knR: 1.5, ftL: 1.2, ftR: 1.2, elL: 0.5, elR: 0.5, wrL: 0.9, wrR: 0.9},
+  run:   {knL: 1.1, ftL: 0.5, knR: -0.7, ftR: -1.6, elL: -0.5, wrL: 0.9, elR: 0.6, wrR: -0.4},
+  jump:  {knL: 0.4, knR: 0.4, ftL: -0.6, ftR: -0.6}
+};
 const LIGHTS = {key:'順光', side:'サイド光', rim:'逆光', top:'トップ光'};
 const CONTRASTS = {high:'強', soft:'柔'};
 const LAYERS = {tri:'三角', spine:'素体', hair:'髪', solids:'固形物', hands:'手', hino:'日の丸', frames:'型枠', grid:'グリッド', leads:'導線', force:'主力線', gaze:'視線Z', somitsu:'疏密', valueC:'明度対比', light:'ライティング', land:'遠近グラデ', guides:'ガイド重ね'};
@@ -1652,13 +1680,15 @@ function buildBody(head, R, lean, pose, angle){
   const shL = {x: shC.x - shH*Math.cos(tilt), y: shC.y - shH*Math.sin(tilt)}, shR = {x: shC.x + shH*Math.cos(tilt), y: shC.y + shH*Math.sin(tilt)};
   const waist = P(3.9, -0.3*sgn), hipC = P(5.0, 0.25*sgn);
   const hipL = {x: hipC.x - hipH*Math.cos(htilt), y: hipC.y - hipH*Math.sin(htilt)}, hipR = {x: hipC.x + hipH*Math.cos(htilt), y: hipC.y + hipH*Math.sin(htilt)};
-  const kneeL = P(7.2, -0.75 + 0.15*sgn), kneeR = P(7.2, 0.75 + 0.15*sgn);
-  const footL = P(9.6, -0.95 + 0.3*sgn), footR = P(9.6, 0.95 - 0.1*sgn);
-  // 上腕は肩から肘まで（肘から先は描かない）。前傾は前へ、反りは後ろへ振る
-  const swing = pose === 'lean' ? 0.35*sgn : pose === 'arch' ? -0.3*sgn : pose === 'twist' ? 0.15*sgn : 0, ua = R*1.55;
-  const aL = PI/2 + 0.14 + swing + tilt, aR = PI/2 - 0.14 + swing + tilt;
-  const elbowL = {x: shL.x + Math.cos(aL)*ua, y: shL.y + Math.sin(aL)*ua}, elbowR = {x: shR.x + Math.cos(aR)*ua, y: shR.y + Math.sin(aR)*ua};
-  return {head, R, neck, shC, shL, shR, waist, hipC, hipL, hipR, kneeL, kneeR, footL, footR, elbowL, elbowR, spine: [head, neck, shC, waist, hipC], tilt, htilt};
+  let kneeL = P(7.2, -0.75 + 0.15*sgn), kneeR = P(7.2, 0.75 + 0.15*sgn);
+  let footL = P(9.6, -0.95 + 0.3*sgn), footR = P(9.6, 0.95 - 0.1*sgn);
+  // 腕と脚：ポーズ表（POSE_DEF）から。sgn で左右反転
+  const def = POSE_DEF[pose] || POSE_DEF.stand;
+  const off = (o, d) => ({x: o.x + d[0]*sgn*R, y: o.y + d[1]*unit});
+  const [dL, dR] = sgn >= 0 ? [def.aL, def.aR] : [def.aR, def.aL];
+  const elbowL = off(shL, dL[0]), wrL = off(shL, dL[1]), elbowR = off(shR, dR[0]), wrR = off(shR, dR[1]);
+  if (def.lL && def.lR) { const [lL, lR] = sgn >= 0 ? [def.lL, def.lR] : [def.lR, def.lL]; kneeL = off(hipL, lL[0]); footL = off(hipL, lL[1]); kneeR = off(hipR, lR[0]); footR = off(hipR, lR[1]); }
+  return {head, R, neck, shC, shL, shR, waist, hipC, hipL, hipR, kneeL, kneeR, footL, footR, elbowL, elbowR, wrL, wrR, spine: [head, neck, shC, waist, hipC], tilt, htilt, sgn};
 }
 function bodyFromPose(head, R, ps, c){
   // 検出した骨格（正規化済みでなく、この構図の座標）から素体を組む。欠けた関節は buildBody の比率で補う
@@ -1719,7 +1749,7 @@ function makeHair(head, R, flow, r, kind){
 function makeComp(p){
   const r = rng(p.seed);
   const sk = p.sketch, mf = mainFace(sk), inferred = inferShot(mf.r);
-  const c = {id: nextId(), seed: p.seed, VW, VH, shot: p.shot, angle: p.angle, pattern: p.pattern, people: p.people, pose: p.pose, light: {dir: p.lightDir, kind: p.lightKind}, contrast: p.contrast,
+  const c = {id: nextId(), seed: p.seed, VW, VH, shot: p.shot, angle: p.angle, pattern: p.pattern, people: p.people, pose: p.pose, facing: p.facing || 'front', light: {dir: p.lightDir, kind: p.lightKind}, contrast: p.contrast,
     faces: [], vp: null, tris: [], solids: [], hands: [], hair: [], hino: null, land: null, leads: [], frames: [], focus: null, emph: [], edited: false,
     vis: {tri:true, spine:true, hair:true, solids:true, hands:true, hino:true, frames:true, grid:true, leads:true, force:true, gaze:true, valueC:true, light:true, land:true, guides:true}};
   let flow = flowVec(sk, r); c.flow = flow; c.lean = flow.x >= 0 ? 0.6 : -0.6;
@@ -1835,7 +1865,11 @@ function makeComp(p){
   }
   // hands
   const hs = c.lean >= 0 ? 1 : -1;
-  if (c.shot === 'up') {
+  const pd = POSE_DEF[c.pose]; const wristHand = (w, e, label) => ({x: clamp(w.x, R*0.3, VW - R*0.3), y: clamp(w.y, R*0.3, VH - R*0.3), s: R*0.55, rot: Math.atan2(w.y - e.y, w.x - e.x) + PI/2, pose: label, d: 0.55});
+  if (!T && pd && !['stand', 'twist', 'lean', 'arch'].includes(c.pose) && c.shot !== 'long') { // ポーズが手の位置を決めるとき：手首に手を置く（見える範囲のもの）
+    [[b.wrL, b.elbowL], [b.wrR, b.elbowR]].forEach(([w, e]) => { if (w.y < VH*1.05 && w.y > -R && Math.abs(w.x - VW/2) < VW*0.6 && dist(w, head) > R*0.6) c.hands.push(wristHand(w, e, 'free')); });
+  }
+  else if (c.shot === 'up') {
     const k = r();
     if (k < 0.3) c.hands.push({x: head.x + hs*R*0.85, y: head.y + R*0.45, s: R*0.62, rot: -hs*0.5, pose: 'cheek', d: 0.6});
     else if (k < 0.55) c.hands.push({x: head.x - hs*R*0.2, y: head.y + R*0.95, s: R*0.6, rot: hs*0.3, pose: 'chin', d: 0.6});
@@ -1986,7 +2020,8 @@ function randomParams(r, sk, i){
   if (h && h.vpY != null && r() < 0.5) angle = h.vpY > 0.66 ? 'low' : h.vpY < 0.3 ? 'high' : 'eye';
   let pattern = pats[i % pats.length]; if (pattern === 'land' && r() < 0.5) pattern = 'tri';
   const people = sk.faces.length > 1 ? sk.faces.length : 1; // 人数はデフォルト1人（スケッチに顔を複数置いたときだけ増える）
-  return {shot, angle, pattern, people, pose: pick(r, Object.keys(POSES)), lightDir: pick(r, [-2.4, -0.7, -1.57, 2.4, 0.5, -3.0]), lightKind: pick(r, Object.keys(LIGHTS)), contrast: r() < 0.45 ? 'high' : 'soft'};
+  const fk = r(); const facing = fk < 0.5 ? 'front' : fk < 0.85 ? (r() < 0.5 ? 'qL' : 'qR') : fk < 0.95 ? 'side' : 'back';
+  return {shot, angle, pattern, people, pose: pick(r, Object.keys(POSES)), facing, lightDir: pick(r, [-2.4, -0.7, -1.57, 2.4, 0.5, -3.0]), lightKind: pick(r, Object.keys(LIGHTS)), contrast: r() < 0.45 ? 'high' : 'soft'};
 }
 function generateAll(onlyTpl){
   pushUndo();
@@ -2005,7 +2040,7 @@ function generateAll(onlyTpl){
   toast(onlyTpl ? `「${onlyTpl.name}」から ${comps.length} 案を生成しました` : `${comps.length} 案を生成しました${templates.length ? '（読ませた構図を混ぜています）' : ''}`);
 }
 function regenComp(c, changes){
-  const p = {seed: c.seed, sketch, shot: c.shot, angle: c.angle, pattern: c.pattern, people: c.people, pose: c.pose, lightDir: c.light.dir, lightKind: c.light.kind, contrast: c.contrast, forceAngle: true, tplId: c.tplId, mirror: c.mirror};
+  const p = {seed: c.seed, sketch, shot: c.shot, angle: c.angle, pattern: c.pattern, people: c.people, pose: c.pose, facing: c.facing, lightDir: c.light.dir, lightKind: c.light.kind, contrast: c.contrast, forceAngle: true, tplId: c.tplId, mirror: c.mirror};
   Object.assign(p, changes || {});
   p.peopleExplicit = !!(changes && 'people' in changes);
   if (p.pattern !== 'tpl') p.tplId = null; else if (!p.tplId) p.pattern = 'tri';
@@ -2722,10 +2757,12 @@ function k3pose(c){ // 構図の素体（bodies[0]・faces[0]・skel）から VR
   H.resetNormalizedPose && H.resetNormalizedPose();
   const b = c.bodies[0], f = c.faces[0], sk = c.skel || {}; const R = f.r || 100;
   const Z = k => (sk[k] && typeof sk[k].z === 'number') ? sk[k].z*VW : 0; // MediaPipe の奥行き（画像幅と同じ単位）
-  const P3 = (p, k) => new THREE.Vector3(p.x, -p.y, -Z(k));
+  const pz = POSE_Z[c.pose] || {}, flip = (b.sgn || 1) < 0; // 検出骨格が無い関節はポーズ表の奥行きを使う（sgn で左右入れ替え）
+  const PZ = k => { if (sk[k] && typeof sk[k].z === 'number') return 0; const kk = flip ? k.replace(/L$/, '_').replace(/R$/, 'L').replace(/_$/, 'R') : k; return (pz[kk] || 0)*R; };
+  const P3 = (p, k) => new THREE.Vector3(p.x, -p.y, -Z(k) + PZ(k));
   const hipL = P3(b.hipL, 'hipL'), hipR = P3(b.hipR, 'hipR'), shL = P3(b.shL, 'shL'), shR = P3(b.shR, 'shR'), hipC = hipL.clone().add(hipR).multiplyScalar(0.5), shC = shL.clone().add(shR).multiplyScalar(0.5);
   const head = P3(f, 'head'), neck = P3(b.neck, 'neck'), elL = P3(b.elbowL, 'elL'), elR = P3(b.elbowR, 'elR'), knL = P3(b.kneeL, 'knL'), knR = P3(b.kneeR, 'knR'), ftL = P3(b.footL, 'ftL'), ftR = P3(b.footR, 'ftR');
-  const wrL = sk.wrL ? P3(sk.wrL, 'wrL') : null, wrR = sk.wrR ? P3(sk.wrR, 'wrR') : null;
+  const wrL = sk.wrL ? P3(sk.wrL, 'wrL') : (b.wrL ? P3(b.wrL, 'wrL') : null), wrR = sk.wrR ? P3(sk.wrR, 'wrR') : (b.wrR ? P3(b.wrR, 'wrR') : null);
   const dir = (a, b0) => b0.clone().sub(a).normalize();
   const basis = (xAxis, yAxis) => { const x = xAxis.clone().normalize(); const z = new THREE.Vector3().crossVectors(x, yAxis).normalize(); if (z.lengthSq() < 1e-6) z.set(0, 0, 1); const y = new THREE.Vector3().crossVectors(z, x).normalize(); const m = new THREE.Matrix4().makeBasis(x, y, z); return new THREE.Quaternion().setFromRotationMatrix(m); };
   const one = (rest, target) => new THREE.Quaternion().setFromUnitVectors(rest, target.clone().normalize());
@@ -2744,10 +2781,13 @@ function k3pose(c){ // 構図の素体（bodies[0]・faces[0]・skel）から VR
     rightLowerLeg: one(new THREE.Vector3(0, -1, 0), dir(knL, ftL)), leftLowerLeg: one(new THREE.Vector3(0, -1, 0), dir(knR, ftR))
   };
   const order = ['hips', 'spine', 'chest', 'upperChest', 'neck', 'head', 'rightUpperArm', 'rightLowerArm', 'leftUpperArm', 'leftLowerArm', 'rightUpperLeg', 'rightLowerLeg', 'leftUpperLeg', 'leftLowerLeg'];
+  // 体の向き：ポーズ全体を Y 軸まわりに回す（骨のワールド姿勢を直接決めるので scene の回転では効かない）
+  const yawQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), K3_YAW[c.facing || 'front'] || 0);
   const pq = new THREE.Quaternion();
-  order.forEach(name => { const node = H.getNormalizedBoneNode(name); if (!node || !targets[name]) return; node.parent.updateWorldMatrix(true, false); node.parent.getWorldQuaternion(pq); node.quaternion.copy(pq.invert().multiply(targets[name])); node.updateWorldMatrix(false, false); });
+  order.forEach(name => { const node = H.getNormalizedBoneNode(name); if (!node || !targets[name]) return; node.parent.updateWorldMatrix(true, false); node.parent.getWorldQuaternion(pq); node.quaternion.copy(pq.invert().multiply(yawQ.clone().multiply(targets[name]))); node.updateWorldMatrix(false, false); });
   vrm.humanoid.update && vrm.humanoid.update();
 }
+const K3_YAW = {front: 0, qL: 0.6, qR: -0.6, side: 1.35, back: PI};
 function k3render(c, W, H){ // → renderer.domElement（透明背景）。頭が顔の丸に重なるようにモデルを置く
   const {THREE} = K3, r = k3.renderer, cam = k3.camera, vrm = k3.vrm; if (!vrm) return null;
   r.setSize(W, H, false); cam.aspect = W/H; cam.updateProjectionMatrix();
@@ -2757,7 +2797,7 @@ function k3render(c, W, H){ // → renderer.domElement（透明背景）。頭�
   if (c.vp) { pitch = clamp((c.vp.y/VH - 0.5)*0.9, -0.7, 0.7); yaw = clamp((c.vp.x/VW - 0.5)*0.6, -0.5, 0.5); }
   const D = 6; cam.position.set(Math.sin(yaw)*Math.cos(pitch)*D, Math.sin(pitch)*D, Math.cos(yaw)*Math.cos(pitch)*D); cam.lookAt(0, 0, 0); cam.updateMatrixWorld(true);
   // ポーズ
-  vrm.scene.position.set(0, 0, 0); vrm.scene.scale.setScalar(1); vrm.scene.updateMatrixWorld(true);
+  vrm.scene.position.set(0, 0, 0); vrm.scene.scale.setScalar(1); vrm.scene.rotation.set(0, 0, 0); vrm.scene.updateMatrixWorld(true);
   k3pose(c); vrm.scene.updateMatrixWorld(true);
   // 頭の位置と大きさを合わせる（頭ボーン＋少し上を頭の中心とみなす）
   const headNode = vrm.humanoid.getNormalizedBoneNode('head') || vrm.humanoid.getRawBoneNode('head');
@@ -2776,7 +2816,7 @@ function k3render(c, W, H){ // → renderer.domElement（透明背景）。頭�
   k3applyGray(k3gray);
   r.render(k3.scene, cam); return r.domElement;
 }
-function k3key(c, W){ const b = c.bodies[0]; return JSON.stringify([c.faces[0], b.shL, b.shR, b.hipL, b.hipR, b.elbowL, b.elbowR, b.kneeL, b.kneeR, b.footL, b.footR, c.skel, c.light, c.angle, c.vp, c.contrast, W, k3gray, k3.name]); }
+function k3key(c, W){ const b = c.bodies[0]; return JSON.stringify([c.faces[0], b.shL, b.shR, b.hipL, b.hipR, b.elbowL, b.elbowR, b.wrL, b.wrR, b.kneeL, b.kneeR, b.footL, b.footR, c.skel, c.facing, c.light, c.angle, c.vp, c.contrast, W, k3gray, k3.name]); }
 function k3draw(ctx, c, long){ // drawComp から：虚座標系（scale 済み）の ctx に描く。まだ準備できていなければ false
   if (!k3 || !k3.vrm || !k3use) return false;
   const W = VW >= VH ? long : Math.round(long*VW/VH), H = VW >= VH ? Math.round(long*VH/VW) : long; const key = k3key(c, W);
@@ -2784,7 +2824,10 @@ function k3draw(ctx, c, long){ // drawComp から：虚座標系（scale 済み�
   if (!cv) { const el = k3render(c, W, H); if (!el) return false; cv = document.createElement('canvas'); cv.width = W; cv.height = H; cv.getContext('2d').drawImage(el, 0, 0); k3cache.set(key, cv); if (k3cache.size > 40) k3cache.delete(k3cache.keys().next().value); }
   ctx.drawImage(cv, 0, 0, VW, VH); return true;
 }
-async function k3bootstrap(){ if (!PLUS) return; try { const saved = await k3fetch('vrm'); if (saved && saved.buf) { await k3init(); await k3loadVRM(saved.buf, saved.name); k3cache.clear(); renderAll(); } } catch(e) { console.warn('vrm boot', e); } }
+const K3_DEFAULT = 'models/moo.vrm'; // 同梱の素体（配布版）。自分で読み込んだ VRM があればそちらを優先
+async function k3bootstrap(){ if (!PLUS) return; try { const saved = await k3fetch('vrm'); if (saved && saved.buf) { await k3init(); await k3loadVRM(saved.buf, saved.name); }
+    else { const r = await fetch(K3_DEFAULT); if (r.ok) { const buf = await r.arrayBuffer(); await k3init(); await k3loadVRM(buf, 'moo'); k3.isDefault = true; } }
+    if (k3 && k3.vrm) { k3cache.clear(); renderAll(); } } catch(e) { console.warn('vrm boot', e); } }
 async function k3loadFile(file){
   if (!PLUS) return; if (!/\.(vrm|glb)$/i.test(file.name)) { toast('VRM（または GLB）ファイルを選んでください'); return; }
   toast('3D素体を読み込んでいます…（端末内だけ）'); k3loading = true;
@@ -2792,7 +2835,7 @@ async function k3loadFile(file){
   catch(e) { toast('3D素体を読み込めませんでした：' + (e && e.message ? e.message : e)); }
   finally { k3loading = false; renderProps(); }
 }
-async function k3clear(){ if (k3 && k3.vrm) { k3.scene.remove(k3.vrm.scene); k3.vrm = null; k3.name = ''; } k3cache.clear(); await k3store('vrm', null); renderAll(); toast('3D素体を外しました'); }
+async function k3clear(){ if (k3 && k3.vrm) { k3.scene.remove(k3.vrm.scene); k3.vrm = null; k3.name = ''; } k3cache.clear(); await k3store('vrm', null); renderAll(); toast('3D素体を外しました（同梱の素体に戻すにはページを再読み込み）'); }
 async function k3exportOBJ(c){
   if (!k3 || !k3.vrm) { toast('先に VRM を読み込んでください'); return; } const {THREE, OBJExporter} = K3;
   k3render(c, 512, 512); // ポーズ・位置を確定
@@ -3218,6 +3261,7 @@ function renderProps(){
   box.appendChild(chipGroup('かたち', patMap, c.pattern, k => re({pattern: k})));
   box.appendChild(chipGroup('人数', {1: '1人', 2: '2人', 3: '3人'}, c.people, k => re({people: +k})));
   box.appendChild(chipGroup('軸のポーズ', POSES, c.pose, k => re({pose: k})));
+  if (PLUS) box.appendChild(chipGroup('体の向き（3D素体）', FACINGS, c.facing || 'front', k => re({facing: k})));
   box.appendChild(chipGroup('光', LIGHTS, c.light.kind, k => { pushUndo(); c.light.kind = k; c.edited = true; scoreComp(c); renderAll(); storeLater(); }));
   const dial = document.createElement('div'); dial.className = 'lightdial'; dial.innerHTML = `<span style="color:var(--muted);font-size:14px">光の向き</span><input type="range" id="lightDir" min="-180" max="180" value="${Math.round(c.light.dir*180/PI)}">`;
   dial.querySelector('input').addEventListener('input', e => { c.light.dir = e.target.value*PI/180; c.edited = true; renderMain(); });
@@ -3784,12 +3828,14 @@ const ZH = {
   '骨格を検出（AI・端末内）': '偵測骨架（AI・裝置內）',
   '骨格を消しました（Ctrl+Z で戻せます）': '已清除骨架（可用 Ctrl+Z 復原）',
   '・骨格あり': '・有骨架',
-  '3D素体（VRM）': '3D素體（VRM）', '読み込み中の素体：': '目前的素體：', '別の VRM に替える': '換成別的 VRM', 'VRM を読み込む': '讀入 VRM', '外す': '移除',
+  '3D素体（VRM）': '3D素體（VRM）',
+  '腰に手': '手叉腰', '手を上げる': '舉手', '頬に手': '手托臉頰', '胸の前で腕': '雙臂交叉胸前', '座り': '坐', '片膝': '單膝跪', 'しゃがみ': '蹲', '跳ぶ': '跳', '走る': '跑',
+  '体の向き（3D素体）': '身體朝向（3D素體）', '正面': '正面', '斜め（左）': '斜側（左）', '斜め（右）': '斜側（右）', '横向き': '側面', '後ろ向き': '背面', '読み込み中の素体：': '目前的素體：', '別の VRM に替える': '換成別的 VRM', 'VRM を読み込む': '讀入 VRM', '外す': '移除',
   'VRoid Studio などで作った VRM を読み込むと、コンセプト表示の素体が本物の 3D になり、この構図のポーズを取ります。モデルはこのブラウザ内にだけ保存され、送信しません。': '讀入用 VRoid Studio 等製作的 VRM 後，概念顯示的素體會變成真正的 3D，並擺出這個構圖的姿勢。模型只保存在這個瀏覽器內，不會傳送。',
   'コンセプト表示で使う': '在概念顯示中使用', 'グレーの素体': '灰色素體', 'OBJ 書き出し（この構図のポーズ）': '匯出 OBJ（此構圖的姿勢）',
   'クリスタ：ファイル → 読み込み → 3Dデータ で OBJ を開くと、ポーズ済みの素体がキャンバスに乗ります（関節はクリスタでは動かせません）。': 'CLIP STUDIO：檔案 → 讀入 → 3D 資料，開啟 OBJ 後，擺好姿勢的素體就會放到畫布上（關節無法在 CLIP STUDIO 內移動）。',
   'VRM（または GLB）ファイルを選んでください': '請選擇 VRM（或 GLB）檔案', '3D素体を読み込んでいます…（端末内だけ）': '正在讀入 3D 素體…（只在裝置內）',
-  '3D素体「': '3D 素體「', '」を読み込みました（このブラウザ内に保存）': '」已讀入（保存在這個瀏覽器內）', '3D素体を読み込めませんでした：': '無法讀入 3D 素體：', '3D素体を外しました': '已移除 3D 素體',
+  '3D素体「': '3D 素體「', '」を読み込みました（このブラウザ内に保存）': '」已讀入（保存在這個瀏覽器內）', '3D素体を読み込めませんでした：': '無法讀入 3D 素體：', '3D素体を外しました（同梱の素体に戻すにはページを再読み込み）': '已移除 3D 素體（要回到同捆的素體請重新載入頁面）',
   '先に VRM を読み込んでください': '請先讀入 VRM', 'OBJ を書き出しました（クリスタ：ファイル → 読み込み → 3Dデータ）': '已匯出 OBJ（CLIP STUDIO：檔案 → 讀入 → 3D 資料）', 'OBJ を書き出しました': '已匯出 OBJ',
   '消失点（画面外もOK）': '消失點（也可放在畫面外）', '消失点 画面外 ': '消失點 畫面外 ',
   '消失点ツールでドラッグしたまま枠の外へ出しても置けます。枠のふちの矢印をドラッグしても動きます。': '用消失點工具按住拖到框外也能放置。拖曳框邊的箭頭也能移動。',
