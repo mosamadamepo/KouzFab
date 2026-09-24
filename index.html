@@ -229,6 +229,7 @@ footer.reco{background:var(--panel);border-radius:var(--r);padding:8px 12px;disp
         <button data-tool="flow" title="動線・髪の流れ"><svg viewBox="0 0 24 24"><path d="M3 16c4-8 8 8 12 0s4-4 6-6"/></svg>動線</button>
         <button data-tool="tri" title="3点タップで三角"><svg viewBox="0 0 24 24"><path d="M12 4l8 15H4z" stroke-dasharray="3 2"/></svg>三角</button>
         <button data-tool="hand" title="絵の手をざっくり囲むと、そのシルエットを簡単な線で拾います（絵がなければ囲んだ大きさの手）"><svg viewBox="0 0 24 24"><rect x="7" y="5" width="10" height="15" rx="2"/><path d="M10 5v4M12.5 5v4M15 5v4M7 11l-3-2"/></svg>手</button>
+        <button data-tool="hairmass" title="髪の塊をざっくり囲むと、風になびくようにぶわっと膨らませて色を付けます。髪の毛1・髪の毛2…と増やせます（飾りや布にも）"><svg viewBox="0 0 24 24"><path d="M6 10c-2 3-1 8 3 9s7-1 9-4 2-7-1-9-6-1-8 1-2 2-3 3z"/><path d="M9 12c2 1 4 3 5 5"/></svg>髪の毛</button>
         <div class="sep"></div>
         <button data-tool="loop" title="ぐるっと囲んで見せ場を指定"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="8" ry="6" stroke-dasharray="3 3"/></svg>囲む</button>
         <button data-tool="marker" title="マーカーで見せ場を塗る"><svg viewBox="0 0 24 24"><path d="M4 17l9-9 4 4-9 9H4z"/><path d="M13 8l3-3 4 4-3 3"/></svg>マーカー</button>
@@ -277,7 +278,7 @@ footer.reco{background:var(--panel);border-radius:var(--r);padding:8px 12px;disp
   </section>
 
   <footer class="reco">
-    <div class="recoHead">次の一枚におすすめ <small id="recoNote">同じキャラで飽きさせない、対になる構図</small></div>
+    <div class="recoHead">変化させるならこれも <small id="recoNote">同じキャラで飽きさせない、対になる構図</small></div>
     <div class="recoRow" id="recoRow"></div>
   </footer>
 </div></div>
@@ -1497,7 +1498,7 @@ const POSE_Z = {
 };
 const LIGHTS = {key:'順光', side:'サイド光', rim:'逆光', top:'トップ光'};
 const CONTRASTS = {high:'強', soft:'柔'};
-const LAYERS = {tri:'三角', spine:'素体', hair:'髪', solids:'固形物', hands:'手', hino:'日の丸', frames:'型枠', grid:'グリッド', leads:'導線', force:'主力線', gaze:'視線Z', somitsu:'疏密', valueC:'明度対比', light:'ライティング', land:'遠近グラデ', guides:'ガイド重ね'};
+const LAYERS = {tri:'三角', spine:'素体', hair:'髪', hairMass:'髪の毛（囲み）', solids:'固形物', hands:'手', hino:'日の丸', frames:'型枠', grid:'グリッド', leads:'導線', force:'主力線', gaze:'視線Z', somitsu:'疏密', valueC:'明度対比', light:'ライティング', land:'遠近グラデ', guides:'ガイド重ね'};
 const TRI_COL = ['#7dd3e8', '#c3a8f6', '#9fe3b4', '#f0c27d'];
 const TRI_LABEL = ['主', '副', '補', '添'];
 const COL = {face:'#f2b45c', tri:'#7dd3e8', spine:'#f08fbf', body:'#ddd8cc', hair:'#f7f5f0', solid:'#d8c78e', hino:'#f2b45c', grid:'rgba(255,255,255,.2)', lead:'#c9f25a', marker:'#c9f25a', canvas:'#56575d'};
@@ -1667,28 +1668,32 @@ function tplWeightPick(r){
 }
 
 // ---------- generator ----------
-function buildBody(head, R, lean, pose, angle){
-  const sgn = lean >= 0 ? 1 : -1;
+const BODYDIRS = {auto: '自動', down: 'まっすぐ', bend: '腰を折る', up: 'さかさま'};
+function buildBody(head, R, lean, pose, angle, dir){
+  const sgn = lean >= 0 ? 1 : -1; dir = dir || 'down';
+  const fl = dir === 'up' ? -1 : 1, bend = dir === 'bend'; // さかさま：y を反転／腰を折る：胴が頭の上（奥）へ折れ、脚は上へ抜ける
+  const bendT = t => -0.6 - (t - 1.35)*0.71;
   const tilt = (pose === 'twist' ? 15 : pose === 'stand' ? 5 : 9) * sgn * PI / 180;
   const fw = pose === 'lean' ? 0.32*sgn : pose === 'arch' ? -0.28*sgn : 0;
   const persp = angle === 'low' ? 1.22 : angle === 'high' ? 0.74 : 1;
   const widen = angle === 'low' ? 0.35 : angle === 'high' ? -0.28 : 0;
   const unit = R * persp, lx = lean * 0.22;
-  const P = (t, dx) => { const s = 1 + widen*(t/9); return {x: head.x + (dx*s + lx*t + fw*t)*R, y: head.y + t*unit}; };
+  const P = (t, dx) => { const s = 1 + widen*(t/9); const tt = bend ? bendT(t) : t; return {x: head.x + (dx*s + lx*t*0.5 + fw*t)*R, y: head.y + tt*unit*fl}; };
   const neck = P(1.35, 0), shC = P(2.05, 0);
-  const shH = 1.7*R, hipH = 1.35*R, htilt = -tilt*0.8;
+  const shH = 1.7*R*(bend ? 0.92 : 1), hipH = 1.35*R*(bend ? 0.85 : 1), htilt = -tilt*0.8;
   const shL = {x: shC.x - shH*Math.cos(tilt), y: shC.y - shH*Math.sin(tilt)}, shR = {x: shC.x + shH*Math.cos(tilt), y: shC.y + shH*Math.sin(tilt)};
   const waist = P(3.9, -0.3*sgn), hipC = P(5.0, 0.25*sgn);
   const hipL = {x: hipC.x - hipH*Math.cos(htilt), y: hipC.y - hipH*Math.sin(htilt)}, hipR = {x: hipC.x + hipH*Math.cos(htilt), y: hipC.y + hipH*Math.sin(htilt)};
-  let kneeL = P(7.2, -0.75 + 0.15*sgn), kneeR = P(7.2, 0.75 + 0.15*sgn);
-  let footL = P(9.6, -0.95 + 0.3*sgn), footR = P(9.6, 0.95 - 0.1*sgn);
+  const legFl = bend ? -1 : fl; // 腰を折ったときは脚が画面の上へ抜ける
+  let kneeL = {x: hipL.x + (-0.05 + 0.15*sgn)*R, y: hipL.y + 2.2*unit*legFl}, kneeR = {x: hipR.x + (0.05 + 0.15*sgn)*R, y: hipR.y + 2.2*unit*legFl};
+  let footL = {x: hipL.x + (-0.2 + 0.3*sgn)*R, y: hipL.y + 4.6*unit*legFl}, footR = {x: hipR.x + (0.2 - 0.1*sgn)*R, y: hipR.y + 4.6*unit*legFl};
   // 腕と脚：ポーズ表（POSE_DEF）から。sgn で左右反転
   const def = POSE_DEF[pose] || POSE_DEF.stand;
-  const off = (o, d) => ({x: o.x + d[0]*sgn*R, y: o.y + d[1]*unit});
+  const off = (o, d, f2) => ({x: o.x + d[0]*sgn*R, y: o.y + d[1]*unit*f2});
   const [dL, dR] = sgn >= 0 ? [def.aL, def.aR] : [def.aR, def.aL];
-  const elbowL = off(shL, dL[0]), wrL = off(shL, dL[1]), elbowR = off(shR, dR[0]), wrR = off(shR, dR[1]);
-  if (def.lL && def.lR) { const [lL, lR] = sgn >= 0 ? [def.lL, def.lR] : [def.lR, def.lL]; kneeL = off(hipL, lL[0]); footL = off(hipL, lL[1]); kneeR = off(hipR, lR[0]); footR = off(hipR, lR[1]); }
-  return {head, R, neck, shC, shL, shR, waist, hipC, hipL, hipR, kneeL, kneeR, footL, footR, elbowL, elbowR, wrL, wrR, spine: [head, neck, shC, waist, hipC], tilt, htilt, sgn};
+  const elbowL = off(shL, dL[0], fl), wrL = off(shL, dL[1], fl), elbowR = off(shR, dR[0], fl), wrR = off(shR, dR[1], fl);
+  if (def.lL && def.lR) { const [lL, lR] = sgn >= 0 ? [def.lL, def.lR] : [def.lR, def.lL]; kneeL = off(hipL, lL[0], legFl); footL = off(hipL, lL[1], legFl); kneeR = off(hipR, lR[0], legFl); footR = off(hipR, lR[1], legFl); }
+  return {head, R, neck, shC, shL, shR, waist, hipC, hipL, hipR, kneeL, kneeR, footL, footR, elbowL, elbowR, wrL, wrR, spine: [head, neck, shC, waist, hipC], tilt, htilt, sgn, dir};
 }
 function bodyFromPose(head, R, ps, c){
   // 検出した骨格（正規化済みでなく、この構図の座標）から素体を組む。欠けた関節は buildBody の比率で補う
@@ -1708,8 +1713,13 @@ function bodyFromPose(head, R, ps, c){
   const tilt = Math.atan2(shR.y - shL.y, shR.x - shL.x), htilt = Math.atan2(hipR.y - hipL.y, hipR.x - hipL.x);
   return {head, R, neck, shC, shL, shR, waist, hipC, hipL, hipR, kneeL, kneeR, footL, footR, elbowL, elbowR, spine: [head, neck, shC, waist, hipC], tilt, htilt, fromPose: true};
 }
+function resolveBodyDir(c, f){ // 体の入れ方：自動なら、顔が下のほうにあって体が画面から出るときだけ「さかさま」か「腰を折る」
+  const sel = c.bodyDir || 'auto'; if (sel !== 'auto') return sel;
+  const persp = c.angle === 'low' ? 1.22 : c.angle === 'high' ? 0.74 : 1, VHc = c.VH || VH;
+  return (f.y > VHc*0.66 && f.y + f.r*persp*5 > VHc*1.1) ? (c.autoDir || 'up') : 'down';
+}
 function rebuildBodies(c){
-  c.bodies = c.faces.map((f, i) => (i === 0 && c.skel) ? bodyFromPose(f, f.r, c.skel, c) : buildBody(f, f.r, c.lean * (i % 2 ? -1 : 1), c.pose, c.angle));
+  c.bodies = c.faces.map((f, i) => (i === 0 && c.skel) ? bodyFromPose(f, f.r, c.skel, c) : buildBody(f, f.r, c.lean * (i % 2 ? -1 : 1), c.pose, c.angle, resolveBodyDir(c, f)));
 }
 function makeHair(head, R, flow, r, kind){
   const strands = [], fa = Math.atan2(flow.y, flow.x);
@@ -1749,10 +1759,10 @@ function makeHair(head, R, flow, r, kind){
 function makeComp(p){
   const r = rng(p.seed);
   const sk = p.sketch, mf = mainFace(sk), inferred = inferShot(mf.r);
-  const c = {id: nextId(), seed: p.seed, VW, VH, shot: p.shot, angle: p.angle, pattern: p.pattern, people: p.people, pose: p.pose, facing: p.facing || 'front', light: {dir: p.lightDir, kind: p.lightKind}, contrast: p.contrast,
+  const c = {id: nextId(), seed: p.seed, VW, VH, shot: p.shot, angle: p.angle, pattern: p.pattern, people: p.people, pose: p.pose, facing: p.facing || 'front', bodyDir: p.bodyDir || 'auto', light: {dir: p.lightDir, kind: p.lightKind}, contrast: p.contrast,
     faces: [], vp: null, tris: [], solids: [], hands: [], hair: [], hino: null, land: null, leads: [], frames: [], focus: null, emph: [], edited: false,
-    vis: {tri:true, spine:true, hair:true, solids:true, hands:true, hino:true, frames:true, grid:true, leads:true, force:true, gaze:true, valueC:true, light:true, land:true, guides:true}};
-  let flow = flowVec(sk, r); c.flow = flow; c.lean = flow.x >= 0 ? 0.6 : -0.6;
+    vis: {tri:true, spine:true, hair:true, hairMass:true, solids:true, hands:true, hino:true, frames:true, grid:true, leads:true, force:true, gaze:true, valueC:true, light:true, land:true, guides:true}};
+  let flow = flowVec(sk, r); c.flow = flow; c.lean = flow.x >= 0 ? 0.6 : -0.6; c.autoDir = r() < 0.5 ? 'up' : 'bend';
   let R = mf.r, head, T = null;
   const tpl = (p.tplId && p.pattern === 'tpl') ? templates.find(t => t.id === p.tplId) : null;
   if (c.pattern === 'tpl' && !tpl) c.pattern = 'tri';
@@ -1883,6 +1893,7 @@ function makeComp(p){
   const cloneHand = h => { const o = Object.assign({}, h); if (h.pts) o.pts = h.pts.map(q => ({x: q.x, y: q.y})); return o; };
   if (T && T.hands && T.hands.length) c.hands = T.hands.map(cloneHand);
   else if (!T && sk.hands && sk.hands.length) c.hands = sk.hands.map(cloneHand);
+  c.hairMasses = (!T && sk.hairMasses && sk.hairMasses.length) ? sk.hairMasses.map(hm => refluff(cloneHairMass(hm), c)) : [];
   { const lib = handLib(); if (lib.length) c.hands = c.hands.map(h => h.pts ? h : dressHand(h, pick(r, lib), h.x < c.faces[0].x)); }
   if (!T && c.hair.length && pat !== 'ring' && r() < 0.7) combAlong(c, 0.5); // 生成時は軽く梳く（読ませた構図はそのまま）
   // emphasis carried over from sketch / template
@@ -1952,6 +1963,7 @@ function kousei(c){
   const masses = []; // {x,y,w,kind,fam} in virtual px; w ≈ visual weight; fam = 方(hou)・円(en)・尖(sen)
   c.faces.forEach(f => masses.push({x: f.x, y: f.y, w: f.r*f.r*PI, kind: 'plane', fam: 'en'}));
   if (v.hands) c.hands.forEach(h => masses.push({x: h.x, y: h.y, w: h.s*h.s*2, kind: h.s > R*0.5 ? 'plane' : 'point', fam: 'sen'}));
+  if (v.hairMass !== false) (c.hairMasses || []).forEach(hm => masses.push({x: hm.c.x, y: hm.c.y, w: hm.area || hm.r*hm.r*PI, kind: 'plane', fam: 'en'}));
   if (v.solids) c.solids.forEach(sd => masses.push({x: sd.x, y: sd.y, w: sd.w*sd.h*(0.5 + sd.d), kind: sd.w > R ? 'plane' : 'point', fam: 'hou'}));
   if (v.hino && c.hino) masses.push({x: c.hino.x, y: c.hino.y, w: c.hino.r*c.hino.r*0.6, kind: 'plane', fam: 'en'});
   let lines = 0; if (v.hair) lines += c.hair.length; if (v.tri) lines += c.tris.length*3; if (v.leads) lines += c.leads.length; if (v.grid && c.vp) lines += 2;
@@ -2040,7 +2052,7 @@ function generateAll(onlyTpl){
   toast(onlyTpl ? `「${onlyTpl.name}」から ${comps.length} 案を生成しました` : `${comps.length} 案を生成しました${templates.length ? '（読ませた構図を混ぜています）' : ''}`);
 }
 function regenComp(c, changes){
-  const p = {seed: c.seed, sketch, shot: c.shot, angle: c.angle, pattern: c.pattern, people: c.people, pose: c.pose, facing: c.facing, lightDir: c.light.dir, lightKind: c.light.kind, contrast: c.contrast, forceAngle: true, tplId: c.tplId, mirror: c.mirror};
+  const p = {seed: c.seed, sketch, shot: c.shot, angle: c.angle, pattern: c.pattern, people: c.people, pose: c.pose, facing: c.facing, bodyDir: c.bodyDir, lightDir: c.light.dir, lightKind: c.light.kind, contrast: c.contrast, forceAngle: true, tplId: c.tplId, mirror: c.mirror};
   Object.assign(p, changes || {});
   p.peopleExplicit = !!(changes && 'people' in changes);
   if (p.pattern !== 'tpl') p.tplId = null; else if (!p.tplId) p.pattern = 'tri';
@@ -2178,6 +2190,60 @@ function fitHand(pts, face, unit){ // pts in the target space; unit = length uni
   const s = Math.max(unit*0.02, (L/1.6 + W/1.2)/2);
   return {x: cx + ax*(L/2 - s*0.8)*0.0, y: cy + ay*0, s, rot: Math.atan2(ay, ax) + PI/2, pose: 'free', d: 0.6};
 }
+// ---------- 髪の毛（囲み）：囲んだ塊を、風と重さで「ぶわっと」膨らませる簡易物理。色は塊ごと ----------
+const HAIR_PAL = ['#3a2b2b', '#6b4736', '#1f2531', '#e8d6a8', '#c8c9d6', '#b8394a', '#3b6cb8', '#3aa06b', '#8a4ab8', '#f0a3c2'];
+function resampleClosed(src, N){ const pts = src.filter((q, i) => !i || dist(q, src[i-1]) > 0.01); if (pts.length < 3) return null; const seg = []; let L = 0; for (let i = 0; i < pts.length; i++) { const d = dist(pts[i], pts[(i+1) % pts.length]); seg.push(d); L += d; } if (L < 1) return null;
+  const out = []; let i = 0, acc = 0; for (let k = 0; k < N; k++) { const t = k/N*L; while (acc + seg[i] < t && i < pts.length - 1) { acc += seg[i]; i++; } const a = pts[i], b = pts[(i+1) % pts.length], u = seg[i] ? (t - acc)/seg[i] : 0; out.push({x: a.x + (b.x - a.x)*u, y: a.y + (b.y - a.y)*u}); } return out; }
+function fluffLoop(src, o){ // → {pts, tips, c, r, area}
+  const N = 60, base = resampleClosed(src, N); if (!base) return null; const r = rng(o.seed || 1), amt = o.fluff == null ? 0.6 : o.fluff;
+  const c = {x: 0, y: 0}; base.forEach(q => { c.x += q.x; c.y += q.y; }); c.x /= N; c.y /= N; let rm = 0; base.forEach(q => rm += dist(q, c)); rm /= N;
+  const lobes = 3 + Math.floor(r()*3), ph = r()*TAU, ph2 = r()*TAU, w = o.wind || null;
+  let pts = base.map((q, i) => { const t = i/N*TAU, d = {x: q.x - c.x, y: q.y - c.y}, L = Math.hypot(d.x, d.y) || 1, u = {x: d.x/L, y: d.y/L};
+    let k = 1 + amt*(0.06 + 0.24*Math.sin(t*lobes + ph) + 0.09*Math.sin(t*lobes*2.6 + ph2)); // 大きな房と小さな波
+    if (w) { const dw = Math.max(0, u.x*w.x + u.y*w.y); k += amt*0.45*dw*dw; k -= amt*0.12*Math.max(0, -(u.x*w.x + u.y*w.y)); } // 風下へ流れ、風上は締まる
+    k += amt*0.07*Math.max(0, u.y); // 重さで少し下へ垂れる
+    return {x: c.x + d.x*k, y: c.y + d.y*k}; });
+  for (let pass = 0; pass < 2; pass++) pts = pts.map((q, i) => { const a = pts[(i+N-1) % N], b = pts[(i+1) % N]; return {x: a.x*0.25 + q.x*0.5 + b.x*0.25, y: a.y*0.25 + q.y*0.5 + b.y*0.25}; }); // 柔らかく
+  const tips = []; const rad = pts.map(q => dist(q, c));
+  for (let i = 0; i < N; i++) { let peak = true; for (let k = -3; k <= 3; k++) if (k && rad[(i+k+N) % N] >= rad[i]) { peak = false; break; } if (!peak) continue; const q = pts[i], u = {x: (q.x - c.x)/(rad[i] || 1), y: (q.y - c.y)/(rad[i] || 1)}; const dw = w ? Math.max(0, u.x*w.x + u.y*w.y) : 0; const len = rm*amt*(0.22 + 0.3*dw) ; if (len < rm*0.05) continue;
+    const a = pts[(i+N-2) % N], b = pts[(i+2) % N]; tips.push({base: [a, b], tip: {x: q.x + u.x*len + (w ? w.x*len*0.4 : 0), y: q.y + u.y*len + (w ? w.y*len*0.4 : 0)}, root: q}); }
+  let area = 0; for (let i = 0, j = N - 1; i < N; j = i++) area += (pts[j].x + pts[i].x)*(pts[j].y - pts[i].y); area = Math.abs(area)/2;
+  return {pts, tips, c, r: rm, area};
+}
+function makeHairMass(loop, owner, flow){ const n = ((owner.hairMasses || []).length) + 1; const hm = {src: loop.map(q => ({x: q.x, y: q.y})), name: `髪の毛${n}`, color: HAIR_PAL[(n - 1) % HAIR_PAL.length], fluff: 0.6, wind: true, seed: 1 + Math.floor(Math.random()*1e6)}; return refluff(hm, null, flow); }
+function refluff(hm, c, flow){ const w = hm.wind ? (c && c.flow ? c.flow : (flow || null)) : null; const f = fluffLoop(hm.src, {seed: hm.seed, fluff: hm.fluff, wind: w}); if (f) { hm.pts = f.pts; hm.tips = f.tips; hm.c = f.c; hm.r = f.r; hm.area = f.area; } else { hm.pts = hm.src; hm.tips = []; hm.c = hm.src[0]; hm.r = 10; hm.area = 100; } return hm; }
+function cloneHairMass(hm){ return JSON.parse(JSON.stringify(hm)); }
+function sketchFlow(){ const s = sketch.strokes && sketch.strokes[0]; if (s && s.length > 2) { const a = s[0], b = s[s.length-1], d = dist(a, b) || 1; return {x: (b.x-a.x)/d, y: (b.y-a.y)/d}; } return null; }
+function drawHairMass(ctx, hm, mode, lw, alphaK){ // mode: 'line' | 'flat' | 'concept'
+  if (!hm.pts || hm.pts.length < 3) return; const col = hm.color || '#3a2b2b', a = alphaK == null ? 1 : alphaK;
+  ctx.save(); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  const path = () => { smoothPath(ctx, hm.pts, true, 0); };
+  if (mode === 'line') { path(); ctx.fillStyle = rgba(col, .18*a); ctx.fill(); ctx.strokeStyle = rgba(col, .95*a); ctx.lineWidth = lw(2.2); ctx.stroke();
+    hm.tips.forEach(t => { ctx.beginPath(); ctx.moveTo(t.base[0].x, t.base[0].y); ctx.quadraticCurveTo(t.root.x, t.root.y, t.tip.x, t.tip.y); ctx.quadraticCurveTo(t.root.x, t.root.y, t.base[1].x, t.base[1].y); ctx.stroke(); }); }
+  else { const dark = mix(col, '#000000', 0.35), light = mix(col, '#ffffff', 0.18);
+    path(); ctx.fillStyle = mode === 'flat' ? rgba(mix(col, '#000000', 0.25), .95*a) : rgba(col, .92*a); ctx.fill();
+    hm.tips.forEach(t => { ctx.beginPath(); ctx.moveTo(t.base[0].x, t.base[0].y); ctx.quadraticCurveTo(t.root.x, t.root.y, t.tip.x, t.tip.y); ctx.quadraticCurveTo(t.root.x, t.root.y, t.base[1].x, t.base[1].y); ctx.closePath(); ctx.fill(); });
+    if (mode !== 'flat') { ctx.strokeStyle = rgba(dark, .5*a); ctx.lineWidth = lw(1.2); path(); ctx.stroke(); // 房の流れ（内側の筋）
+      ctx.strokeStyle = rgba(light, .35*a); ctx.lineWidth = lw(1.4); hm.tips.forEach((t, i) => { if (i % 2) return; ctx.beginPath(); ctx.moveTo(hm.c.x + (t.root.x - hm.c.x)*0.25, hm.c.y + (t.root.y - hm.c.y)*0.25); ctx.quadraticCurveTo(hm.c.x + (t.root.x - hm.c.x)*0.6 + (t.root.y - hm.c.y)*0.15, hm.c.y + (t.root.y - hm.c.y)*0.6 - (t.root.x - hm.c.x)*0.15, t.tip.x, t.tip.y); ctx.stroke(); }); } }
+  ctx.restore();
+}
+function hairMassProps(box, owner, ctxFlow, onChange){ // 設定パネル：髪の毛1・髪の毛2… の色・ぶわぶわ・風
+  const list = owner.hairMasses || []; if (!list.length) return;
+  const g = document.createElement('div'); g.className = 'group'; g.innerHTML = `<h3>髪の毛（囲み）</h3>`;
+  list.forEach((hm, i) => { const row = document.createElement('div'); row.style.cssText = 'display:flex;flex-direction:column;gap:5px;background:var(--panel2);border-radius:9px;padding:6px 8px';
+    row.innerHTML = `<div style="display:flex;align-items:center;gap:6px"><input type="color" value="${hm.color}" style="width:30px;height:24px;padding:0;border:0;background:none;cursor:pointer" aria-label="色"><input type="text" value="${hm.name.replace(/"/g, '&quot;')}" maxlength="12" style="flex:1;padding:3px 8px"><button class="ghost" style="padding:2px 8px;font-size:12px" data-act="del">消す</button></div><div class="chips">${HAIR_PAL.map(cc => `<button data-col="${cc}" title="${cc}" style="width:18px;height:18px;padding:0;border-radius:50%;background:${cc};border:2px solid ${cc === hm.color ? '#fff' : 'transparent'}"></button>`).join('')}</div><div class="lightdial"><span style="color:var(--muted);font-size:13px">ぶわぶわ</span><input type="range" min="0" max="100" value="${Math.round((hm.fluff == null ? 0.6 : hm.fluff)*100)}" aria-label="ぶわぶわ"><button class="tg${hm.wind ? ' on' : ''}" style="padding:2px 8px;font-size:12px;border-radius:999px" data-act="wind">風になびく</button><button class="ghost" style="padding:2px 8px;font-size:12px" data-act="reroll">別の房</button></div>`;
+    const [colIn, nameIn] = row.querySelectorAll('input'); const rng_ = row.querySelector('input[type=range]');
+    colIn.addEventListener('input', e => { hm.color = e.target.value; onChange(false); }); colIn.addEventListener('change', () => onChange(true));
+    nameIn.addEventListener('input', e => { hm.name = e.target.value; onChange(false); });
+    row.querySelectorAll('[data-col]').forEach(b => b.addEventListener('click', () => { hm.color = b.dataset.col; colIn.value = hm.color; onChange(true); }));
+    rng_.addEventListener('input', e => { hm.fluff = e.target.value/100; refluff(hm, ctxFlow.c, ctxFlow.flow); onChange(false); }); rng_.addEventListener('change', () => onChange(true));
+    row.querySelector('[data-act=wind]').addEventListener('click', () => { hm.wind = !hm.wind; refluff(hm, ctxFlow.c, ctxFlow.flow); onChange(true); });
+    row.querySelector('[data-act=reroll]').addEventListener('click', () => { hm.seed = 1 + Math.floor(Math.random()*1e6); refluff(hm, ctxFlow.c, ctxFlow.flow); onChange(true); });
+    row.querySelector('[data-act=del]').addEventListener('click', () => { pushUndo(); list.splice(i, 1); onChange(true); });
+    g.appendChild(row); });
+  const note = document.createElement('p'); note.className = 'note'; note.textContent = '囲んだ形を、風（動線の向き）と重さで膨らませています。選択ツールで真ん中の点をドラッグすると動きます。髪以外（布・飾り）の塊にも使えます。'; g.appendChild(note);
+  box.appendChild(g);
+}
 // ---------- geometry helpers ----------
 function samplePts(s, n){
   const out = [], p = s.pts;
@@ -2233,12 +2299,13 @@ function drawSketchCanvas(ctx, W, H, o){
   [1/3, 2/3].forEach(t => { ctx.beginPath(); ctx.moveTo(VW*t, 0); ctx.lineTo(VW*t, VH); ctx.moveTo(0, VH*t); ctx.lineTo(VW, VH*t); ctx.stroke(); }); ctx.setLineDash([]);
   if (sketch.vp) drawGrid(ctx, sketch.vp, lw, 0.5);
   sketch.strokes.forEach(st => { ctx.strokeStyle = COL.hair; ctx.lineWidth = lw(2.5); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); st.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.stroke(); });
+  (sketch.hairMasses || []).forEach(hm => drawHairMass(ctx, hm, 'line', lw));
   (sketch.hands || []).forEach(h => { ctx.strokeStyle = rgba(COL.face, .9); ctx.lineWidth = lw(2.2); ctx.lineJoin = 'round'; ctx.lineCap = 'round'; handPath(ctx, h); ctx.fillStyle = rgba(COL.face, .08); ctx.fill(); ctx.stroke(); });
   (sketch.tris || []).forEach((t, i) => { const col = TRI_COL[Math.min(i, 3)]; poly(ctx, t); ctx.setLineDash([lw(14), lw(8)]); ctx.lineWidth = lw(i ? 3 : 4.5); ctx.strokeStyle = rgba(col, i ? .6 : .8); ctx.stroke(); ctx.setLineDash([]); });
   drawEmph(ctx, sketch.emph, lw);
   sketch.faces.forEach((f, i) => { ctx.strokeStyle = COL.face; ctx.lineWidth = lw(i ? 2 : 3); ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, TAU); ctx.stroke(); ctx.fillStyle = rgba(COL.face, .12); ctx.fill();
     ctx.beginPath(); ctx.moveTo(f.x - f.r*0.5, f.y); ctx.lineTo(f.x + f.r*0.5, f.y); ctx.moveTo(f.x, f.y - f.r*0.6); ctx.lineTo(f.x, f.y + f.r*0.6); ctx.lineWidth = lw(1); ctx.strokeStyle = rgba(COL.face, .6); ctx.stroke(); });
-  if (o.handles) { sketch.faces.forEach(f => { handle(ctx, f, lw, COL.face); handle(ctx, {x: f.x + f.r, y: f.y}, lw, COL.face, true); }); (sketch.hands || []).forEach(h => handle(ctx, h, lw, COL.face, true)); if (sketch.vp) handle(ctx, vpOnEdge(sketch.vp, lw(26)), lw, '#fff'); }
+  if (o.handles) { sketch.faces.forEach(f => { handle(ctx, f, lw, COL.face); handle(ctx, {x: f.x + f.r, y: f.y}, lw, COL.face, true); }); (sketch.hands || []).forEach(h => handle(ctx, h, lw, COL.face, true)); (sketch.hairMasses || []).forEach(hm => handle(ctx, hm.c, lw, hm.color || '#888')); if (sketch.vp) handle(ctx, vpOnEdge(sketch.vp, lw(26)), lw, '#fff'); }
   ctx.restore();
 }
 function drawUnderlay(ctx){
@@ -2334,13 +2401,14 @@ function drawComp(ctx, c, W, H, o){
   // figures
   const figs = c.bodies.map((b, i) => ({b, f: c.faces[i], i})).sort((a, b) => a.f.r - b.f.r);
   const long3d = o.export3d || (W >= 700 ? 1024 : 360);
-  if (on('figure')) figs.forEach(({b, f, i}) => { if (i === 0 && mode === 'concept' && k3draw(ctx, c, long3d)) return; drawFigure(ctx, c, b, f, i, mode, lw); });
+  if (on('figure')) figs.forEach(({b, f, i}) => { if (mode === 'concept' && k3draw(ctx, c, long3d, i)) return; drawFigure(ctx, c, b, f, i, mode, lw); });
+  if (v.hairMass !== false && on('hairMass')) (c.hairMasses || []).forEach(hm => drawHairMass(ctx, hm, mode, lw));
   // near solids & hands (foreground)
   if (v.solids && on('solidsNear')) solidsSorted.filter(x => x.d >= 0.7).forEach(drawSolid);
   if (v.hands && on('hands')) c.hands.forEach(h => {
     if (mode === 'line') { ctx.strokeStyle = rgba(COL.face, .55 + 0.45*h.d); ctx.lineWidth = lw(1.4 + 1.8*h.d); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; handPath(ctx, h); ctx.fillStyle = rgba(COL.face, .08); ctx.fill(); ctx.stroke(); }
     else if (mode === 'flat') handFill(ctx, h, h.d > 0.8 ? '#1f2024' : '#2e2f33');
-    else handFill(ctx, h, c.light.kind === 'rim' ? CP.skinD : (h.d > 0.8 ? CP.skinL : CP.skin));
+    else { handFill(ctx, h, rgba(COL.face, .88)); ctx.strokeStyle = 'rgba(40,30,20,.85)'; ctx.lineWidth = lw(1.6 + 1.2*h.d); ctx.lineJoin = 'round'; ctx.lineCap = 'round'; handPath(ctx, h); ctx.stroke(); } // コンセプト：VRM に埋もれないように濃いオレンジ＋縁取り
   });
   // lighting overlays (concept)
   if (mode === 'concept' && light && on('light')) {
@@ -2360,6 +2428,7 @@ function drawComp(ctx, c, W, H, o){
 function drawLabels(ctx, c, lw, mode){
   const v = c.vis; ctx.save(); ctx.font = `500 ${lw(12)}px ${getComputedStyle(document.body).fontFamily}`; ctx.textBaseline = 'middle';
   const tag = (x, y, text, col) => { const w = ctx.measureText(text).width + lw(10); const px = clamp(x, lw(4), VW - w - lw(4)), py = clamp(y, lw(12), VH - lw(12)); ctx.fillStyle = 'rgba(20,20,22,.7)'; ctx.beginPath(); ctx.roundRect(px, py - lw(9), w, lw(18), lw(5)); ctx.fill(); ctx.fillStyle = col; ctx.fillText(text, px + lw(5), py); };
+  if (v.hairMass !== false) (c.hairMasses || []).forEach(hm => tag(hm.c.x + hm.r*0.5, hm.c.y - hm.r*0.9, hm.name || '髪の毛', mix(hm.color || '#888', '#ffffff', 0.55)));
   if (v.hands) c.hands.forEach(h => tag(h.x + h.s*0.9, h.y - h.s*0.9, ({cheek: '手（頬）', chin: '手（顎）', reach: '手（手前）', brush: '手（髪）', hip: '手（腰）', free: '手'})[h.pose] || '手', COL.face));
   if (v.solids) c.solids.forEach(sd => tag(sd.x - sd.w/2, sd.y - sd.h/2 - lw(12), sd.d >= 0.7 ? '固形物（手前）' : sd.d >= 0.4 ? '固形物' : '固形物（奥）', COL.solid));
   if (v.hino && c.hino) tag(c.hino.x - lw(20), c.hino.y - c.hino.r + lw(12), '日の丸', COL.hino);
@@ -2524,6 +2593,7 @@ function handlesOf(c){
   c.tris.forEach((t, i) => t.forEach((p, k) => h.push({t: 'tri', i, k, x: p.x, y: p.y, c: TRI_COL[Math.min(i, TRI_COL.length - 1)]})));
   c.solids.forEach((s, i) => h.push({t: 'solid', i, x: s.x, y: s.y, c: COL.solid}));
   c.hands.forEach((hd, i) => h.push({t: 'hand', i, x: hd.x, y: hd.y, c: COL.face, sq: true}));
+  (c.hairMasses || []).forEach((hm, i) => h.push({t: 'hairm', i, x: hm.c.x, y: hm.c.y, c: hm.color || '#888'}));
   if (c.hino) h.push({t: 'hino', x: c.hino.x, y: c.hino.y, c: COL.hino});
   if (c.skel) Object.entries(c.skel).forEach(([k, q]) => { if (q) h.push({t: 'skel', k, x: q.x, y: q.y, c: COL.body, sq: true}); });
   if (c.vp) { const e = vpOnEdge(c.vp, 26/(mainW/VW)); h.push({t: 'vp', x: e.x, y: e.y, off: e.off, c: '#ffffff'}); }
@@ -2557,7 +2627,7 @@ function renderMain(){
   else if (c) tag.innerHTML = `<b>${c.name}</b><span>${POSES[c.pose]}・${LIGHTS[c.light.kind]}・${c.people}人</span>`;
   else tag.innerHTML = `<b>あなたのスケッチ</b><span>顔の丸と動線から生成します</span>`;
   const hint = $('stageHint');
-  hint.innerHTML = trace ? `<span>顔：ドラッグで丸</span><span>動線：なぞる</span><span>三角：3点タップ</span><span>手：範囲を囲む</span><span>囲む／マーカー：見せ場</span><span>消失点：クリック</span><span>右クリック：消す</span>` : c ? `<span>囲む・マーカーで見せ場を指定 → 構図が組み替わります</span><span>選択ツールで点をドラッグ</span><span>三角：3点タップ／手：範囲を囲む</span><span>右クリック：消す</span>` : `<span>顔：ドラッグで丸</span><span>動線：一本なぞる</span><span>囲む／マーカー：見せたい場所</span><span>消失点：クリック</span><span>右クリック：消す</span>`;
+  hint.innerHTML = trace ? `<span>顔：ドラッグで丸</span><span>動線：なぞる</span><span>三角：3点タップ</span><span>手：範囲を囲む</span><span>囲む／マーカー：見せ場</span><span>消失点：クリック</span><span>右クリック：消す</span>` : c ? `<span>囲む・マーカーで見せ場を指定 → 構図が組み替わります</span><span>選択ツールで点をドラッグ</span><span>三角：3点タップ／手：範囲を囲む</span><span>髪の毛：塊を囲む</span><span>右クリック：消す</span>` : `<span>顔：ドラッグで丸</span><span>動線：一本なぞる</span><span>囲む／マーカー：見せたい場所</span><span>髪の毛：塊を囲む</span><span>消失点：クリック</span><span>右クリック：消す</span>`;
 }
 // ---------- trace mode (the user's own artwork, in memory only) ----------
 function drawTrace(ctx, W, H, o){
@@ -2720,9 +2790,9 @@ function bootstrapLearning(){ // 残してある 160px サムネイルからも�
 
 
 // ---------- 3D素体（配布版のみ）：VRM（VRoid など）を three.js で描き、構図の骨格でポーズを取らせる。モデルは端末内（IndexedDB）にだけ残る ----------
-let K3 = null, k3 = null, k3use = true, k3gray = false, k3loading = false;
+let K3 = null, k3 = null, k3use = true, k3gray = false, k3arm = true, k3loading = false; // k3arm：肘から先を 10% の不透明度に（手は自分で描く）
 const k3cache = new Map();
-try { k3use = localStorage.getItem('kouzu-k3use') !== '0'; k3gray = localStorage.getItem('kouzu-k3gray') === '1'; } catch(e) {}
+try { k3use = localStorage.getItem('kouzu-k3use') !== '0'; k3gray = localStorage.getItem('kouzu-k3gray') === '1'; k3arm = localStorage.getItem('kouzu-k3arm') !== '0'; } catch(e) {}
 function k3db(){ return new Promise((res, rej) => { const rq = indexedDB.open('kouzu-fabrica', 1); rq.onupgradeneeded = () => rq.result.createObjectStore('files'); rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error); }); }
 async function k3store(key, val){ try { const db = await k3db(); await new Promise((res, rej) => { const tx = db.transaction('files', 'readwrite'); tx.objectStore('files').put(val, key); tx.oncomplete = res; tx.onerror = () => rej(tx.error); }); } catch(e) {} }
 async function k3fetch(key){ try { const db = await k3db(); return await new Promise((res, rej) => { const tx = db.transaction('files', 'readonly'); const rq = tx.objectStore('files').get(key); rq.onsuccess = () => res(rq.result || null); rq.onerror = () => rej(rq.error); }); } catch(e) { return null; } }
@@ -2745,20 +2815,55 @@ async function k3loadVRM(buf, name){
   k3.vrm = vrm; k3.meta = vrm.meta || null; k3.name = (vrm.meta && (vrm.meta.name || vrm.meta.title)) || name || 'VRM'; k3.scene.add(vrm.scene);
   // グレーの素体用マテリアル
   const {THREE} = K3; k3.origMats = new Map(); k3.grayMat = new THREE.MeshStandardMaterial({color: 0xc9c4bb, roughness: 0.75, metalness: 0});
+  k3splitArms(vrm);
   vrm.scene.traverse(o => { if (o.isMesh) k3.origMats.set(o, o.material); });
-  k3cache.clear(); return vrm;
+  k3.variants = null; k3.grayMat2 = null; k3.grayArm = null; k3cache.clear(); return vrm;
 }
-function k3applyGray(on){ // グレー素体：髪・服・目のハイライトは隠し、残りをグレーに（VRoid の材質名で判定）
+function k3splitArms(vrm){ // 肘から先（前腕・手・指）の三角形を別メッシュに分けて、薄く描けるようにする
+  const {THREE} = K3, H = vrm.humanoid; if (!H) return; const armBones = new Set();
+  ['leftLowerArm', 'rightLowerArm'].forEach(n => { const node = H.getRawBoneNode(n); if (node) node.traverse(o => armBones.add(o)); });
+  if (!armBones.size) return; const made = [];
+  vrm.scene.traverse(o => { if (!o.isSkinnedMesh || !o.geometry || !o.skeleton) return; const g = o.geometry; if (!g.index) return;
+    const si = g.attributes.skinIndex, sw = g.attributes.skinWeight; if (!si || !sw) return; const isArm = o.skeleton.bones.map(b => armBones.has(b));
+    const n = si.count, armW = new Float32Array(n); for (let i = 0; i < n; i++) { let w = 0; for (let k = 0; k < 4; k++) { const bi = si.getComponent(i, k), ww = sw.getComponent(i, k); if (isArm[bi]) w += ww; } armW[i] = w; }
+    const idx = g.index.array, body = [], arm = [], bodyG = [], armG = []; // マテリアルごとのグループを保ったまま分ける
+    const groups = g.groups && g.groups.length ? g.groups : [{start: 0, count: idx.length, materialIndex: 0}];
+    groups.forEach(gr => { const bs = body.length, as = arm.length, end = Math.min(idx.length, gr.start + gr.count); for (let t = gr.start; t + 2 < end; t += 3) { const a = idx[t], b = idx[t+1], c = idx[t+2]; ((armW[a] + armW[b] + armW[c])/3 >= 0.5 ? arm : body).push(a, b, c); }
+      if (body.length > bs) bodyG.push({start: bs, count: body.length - bs, materialIndex: gr.materialIndex || 0}); if (arm.length > as) armG.push({start: as, count: arm.length - as, materialIndex: gr.materialIndex || 0}); });
+    if (!arm.length) return;
+    const ga = g.clone(); ga.setIndex(arm); g.setIndex(body); g.clearGroups(); ga.clearGroups(); if (g.groups !== undefined && groups.length) { bodyG.forEach(x => g.addGroup(x.start, x.count, x.materialIndex)); armG.forEach(x => ga.addGroup(x.start, x.count, x.materialIndex)); }
+    const thin = mt => { const m2 = mt.clone(); m2.transparent = true; m2.depthWrite = false; m2.opacity = 0.1; m2.needsUpdate = true; return m2; };
+    const mat = Array.isArray(o.material) ? o.material.map(thin) : thin(o.material);
+    const m = new THREE.SkinnedMesh(ga, mat); m.name = (o.name || 'mesh') + '_forearm'; m.userData.arm = true; m.frustumCulled = false; m.renderOrder = (o.renderOrder || 0) + 5;
+    m.position.copy(o.position); m.quaternion.copy(o.quaternion); m.scale.copy(o.scale); m.bind(o.skeleton, o.bindMatrix); m.morphTargetInfluences = o.morphTargetInfluences; m.morphTargetDictionary = o.morphTargetDictionary;
+    made.push([o, m]); });
+  made.forEach(([o, m]) => o.parent.add(m));
+}
+function k3variantMats(idx){ // 2人目以降：髪・眉・瞳の色相を回して色違いに（テクスチャをキャンバスで回す。端末内だけ）
+  if (!idx || !k3 || !k3.vrm) return null; k3.variants = k3.variants || new Map(); if (k3.variants.has(idx)) return k3.variants.get(idx);
+  const {THREE} = K3, deg = [0, 150, -110, 60, 200][idx % 5] || 150, m = new Map();
+  const shift = tex => { try { const im = tex.image; if (!im || !im.width) return tex; const cv = document.createElement('canvas'); cv.width = im.width; cv.height = im.height; const g = cv.getContext('2d'); g.filter = `hue-rotate(${deg}deg)`; g.drawImage(im, 0, 0); const t = new THREE.CanvasTexture(cv); t.flipY = tex.flipY; t.colorSpace = tex.colorSpace; t.wrapS = tex.wrapS; t.wrapT = tex.wrapT; t.minFilter = tex.minFilter; t.magFilter = tex.magFilter; t.needsUpdate = true; return t; } catch(e) { return tex; } };
+  const shiftColor = col => { if (!col || !col.isColor) return col; const h = {}; col.getHSL(h); return new THREE.Color().setHSL(((h.h + deg/360) % 1 + 1) % 1, h.s, h.l); };
+  k3.origMats.forEach((mat, mesh) => { const arr = Array.isArray(mat) ? mat : [mat]; const out = arr.map(mt => { const nm = mt.name || mesh.name || ''; if (!/_HAIR|EyeIris|Eyebrow/i.test(nm)) return mt; const cl = mt.clone(); if (cl.map) cl.map = shift(cl.map); if (cl.shadeMultiplyTexture) cl.shadeMultiplyTexture = shift(cl.shadeMultiplyTexture); if (cl.color) cl.color = shiftColor(cl.color); if (cl.shadeColorFactor) cl.shadeColorFactor = shiftColor(cl.shadeColorFactor); cl.needsUpdate = true; return cl; }); m.set(mesh, Array.isArray(mat) ? out : out[0]); });
+  k3.variants.set(idx, m); return m;
+}
+function k3applyGray(on, idx){ // グレー素体：髪・服・目のハイライトは隠し、残りをグレーに（VRoid の材質名で判定）。idx>0 は色違い
   if (!k3 || !k3.vrm) return;
-  k3.vrm.scene.traverse(o => { if (!o.isMesh) return; const orig = k3.origMats.get(o); const nm = (orig && orig.name) || o.name || ''; const hide = on && /_HAIR|_CLOTH|EyeHighlight|_EYE\b|Accessory|_ACCESSORY/i.test(nm); o.visible = !hide; o.material = on ? k3.grayMat : orig; });
+  const vm = idx ? k3variantMats(idx) : null; if (idx && !k3.grayMat2) { k3.grayMat2 = k3.grayMat.clone(); k3.grayMat2.color.set(0xb4bfcc); } const gm = idx ? k3.grayMat2 : k3.grayMat;
+  if (!k3.grayArm) { k3.grayArm = k3.grayMat.clone(); k3.grayArm.transparent = true; k3.grayArm.depthWrite = false; }
+  k3.vrm.scene.traverse(o => { if (!o.isMesh) return; const orig = k3.origMats.get(o); const nm = (orig && orig.name) || o.name || ''; const hide = on && /_HAIR|_CLOTH|EyeHighlight|_EYE\b|Accessory|_ACCESSORY/i.test(nm); o.visible = !hide;
+    if (o.userData.arm) { const m = on ? k3.grayArm : orig; (Array.isArray(m) ? m : [m]).forEach(x => { x.opacity = k3arm ? 0.1 : 1; x.transparent = true; x.depthWrite = !k3arm; if (x.uniforms && x.uniforms.opacity) x.uniforms.opacity.value = x.opacity; }); o.material = m; return; } // MToon は opacity をユニフォームへ手動で送る // 肘から先：10%（手は自分で描く）
+    o.material = on ? gm : ((vm && vm.get(o)) || orig); });
 }
-function k3pose(c){ // 構図の素体（bodies[0]・faces[0]・skel）から VRM のボーン回転をつくる
-  const {THREE} = K3, vrm = k3.vrm, H = vrm.humanoid; if (!H) return;
+function k3pose(c, idx, facing){ // 構図の素体（bodies[idx]・faces[idx]・skel）から VRM のボーン回転をつくる
+  const {THREE} = K3, vrm = k3.vrm, H = vrm.humanoid; if (!H) return; idx = idx || 0;
   H.resetNormalizedPose && H.resetNormalizedPose();
-  const b = c.bodies[0], f = c.faces[0], sk = c.skel || {}; const R = f.r || 100;
+  const b0 = c.bodies[idx], f = c.faces[idx], sk = idx ? {} : (c.skel || {}); const R = f.r || 100;
+  // さかさま：画面の左右がモデルの左右と入れ替わる（Z 軸まわりに 180° 回した体）
+  const b = b0.dir === 'up' ? Object.assign({}, b0, {shL: b0.shR, shR: b0.shL, elbowL: b0.elbowR, elbowR: b0.elbowL, wrL: b0.wrR, wrR: b0.wrL, hipL: b0.hipR, hipR: b0.hipL, kneeL: b0.kneeR, kneeR: b0.kneeL, footL: b0.footR, footR: b0.footL}) : b0;
   const Z = k => (sk[k] && typeof sk[k].z === 'number') ? sk[k].z*VW : 0; // MediaPipe の奥行き（画像幅と同じ単位）
-  const pz = POSE_Z[c.pose] || {}, flip = (b.sgn || 1) < 0; // 検出骨格が無い関節はポーズ表の奥行きを使う（sgn で左右入れ替え）
-  const PZ = k => { if (sk[k] && typeof sk[k].z === 'number') return 0; const kk = flip ? k.replace(/L$/, '_').replace(/R$/, 'L').replace(/_$/, 'R') : k; return (pz[kk] || 0)*R; };
+  const pz = POSE_Z[c.pose] || {}, dz = DIR_Z[b.dir] || {}, flip = (b.sgn || 1) < 0; // 検出骨格が無い関節はポーズ表＋体の入れ方の奥行きを使う（sgn で左右入れ替え）
+  const PZ = k => { if (sk[k] && typeof sk[k].z === 'number') return 0; const kk = flip ? k.replace(/L$/, '_').replace(/R$/, 'L').replace(/_$/, 'R') : k; return ((pz[kk] || 0) + (dz[k] || 0))*R; };
   const P3 = (p, k) => new THREE.Vector3(p.x, -p.y, -Z(k) + PZ(k));
   const hipL = P3(b.hipL, 'hipL'), hipR = P3(b.hipR, 'hipR'), shL = P3(b.shL, 'shL'), shR = P3(b.shR, 'shR'), hipC = hipL.clone().add(hipR).multiplyScalar(0.5), shC = shL.clone().add(shR).multiplyScalar(0.5);
   const head = P3(f, 'head'), neck = P3(b.neck, 'neck'), elL = P3(b.elbowL, 'elL'), elR = P3(b.elbowR, 'elR'), knL = P3(b.kneeL, 'knL'), knR = P3(b.kneeR, 'knR'), ftL = P3(b.footL, 'ftL'), ftR = P3(b.footR, 'ftR');
@@ -2772,8 +2877,8 @@ function k3pose(c){ // 構図の素体（bodies[0]・faces[0]・skel）から VR
     spine: basis(shR.clone().sub(shL), shC.clone().sub(hipC)),
     chest: basis(shR.clone().sub(shL), shC.clone().sub(hipC)),
     upperChest: basis(shR.clone().sub(shL), shC.clone().sub(hipC)),
-    neck: one(new THREE.Vector3(0, 1, 0), dir(shC, head)),
-    head: one(new THREE.Vector3(0, 1, 0), dir(neck, head)),
+    neck: basis(shR.clone().sub(shL), dir(shC, head)),
+    head: basis(shR.clone().sub(shL), b.dir === 'bend' ? new THREE.Vector3(0, 0.55, 0.83) : dir(neck, head)), // 腰を折ったときは顔をカメラ側へ起こす
     rightUpperArm: one(new THREE.Vector3(-1, 0, 0), dir(shL, elL)), leftUpperArm: one(new THREE.Vector3(1, 0, 0), dir(shR, elR)),
     rightLowerArm: wrL ? one(new THREE.Vector3(-1, 0, 0), dir(elL, wrL)) : one(new THREE.Vector3(-1, 0, 0), dir(shL, elL)),
     leftLowerArm: wrR ? one(new THREE.Vector3(1, 0, 0), dir(elR, wrR)) : one(new THREE.Vector3(1, 0, 0), dir(shR, elR)),
@@ -2782,23 +2887,25 @@ function k3pose(c){ // 構図の素体（bodies[0]・faces[0]・skel）から VR
   };
   const order = ['hips', 'spine', 'chest', 'upperChest', 'neck', 'head', 'rightUpperArm', 'rightLowerArm', 'leftUpperArm', 'leftLowerArm', 'rightUpperLeg', 'rightLowerLeg', 'leftUpperLeg', 'leftLowerLeg'];
   // 体の向き：ポーズ全体を Y 軸まわりに回す（骨のワールド姿勢を直接決めるので scene の回転では効かない）
-  const yawQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), K3_YAW[c.facing || 'front'] || 0);
+  const yawQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), K3_YAW[facing || c.facing || 'front'] || 0);
   const pq = new THREE.Quaternion();
   order.forEach(name => { const node = H.getNormalizedBoneNode(name); if (!node || !targets[name]) return; node.parent.updateWorldMatrix(true, false); node.parent.getWorldQuaternion(pq); node.quaternion.copy(pq.invert().multiply(yawQ.clone().multiply(targets[name]))); node.updateWorldMatrix(false, false); });
   vrm.humanoid.update && vrm.humanoid.update();
 }
 const K3_YAW = {front: 0, qL: 0.6, qR: -0.6, side: 1.35, back: PI};
-function k3render(c, W, H){ // → renderer.domElement（透明背景）。頭が顔の丸に重なるようにモデルを置く
-  const {THREE} = K3, r = k3.renderer, cam = k3.camera, vrm = k3.vrm; if (!vrm) return null;
+const DIR_Z = {bend: {head: 1.8, shL: 1.0, shR: 1.0, elL: 1.4, elR: 1.4, wrL: 1.8, wrR: 1.8, knL: -0.4, knR: -0.4, ftL: -0.6, ftR: -0.6}}; // 腰を折る：頭と肩が手前、脚は奥へ
+function k3render(c, W, H, idx){ // → renderer.domElement（透明背景）。頭が顔の丸に重なるようにモデルを置く。idx＝何人目か
+  const {THREE} = K3, r = k3.renderer, cam = k3.camera, vrm = k3.vrm; if (!vrm) return null; idx = idx || 0;
   r.setSize(W, H, false); cam.aspect = W/H; cam.updateProjectionMatrix();
-  const f = c.faces[0], R = f.r;
+  const f = c.faces[idx], R = f.r; if (!f || !c.bodies[idx]) return null;
+  const facing = idx ? (({qL: 'qR', qR: 'qL'})[c.facing] || c.facing) : c.facing; // 2人目は向きを鏡にして向かい合わせ気味に
   // カメラ：あおり／ふかん（消失点があればそこから）
   let pitch = c.angle === 'low' ? -0.32 : c.angle === 'high' ? 0.32 : 0, yaw = 0;
   if (c.vp) { pitch = clamp((c.vp.y/VH - 0.5)*0.9, -0.7, 0.7); yaw = clamp((c.vp.x/VW - 0.5)*0.6, -0.5, 0.5); }
   const D = 6; cam.position.set(Math.sin(yaw)*Math.cos(pitch)*D, Math.sin(pitch)*D, Math.cos(yaw)*Math.cos(pitch)*D); cam.lookAt(0, 0, 0); cam.updateMatrixWorld(true);
   // ポーズ
   vrm.scene.position.set(0, 0, 0); vrm.scene.scale.setScalar(1); vrm.scene.rotation.set(0, 0, 0); vrm.scene.updateMatrixWorld(true);
-  k3pose(c); vrm.scene.updateMatrixWorld(true);
+  k3pose(c, idx, facing); vrm.scene.updateMatrixWorld(true);
   // 頭の位置と大きさを合わせる（頭ボーン＋少し上を頭の中心とみなす）
   const headNode = vrm.humanoid.getNormalizedBoneNode('head') || vrm.humanoid.getRawBoneNode('head');
   const headW = new THREE.Vector3(); headNode.getWorldPosition(headW); const up = new THREE.Vector3(0, 1, 0).applyQuaternion(headNode.getWorldQuaternion(new THREE.Quaternion())); headW.addScaledVector(up, 0.09);
@@ -2813,15 +2920,15 @@ function k3render(c, W, H){ // → renderer.domElement（透明背景）。頭�
   const lp = lightPoint(c); const ld = new THREE.Vector3((lp.x - f.x)/VW, -(lp.y - f.y)/VH, c.light.kind === 'rim' ? -0.35 : 0.7).normalize();
   k3.key.position.copy(ld).multiplyScalar(6); k3.key.target.position.set(0, 0, 0); k3.key.intensity = c.contrast === 'high' ? 3.0 : 2.2; k3.fill.intensity = c.contrast === 'high' ? 0.55 : 0.95;
   k3.rim.intensity = c.light.kind === 'rim' ? 3.5 : 0; k3.rim.position.set(-ld.x, ld.y + 0.5, -3); k3.rim.target.position.set(0, 0, 0);
-  k3applyGray(k3gray);
+  k3applyGray(k3gray, idx);
   r.render(k3.scene, cam); return r.domElement;
 }
-function k3key(c, W){ const b = c.bodies[0]; return JSON.stringify([c.faces[0], b.shL, b.shR, b.hipL, b.hipR, b.elbowL, b.elbowR, b.wrL, b.wrR, b.kneeL, b.kneeR, b.footL, b.footR, c.skel, c.facing, c.light, c.angle, c.vp, c.contrast, W, k3gray, k3.name]); }
-function k3draw(ctx, c, long){ // drawComp から：虚座標系（scale 済み）の ctx に描く。まだ準備できていなければ false
-  if (!k3 || !k3.vrm || !k3use) return false;
-  const W = VW >= VH ? long : Math.round(long*VW/VH), H = VW >= VH ? Math.round(long*VH/VW) : long; const key = k3key(c, W);
+function k3key(c, W, idx){ const b = c.bodies[idx || 0]; return JSON.stringify([idx || 0, k3arm, c.faces[idx || 0], b.dir, b.shL, b.shR, b.hipL, b.hipR, b.elbowL, b.elbowR, b.wrL, b.wrR, b.kneeL, b.kneeR, b.footL, b.footR, c.skel, c.facing, c.light, c.angle, c.vp, c.contrast, W, k3gray, k3.name]); }
+function k3draw(ctx, c, long, idx){ // drawComp から：虚座標系（scale 済み）の ctx に描く。まだ準備できていなければ false。idx＝何人目か
+  if (!k3 || !k3.vrm || !k3use) return false; idx = idx || 0; if (!c.bodies[idx] || c.bodies[idx].fromPose && idx) return false;
+  const W = VW >= VH ? long : Math.round(long*VW/VH), H = VW >= VH ? Math.round(long*VH/VW) : long; const key = k3key(c, W, idx);
   let cv = k3cache.get(key);
-  if (!cv) { const el = k3render(c, W, H); if (!el) return false; cv = document.createElement('canvas'); cv.width = W; cv.height = H; cv.getContext('2d').drawImage(el, 0, 0); k3cache.set(key, cv); if (k3cache.size > 40) k3cache.delete(k3cache.keys().next().value); }
+  if (!cv) { const el = k3render(c, W, H, idx); if (!el) return false; cv = document.createElement('canvas'); cv.width = W; cv.height = H; cv.getContext('2d').drawImage(el, 0, 0); k3cache.set(key, cv); if (k3cache.size > 40) k3cache.delete(k3cache.keys().next().value); }
   ctx.drawImage(cv, 0, 0, VW, VH); return true;
 }
 const K3_DEFAULT = 'models/moo.vrm'; // 同梱の素体（配布版）。自分で読み込んだ VRM があればそちらを優先
@@ -2855,12 +2962,13 @@ function k3props(box, c){ // 設定パネルの「3D素体」グループ（配�
   if (!PLUS) return;
   const g = document.createElement('div'); g.className = 'group';
   const has = !!(k3 && k3.vrm);
-  g.innerHTML = `<h3>3D素体（VRM）</h3><p class="note">${has ? `読み込み中の素体：<b>${k3.name}</b>${k3.meta && k3.meta.authors ? `（${[].concat(k3.meta.authors).join('・')}）` : ''}` : 'VRoid Studio などで作った VRM を読み込むと、コンセプト表示の素体が本物の 3D になり、この構図のポーズを取ります。モデルはこのブラウザ内にだけ保存され、送信しません。'}</p><div class="row" style="display:flex;gap:6px;flex-wrap:wrap"><button class="ghost" id="vrmLoad" style="flex:1">${has ? '別の VRM に替える' : 'VRM を読み込む'}</button>${has ? '<button class="ghost" id="vrmClear">外す</button>' : ''}</div>${has ? `<div class="chips"><button class="tg${k3use ? ' on' : ''}" id="vrmUse">コンセプト表示で使う</button><button class="tg${k3gray ? ' on' : ''}" id="vrmGray">グレーの素体</button></div>${c ? '<div class="row" style="display:flex;gap:6px"><button class="ghost" id="vrmObj" style="flex:1">OBJ 書き出し（この構図のポーズ）</button></div><p class="note">クリスタ：ファイル → 読み込み → 3Dデータ で OBJ を開くと、ポーズ済みの素体がキャンバスに乗ります（関節はクリスタでは動かせません）。</p>' : ''}` : ''}<input type="file" id="vrmFile" accept=".vrm,.glb" hidden>`;
+  g.innerHTML = `<h3>3D素体（VRM）</h3><p class="note">${has ? `読み込み中の素体：<b>${k3.name}</b>${k3.meta && k3.meta.authors ? `（${[].concat(k3.meta.authors).join('・')}）` : ''}` : 'VRoid Studio などで作った VRM を読み込むと、コンセプト表示の素体が本物の 3D になり、この構図のポーズを取ります。モデルはこのブラウザ内にだけ保存され、送信しません。'}</p><div class="row" style="display:flex;gap:6px;flex-wrap:wrap"><button class="ghost" id="vrmLoad" style="flex:1">${has ? '別の VRM に替える' : 'VRM を読み込む'}</button>${has ? '<button class="ghost" id="vrmClear">外す</button>' : ''}</div>${has ? `<div class="chips"><button class="tg${k3use ? ' on' : ''}" id="vrmUse">コンセプト表示で使う</button><button class="tg${k3gray ? ' on' : ''}" id="vrmGray">グレーの素体</button><button class="tg${k3arm ? ' on' : ''}" id="vrmArm" title="肘から先（前腕・手・指）を 10% の不透明度にして、手は自分の形で置けるようにする">肘から先を薄く</button></div>${c ? '<div class="row" style="display:flex;gap:6px"><button class="ghost" id="vrmObj" style="flex:1">OBJ 書き出し（この構図のポーズ）</button></div><p class="note">クリスタ：ファイル → 読み込み → 3Dデータ で OBJ を開くと、ポーズ済みの素体がキャンバスに乗ります（関節はクリスタでは動かせません）。</p>' : ''}` : ''}<input type="file" id="vrmFile" accept=".vrm,.glb" hidden>`;
   g.querySelector('#vrmLoad').addEventListener('click', () => g.querySelector('#vrmFile').click());
   g.querySelector('#vrmFile').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if (f) k3loadFile(f); });
   const cl = g.querySelector('#vrmClear'); if (cl) cl.addEventListener('click', k3clear);
   const us = g.querySelector('#vrmUse'); if (us) us.addEventListener('click', () => { k3use = !k3use; try { localStorage.setItem('kouzu-k3use', k3use ? '1' : '0'); } catch(e) {} renderAll(); });
   const gr = g.querySelector('#vrmGray'); if (gr) gr.addEventListener('click', () => { k3gray = !k3gray; try { localStorage.setItem('kouzu-k3gray', k3gray ? '1' : '0'); } catch(e) {} k3cache.clear(); renderAll(); });
+  const ar = g.querySelector('#vrmArm'); if (ar) ar.addEventListener('click', () => { k3arm = !k3arm; try { localStorage.setItem('kouzu-k3arm', k3arm ? '1' : '0'); } catch(e) {} k3cache.clear(); renderAll(); });
   const ob = g.querySelector('#vrmObj'); if (ob) ob.addEventListener('click', () => k3exportOBJ(c));
   box.appendChild(g);
 }
@@ -3140,7 +3248,7 @@ function thumbCanvas(c, w){
 }
 function sortedComps(){ return sortByScore ? [...comps].sort((a, b) => b.score.total - a.score.total) : comps; }
 function renderThumbs(){
-  const box = $('thumbs'); box.innerHTML = '';
+  const box = $('thumbs'); const keepScroll = box.scrollTop; box.innerHTML = '';
   [...$('gridTabs').children].forEach(b => b.classList.toggle('on', b.dataset.tab === gridTab));
   $('tcount').textContent = templates.length; $('sortBtn').hidden = gridTab !== 'comps';
   if (gridTab === 'tpls') { renderTplList(box); $('count').textContent = comps.length; updateClipCount(); return; }
@@ -3152,12 +3260,13 @@ function renderThumbs(){
     el.appendChild(cap); if (c !== 'sketch' && c.edited) { const e = document.createElement('span'); e.className = 'edited'; e.textContent = '編集済'; el.appendChild(e); }
     if (c !== 'sketch') { const l = document.createElement('label'); l.className = 'chk'; l.title = 'CLIPで読み込む構図に含める'; l.innerHTML = `<input type="checkbox" ${c.checked ? 'checked' : ''} aria-label="CLIPで読み込む">`;
       l.addEventListener('click', e => e.stopPropagation()); l.querySelector('input').addEventListener('change', e => { c.checked = e.target.checked; el.classList.toggle('checked', c.checked); updateClipCount(); storeLater(); }); el.appendChild(l); }
-    const open = () => { selected = c === 'sketch' ? null : c.id; if (selected) makeRecos(); renderAll(); storeLater(); };
+    el._cid = c === 'sketch' ? null : c.id;
+    const open = () => { selected = c === 'sketch' ? null : c.id; if (selected) makeRecos(); [...box.children].forEach(x => { if ('_cid' in x) x.classList.toggle('sel', x._cid === selected); }); renderMain(); renderRecos(); renderProps(); storeLater(); };
     el.addEventListener('click', open); el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
     return el; };
   box.appendChild(mk('sketch'));
   sortedComps().forEach(c => box.appendChild(mk(c)));
-  $('count').textContent = comps.length; updateClipCount();
+  $('count').textContent = comps.length; updateClipCount(); box.scrollTop = keepScroll;
   $('sortBtn').textContent = sortByScore ? 'スコア順' : '生成順';
 }
 function renderRecos(){
@@ -3232,6 +3341,7 @@ function renderProps(){
     if (underlay) { const b = document.createElement('button'); b.className = 'ghost'; b.textContent = '下絵を外す'; b.addEventListener('click', () => { underlay = null; renderMain(); }); u.appendChild(b); }
     box.appendChild(u);
     if (sketch.vp) box.appendChild(vpSliders(() => sketch.vp, () => renderMain(), () => { renderAll(); storeLater(); }));
+    hairMassProps(box, sketch, {c: null, flow: sketchFlow()}, full => { renderMain(); if (full) { renderThumbs(); storeLater(); renderProps(); } });
     k3props(box, null);
     const a = document.createElement('div'); a.className = 'actions';
     a.innerHTML = `<button class="primary" id="genBtn2">構図を生成</button><div class="row"><button class="ghost" id="clearSketch">スケッチを白紙に</button></div>`;
@@ -3261,6 +3371,7 @@ function renderProps(){
   box.appendChild(chipGroup('かたち', patMap, c.pattern, k => re({pattern: k})));
   box.appendChild(chipGroup('人数', {1: '1人', 2: '2人', 3: '3人'}, c.people, k => re({people: +k})));
   box.appendChild(chipGroup('軸のポーズ', POSES, c.pose, k => re({pose: k})));
+  box.appendChild(chipGroup('体の入れ方', BODYDIRS, c.bodyDir || 'auto', k => re({bodyDir: k})));
   if (PLUS) box.appendChild(chipGroup('体の向き（3D素体）', FACINGS, c.facing || 'front', k => re({facing: k})));
   box.appendChild(chipGroup('光', LIGHTS, c.light.kind, k => { pushUndo(); c.light.kind = k; c.edited = true; scoreComp(c); renderAll(); storeLater(); }));
   const dial = document.createElement('div'); dial.className = 'lightdial'; dial.innerHTML = `<span style="color:var(--muted);font-size:14px">光の向き</span><input type="range" id="lightDir" min="-180" max="180" value="${Math.round(c.light.dir*180/PI)}">`;
@@ -3269,6 +3380,7 @@ function renderProps(){
   box.appendChild(dial);
   box.appendChild(chipGroup('コントラスト', CONTRASTS, c.contrast, k => { pushUndo(); c.contrast = k; c.edited = true; scoreComp(c); renderAll(); storeLater(); }));
   if (c.vp) box.appendChild(vpSliders(() => c.vp, () => { c.vis.grid = true; c.angle = inferAngleFromVp(c.vp); rebuildBodies(c); c.name = `${SHOTS[c.shot]}・${ANGLES[c.angle]}・${PATTERNS[c.pattern]}`; c.edited = true; scoreComp(c); renderMain(); }, () => { renderAll(); storeLater(); }));
+  hairMassProps(box, c, {c, flow: c.flow}, full => { c.edited = true; scoreComp(c); renderMain(); if (full) { renderThumbs(); storeLater(); renderProps(); } });
   k3props(box, c);
   const lg = document.createElement('div'); lg.className = 'group'; lg.innerHTML = `<h3>表示する要素</h3>`; const ch = document.createElement('div'); ch.className = 'chips';
   Object.entries(LAYERS).forEach(([k, l]) => { const b = document.createElement('button'); b.className = 'tg' + (c.vis[k] ? ' on' : ''); b.textContent = l; b.addEventListener('click', () => { c.vis[k] = !c.vis[k]; scoreComp(c); renderAll(); storeLater(); }); ch.appendChild(b); });
@@ -3310,6 +3422,7 @@ main.addEventListener('pointerdown', e => {
       if (best) { pushUndo(); drag = {kind: 'handle', h: best, c}; return; } }
     else { let best = null, bd = hitR; sketch.faces.forEach((f, i) => { const d = dist(f, p), dr = dist({x: f.x + f.r, y: f.y}, p); if (dr < bd) { bd = dr; best = {t: 'faceR', i}; } else if (d < bd || (d < f.r && !best)) { bd = Math.min(d, bd); best = {t: 'face', i}; } }); if (sketch.vp) { const e = vpOnEdge(sketch.vp, 26/(mainW/VW)); if (dist(e, p) < bd) best = {t: 'vp', off: e.off, x: e.x, y: e.y}; }
       if (!best) { const hi = (sketch.hands || []).findIndex(h => dist(h, p) < h.s*0.9); if (hi >= 0) best = {t: 'hand', i: hi}; }
+      if (!best) { const hi = (sketch.hairMasses || []).findIndex(hm => dist(hm.c, p) < hitR*1.5); if (hi >= 0) best = {t: 'hairm', i: hi}; }
       if (best) { pushUndo(); drag = {kind: 'sketchHandle', h: best}; return; } }
     return;
   }
@@ -3318,6 +3431,7 @@ main.addEventListener('pointerdown', e => {
   else if (tool === 'flow') { drag = {kind: 'stroke', pts: [p], c}; }
   else if (tool === 'loop' || tool === 'marker') { drag = {kind: 'emph', e: {kind: tool, pts: [p]}, c}; (c ? c.emph : sketch.emph).push(drag.e); }
   else if (tool === 'hand') { drag = {kind: 'handloop', pts: [p], c}; }
+  else if (tool === 'hairmass') { drag = {kind: 'hairloop', pts: [p], c}; }
   else if (tool === 'vp') { if (c) { c.vp = {x: p.x, y: p.y}; c.vis.grid = true; c.angle = inferAngleFromVp(c.vp); rebuildBodies(c); c.name = `${SHOTS[c.shot]}・${ANGLES[c.angle]}・${PATTERNS[c.pattern]}`; c.edited = true; scoreComp(c); } else sketch.vp = {x: p.x, y: p.y}; drag = {kind: 'vpPlace', c}; renderAll(); storeLater(); }
   else if (tool === 'erase') { eraseAt(p, c); renderAll(); storeLater(); }
   renderMain();
@@ -3327,13 +3441,13 @@ main.addEventListener('pointermove', e => {
   if (trace) return tracePointerMove(e);
   const p = toV(e), c = curComp();
   if (drag.kind === 'face') { drag.f.r = Math.max(22, dist(drag.start, p)); if (c) rebuildBodies(c); }
-  else if (drag.kind === 'stroke' || drag.kind === 'emph' || drag.kind === 'handloop') { const arr = drag.kind === 'emph' ? drag.e.pts : drag.pts; if (dist(arr[arr.length-1], p) > 6) arr.push(p); if (drag.kind === 'stroke') { drawStrokePreview(arr, false); return; }
+  else if (drag.kind === 'stroke' || drag.kind === 'emph' || drag.kind === 'handloop' || drag.kind === 'hairloop') { const arr = drag.kind === 'emph' ? drag.e.pts : drag.pts; if (dist(arr[arr.length-1], p) > 6) arr.push(p); if (drag.kind === 'stroke') { drawStrokePreview(arr, false); return; } if (drag.kind === 'hairloop') { drawStrokePreview(arr, true); return; }
     if (drag.kind === 'handloop') { const now = performance.now(); if (underlay && arr.length >= 4 && now - (drag.lastSil || 0) > 90) { drag.lastSil = now; const iw = underlay.naturalWidth || underlay.width, ih = underlay.naturalHeight || underlay.height, k = Math.max(VW/iw, VH/ih), ox = (VW - iw*k)/2, oy = (VH - ih*k)/2; try { const sil = handSilhouette(underlay, arr.map(q => ({x: (q.x - ox)/k, y: (q.y - oy)/k}))); drag.preview = sil ? sil.pts.map(q => ({x: ox + q.x*k, y: oy + q.y*k})) : null; } catch(e) { drag.preview = null; } }
       renderMain(); const sc = mainW/VW; drawLoopPreview(arr, drag.preview, q => ({x: q.x*sc, y: q.y*sc})); return; } }
   else if (drag.kind === 'handle') { moveHandle(drag.c, drag.h, p); }
   else if (drag.kind === 'vpPlace') { const vp = c ? c.vp : sketch.vp; if (vp) { vp.x = p.x; vp.y = p.y; } }
   else if (drag.kind === 'rerase') { eraseAt(p, c); }
-  else if (drag.kind === 'sketchHandle') { const h = drag.h; if (h.t === 'face') { const f = sketch.faces[h.i]; f.x = p.x; f.y = p.y; } else if (h.t === 'faceR') { const f = sketch.faces[h.i]; f.r = Math.max(22, Math.abs(p.x - f.x)); } else if (h.t === 'vp') { if (h.off) { sketch.vp.x += p.x - h.x; sketch.vp.y += p.y - h.y; h.x = p.x; h.y = p.y; } else { sketch.vp.x = p.x; sketch.vp.y = p.y; } } else if (h.t === 'hand') { const hd = sketch.hands[h.i]; const dx = p.x - hd.x, dy = p.y - hd.y; hd.x = p.x; hd.y = p.y; if (hd.pts) hd.pts.forEach(q => { q.x += dx; q.y += dy; }); } }
+  else if (drag.kind === 'sketchHandle') { const h = drag.h; if (h.t === 'face') { const f = sketch.faces[h.i]; f.x = p.x; f.y = p.y; } else if (h.t === 'faceR') { const f = sketch.faces[h.i]; f.r = Math.max(22, Math.abs(p.x - f.x)); } else if (h.t === 'vp') { if (h.off) { sketch.vp.x += p.x - h.x; sketch.vp.y += p.y - h.y; h.x = p.x; h.y = p.y; } else { sketch.vp.x = p.x; sketch.vp.y = p.y; } } else if (h.t === 'hand') { const hd = sketch.hands[h.i]; const dx = p.x - hd.x, dy = p.y - hd.y; hd.x = p.x; hd.y = p.y; if (hd.pts) hd.pts.forEach(q => { q.x += dx; q.y += dy; }); } else if (h.t === 'hairm') moveHairMass(sketch.hairMasses[h.i], p); }
   renderMain();
 });
 function drawStrokePreview(pts, isHand){ renderMain(); const s = mainW/VW; mctx.save(); mctx.scale(s, s); mctx.strokeStyle = isHand ? COL.face : COL.hair; mctx.lineWidth = 2.5/s; mctx.lineCap = 'round'; mctx.lineJoin = 'round'; if (isHand) mctx.setLineDash([8/s, 6/s]); mctx.beginPath(); pts.forEach((p, i) => i ? mctx.lineTo(p.x, p.y) : mctx.moveTo(p.x, p.y)); if (isHand) mctx.closePath(); mctx.stroke(); mctx.restore(); }
@@ -3344,6 +3458,7 @@ function endDrag(e){
   const d = drag, c = curComp(); drag = null;
   if (d.kind === 'stroke') { if (d.pts.length > 3) { if (c) { const pts = d.pts, n = pts.length, a = pts[0], b = pts[n-1], m1 = pts[Math.floor(n/3)], m2 = pts[Math.floor(2*n/3)]; c.hair.push({type: 'c', pts: [a, {x: m1.x*1.3 - a.x*0.15 - m2.x*0.15, y: m1.y*1.3 - a.y*0.15 - m2.y*0.15}, {x: m2.x*1.3 - b.x*0.15 - m1.x*0.15, y: m2.y*1.3 - b.y*0.15 - m1.y*0.15}, b]}); c.vis.hair = true; c.edited = true; scoreComp(c); } else sketch.strokes.push(d.pts); } }
   else if (d.kind === 'emph') { if (d.e.pts.length < 3) { const arr = c ? c.emph : sketch.emph; arr.pop(); } else if (c) applyFocus(c); }
+  else if (d.kind === 'hairloop') { if (d.pts.length >= 6) { const owner = c || sketch; owner.hairMasses = owner.hairMasses || []; const hm = makeHairMass(d.pts, owner, c ? c.flow : sketchFlow()); owner.hairMasses.push(hm); if (c) { c.vis.hairMass = true; c.edited = true; scoreComp(c); } toast(`${hm.name} を置きました（色・ぶわぶわは設定パネルで）`); } }
   else if (d.kind === 'handloop') { if (d.pts.length >= 4) { const face = (c ? c.faces : sketch.faces)[0] || null; let h = null;
       if (underlay) { const iw = underlay.naturalWidth || underlay.width, ih = underlay.naturalHeight || underlay.height, k = Math.max(VW/iw, VH/ih), ox = (VW - iw*k)/2, oy = (VH - ih*k)/2; let sil = null; try { sil = handSilhouette(underlay, d.pts.map(q => ({x: (q.x - ox)/k, y: (q.y - oy)/k}))); } catch(e) { sil = null; }
         if (sil) h = {x: ox + sil.cx*k, y: oy + sil.cy*k, s: sil.s*k, rot: 0, pose: 'free', d: 0.6, pts: sil.pts.map(q => ({x: ox + q.x*k, y: oy + q.y*k}))}; }
@@ -3363,11 +3478,13 @@ function moveHandle(c, h, p){
   else if (h.t === 'tri') { c.tris[h.i][h.k] = {x: p.x, y: p.y}; }
   else if (h.t === 'solid') { c.solids[h.i].x = p.x; c.solids[h.i].y = p.y; }
   else if (h.t === 'hand') { const hd = c.hands[h.i]; const dx = p.x - hd.x, dy = p.y - hd.y; hd.x = p.x; hd.y = p.y; if (hd.pts) hd.pts.forEach(q => { q.x += dx; q.y += dy; }); }
+  else if (h.t === 'hairm') moveHairMass(c.hairMasses[h.i], p);
   else if (h.t === 'hino') { c.hino.x = p.x; c.hino.y = p.y; }
   else if (h.t === 'vp') { if (h.off) { c.vp.x += p.x - h.x; c.vp.y += p.y - h.y; } else { c.vp.x = p.x; c.vp.y = p.y; } }
   else if (h.t === 'light') { c.light.dir = Math.atan2((p.y - VH/2)/VH, (p.x - VW/2)/VW); }
   h.x = p.x; h.y = p.y;
 }
+function moveHairMass(hm, p){ const dx = p.x - hm.c.x, dy = p.y - hm.c.y; const mv = q => { q.x += dx; q.y += dy; }; hm.src.forEach(mv); hm.pts.forEach(mv); hm.tips.forEach(t => { mv(t.tip); mv(t.root); }); hm.c.x += dx; hm.c.y += dy; }
 function eraseAt(p, c){
   const near = (pts, r) => pts.some(q => dist(q, p) < r);
   if (!c) {
@@ -3375,12 +3492,14 @@ function eraseAt(p, c){
     i = sketch.strokes.findIndex(s => near(s, 30)); if (i >= 0) { sketch.strokes.splice(i, 1); return; }
     i = (sketch.tris || []).findIndex(t => near(t, 40)); if (i >= 0) { sketch.tris.splice(i, 1); return; }
     i = (sketch.hands || []).findIndex(h => dist(h, p) < h.s*1.1); if (i >= 0) { sketch.hands.splice(i, 1); return; }
+    i = (sketch.hairMasses || []).findIndex(hm => pointInPoly(p.x, p.y, hm.pts)); if (i >= 0) { sketch.hairMasses.splice(i, 1); return; }
     i = sketch.faces.findIndex(f => dist(f, p) < f.r); if (i >= 0) { sketch.faces.splice(i, 1); return; }
     if (sketch.vp && dist(sketch.vp, p) < 40) sketch.vp = null; return;
   }
   let i = c.emph.findIndex(e => near(e.pts, 40)); if (i >= 0) { c.emph.splice(i, 1); applyFocus(c, true); return; }
   i = c.hair.findIndex(s => near(samplePts(s, 12), 30)); if (i >= 0) { c.hair.splice(i, 1); c.edited = true; scoreComp(c); return; }
   i = c.hands.findIndex(h => dist(h, p) < h.s*1.2); if (i >= 0) { c.hands.splice(i, 1); c.edited = true; scoreComp(c); return; }
+  i = (c.hairMasses || []).findIndex(hm => pointInPoly(p.x, p.y, hm.pts)); if (i >= 0) { c.hairMasses.splice(i, 1); c.edited = true; scoreComp(c); return; }
   i = c.solids.findIndex(s => Math.abs(s.x - p.x) < s.w/2 && Math.abs(s.y - p.y) < s.h/2); if (i >= 0) { c.solids.splice(i, 1); c.edited = true; scoreComp(c); return; }
   i = c.tris.findIndex(t => near(t, 40)); if (i >= 0) { c.tris.splice(i, 1); c.edited = true; scoreComp(c); return; }
   i = c.faces.findIndex((f, k) => k > 0 && dist(f, p) < f.r); if (i >= 0) { c.faces.splice(i, 1); rebuildBodies(c); c.edited = true; scoreComp(c); return; }
@@ -3403,7 +3522,7 @@ async function saveBlob(blob, fname, W, H){
 
 // ---------- CLIP STUDIO import: layered PSD in a ZIP ----------
 const CLIP_LAYERS = [
-  ['bg', '背景・遠近', 'bg'], ['hino', '日の丸', 'hinomaru'], ['solidsFar', '固形物（奥）', 'solids_far'], ['figure', '人物・髪', 'figure'],
+  ['bg', '背景・遠近', 'bg'], ['hino', '日の丸', 'hinomaru'], ['solidsFar', '固形物（奥）', 'solids_far'], ['figure', '人物・髪', 'figure'], ['hairMass', '髪の毛（囲み）', 'hair_mass'],
   ['solidsNear', '固形物（手前）', 'solids_near'], ['hands', '手', 'hands'], ['light', 'ライティング', 'light'], ['guides', 'ガイド線（三角・導線）', 'guides'], ['grid', 'パースグリッド', 'grid']
 ];
 class ByteSink { constructor(){ this.parts = []; this.size = 0; } push(u8){ this.parts.push(u8); this.size += u8.length; } u8(v){ this.push(Uint8Array.of(v & 255)); } u16(v){ this.push(Uint8Array.of(v >> 8 & 255, v & 255)); } i16(v){ this.u16(v < 0 ? v + 65536 : v); } u32(v){ this.push(Uint8Array.of(v >>> 24 & 255, v >>> 16 & 255, v >>> 8 & 255, v & 255)); } str(s){ this.push(new TextEncoder().encode(s)); } blob(type){ return new Blob(this.parts, {type}); } }
@@ -3555,6 +3674,7 @@ const ZH = {
   '顔の位置を丸で描く': '用圓畫出臉的位置',
   'JSONで書き出し': '匯出為 JSON',
   '次の一枚におすすめ': '推薦的下一張',
+  '変化させるならこれも': '想變化的話也可以試試',
   '長辺 1600px': '長邊 1600px',
   '件を読み込みました': '個範本已讀入',
   'B5 / A4 縦': 'B5 / A4 直式',
@@ -3700,6 +3820,10 @@ const ZH = {
   '絵の手をざっくり囲むと、そのシルエットを簡単な線で拾います（絵がなければ囲んだ大きさの手）': '大致圈出畫中的手，就會以簡單的線條擷取其剪影（沒有畫時則依圈選大小放置手）',
   '囲んだ大きさ・向きで手を置きました': '已依圈選的大小・方向放置手',
   '手：範囲を囲む': '手：圈選範圍',
+  '髪の塊をざっくり囲むと、風になびくようにぶわっと膨らませて色を付けます。髪の毛1・髪の毛2…と増やせます（飾りや布にも）': '大致圈出頭髮的塊，就會像隨風飄動般蓬起並上色。可以增加為頭髮1・頭髮2…（飾品或布料也可以）',
+  '髪の毛：塊を囲む': '頭髮：圈出髮塊', '髪の毛（囲み）': '頭髮（圈選）', '髪の毛': '頭髮', 'ぶわぶわ': '蓬鬆度', '風になびく': '隨風飄動', '別の房': '換一種髮束',
+  '囲んだ形を、風（動線の向き）と重さで膨らませています。選択ツールで真ん中の点をドラッグすると動きます。髪以外（布・飾り）の塊にも使えます。': '把圈出的形狀，依風（動線方向）和重量蓬起。用選取工具拖曳中央的點即可移動。頭髮以外（布・飾品）的塊也可以用。',
+  ' を置きました（色・ぶわぶわは設定パネルで）': ' 已放置（顏色・蓬鬆度在設定面板調整）',
   '三角：3点タップ／手：範囲を囲む': '三角：點 3 點／手：圈選範圍',
   'メイン画面だけに、手・固形物などの名前を添える': '只在主畫面標示手・固體物等的名稱',
   '手（手前）': '手（前景）', '手（頬）': '手（臉頰）', '手（顎）': '手（下巴）', '手（髪）': '手（頭髮）', '手（腰）': '手（腰）',
@@ -3832,7 +3956,7 @@ const ZH = {
   '腰に手': '手叉腰', '手を上げる': '舉手', '頬に手': '手托臉頰', '胸の前で腕': '雙臂交叉胸前', '座り': '坐', '片膝': '單膝跪', 'しゃがみ': '蹲', '跳ぶ': '跳', '走る': '跑',
   '体の向き（3D素体）': '身體朝向（3D素體）', '正面': '正面', '斜め（左）': '斜側（左）', '斜め（右）': '斜側（右）', '横向き': '側面', '後ろ向き': '背面', '読み込み中の素体：': '目前的素體：', '別の VRM に替える': '換成別的 VRM', 'VRM を読み込む': '讀入 VRM', '外す': '移除',
   'VRoid Studio などで作った VRM を読み込むと、コンセプト表示の素体が本物の 3D になり、この構図のポーズを取ります。モデルはこのブラウザ内にだけ保存され、送信しません。': '讀入用 VRoid Studio 等製作的 VRM 後，概念顯示的素體會變成真正的 3D，並擺出這個構圖的姿勢。模型只保存在這個瀏覽器內，不會傳送。',
-  'コンセプト表示で使う': '在概念顯示中使用', 'グレーの素体': '灰色素體', 'OBJ 書き出し（この構図のポーズ）': '匯出 OBJ（此構圖的姿勢）',
+  'コンセプト表示で使う': '在概念顯示中使用', 'グレーの素体': '灰色素體', '肘から先を薄く': '手肘以下變淡', '肘から先（前腕・手・指）を 10% の不透明度にして、手は自分の形で置けるようにする': '把手肘以下（前臂・手・手指）設為 10% 不透明度，讓手可以用自己的形狀放置', 'OBJ 書き出し（この構図のポーズ）': '匯出 OBJ（此構圖的姿勢）',
   'クリスタ：ファイル → 読み込み → 3Dデータ で OBJ を開くと、ポーズ済みの素体がキャンバスに乗ります（関節はクリスタでは動かせません）。': 'CLIP STUDIO：檔案 → 讀入 → 3D 資料，開啟 OBJ 後，擺好姿勢的素體就會放到畫布上（關節無法在 CLIP STUDIO 內移動）。',
   'VRM（または GLB）ファイルを選んでください': '請選擇 VRM（或 GLB）檔案', '3D素体を読み込んでいます…（端末内だけ）': '正在讀入 3D 素體…（只在裝置內）',
   '3D素体「': '3D 素體「', '」を読み込みました（このブラウザ内に保存）': '」已讀入（保存在這個瀏覽器內）', '3D素体を読み込めませんでした：': '無法讀入 3D 素體：', '3D素体を外しました（同梱の素体に戻すにはページを再読み込み）': '已移除 3D 素體（要回到同捆的素體請重新載入頁面）',
@@ -3840,6 +3964,7 @@ const ZH = {
   '消失点（画面外もOK）': '消失點（也可放在畫面外）', '消失点 画面外 ': '消失點 畫面外 ',
   '消失点ツールでドラッグしたまま枠の外へ出しても置けます。枠のふちの矢印をドラッグしても動きます。': '用消失點工具按住拖到框外也能放置。拖曳框邊的箭頭也能移動。',
   '横': '橫', '縦': '直',
+  '体の入れ方': '身體的放法', '自動': '自動', 'まっすぐ': '直立', '腰を折る': '彎腰', 'さかさま': '倒過來',
   '右クリック：消す': '右鍵：清除',
   '骨格の学習：': '骨架學習：', '枚分の関節・顔の直しから、ずれの癖を補正中（2枚から効きます）': '張的關節・臉修正中學習偏差習慣（從 2 張開始生效）',
   'まだ0枚。検出したあと関節や顔の丸を直して保存すると、次からそのずれを先に補正します': '還是 0 張。偵測後修正關節或臉的圓並儲存，下次就會先補正該偏差',
@@ -4100,7 +4225,7 @@ $('rail').addEventListener('click', e => { const b = e.target.closest('button');
 function clearAll(){
   if (trace) { tracePush(); const t = trace.tpl; t.faces = []; t.strokes = []; t.tris = []; t.vp = null; t.emph = []; t.hands = []; t.pose = null; triTaps = []; renderMain(); renderProps(); toast('なぞりを全部消しました（Ctrl+Z で戻せます）'); return; }
   pushUndo(); const c = curComp(); triTaps = [];
-  if (c) { c.emph = []; c.focus = null; c.leads = []; c.tris = []; c.hair = []; c.solids = []; c.hands = []; c.hino = null; c.edited = true; scoreComp(c); makeRecos(); renderAll(); storeLater(); toast('ガイドを全部消しました。顔と背骨は残しています（Ctrl+Z で戻せます）'); }
+  if (c) { c.emph = []; c.focus = null; c.leads = []; c.tris = []; c.hair = []; c.hairMasses = []; c.solids = []; c.hands = []; c.hino = null; c.edited = true; scoreComp(c); makeRecos(); renderAll(); storeLater(); toast('ガイドを全部消しました。顔と背骨は残しています（Ctrl+Z で戻せます）'); }
   else { sketch = {faces: [], strokes: [], tris: [], hands: [], emph: [], vp: null}; renderAll(); storeLater(); toast('スケッチを全部消しました（Ctrl+Z で戻せます）'); }
 }
 $('genBtn').addEventListener('click', () => { if (trace) { toast('先になぞりを保存するか、やめてください'); return; } generateAll(); });
@@ -4160,7 +4285,7 @@ if (uiZoom === 1 && window.innerWidth < 700) applyZoom(0.6, false);
     sketch = saved.sketch; comps = saved.comps; selected = saved.selected; viewMode = saved.viewMode || 'line'; genCount = saved.genCount || 24; seedBase = saved.seedBase || seedBase;
     if (saved.sizeIdx != null && saved.b5) $('sizeSel').value = saved.sizeIdx; else $('sizeSel').value = DEFAULT_SIZE; if (saved.resIdx) $('resSel').value = saved.resIdx;
     setAspect(SIZES[+$('sizeSel').value][1], true);
-    comps.forEach(c => { c.VW = VW; c.VH = VH; rebuildBodies(c); scoreComp(c); });
+    comps.forEach(c => { c.VW = VW; c.VH = VH; if (c.vis.hairMass == null) c.vis.hairMass = true; (c.hairMasses || []).forEach(hm => { if (!hm.pts) refluff(hm, c); }); rebuildBodies(c); scoreComp(c); });
     [...$('modes').children].forEach(x => x.classList.toggle('on', x.dataset.mode === viewMode));
     if (selected && !curComp()) selected = null;
     fitCanvas(); if (selected) makeRecos(); renderAll();
