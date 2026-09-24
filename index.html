@@ -2367,6 +2367,7 @@ function drawFigure(ctx, c, b, f, i, mode, lw){
   if (v.hair && !i) c.hair.forEach(st => { ctx.fillStyle = hair; ribbon(ctx, st, R*0.22); ctx.fill(); });
   // 腰から足先への流れだけ（脚・腕は描かない）
   { const foot = b.tilt >= 0 ? b.footL : b.footR, knee = b.tilt >= 0 ? b.kneeL : b.kneeR; ctx.save(); ctx.globalAlpha = flat ? 0.55 : 0.5; ctx.strokeStyle = shade(cloth, f.x - R*2, f.x + R*2); ctx.lineCap = 'round'; ctx.lineWidth = R*1.1; ctx.beginPath(); ctx.moveTo(b.hipC.x, b.hipC.y); ctx.quadraticCurveTo(knee.x, knee.y, foot.x, foot.y); ctx.stroke(); ctx.restore(); }
+  if (!flat) { drawDoll(ctx, c, b, f, i, lw, hair); return; } // コンセプト：3D風の素体（デッサン人形）
   // 太もも（膝まで）と上腕（肘まで）。肘から先・膝から先は描かない
   ctx.save(); ctx.lineCap = 'round'; ctx.strokeStyle = shade(cloth, f.x - R*2, f.x + R*2); ctx.lineWidth = R*0.72; [[b.hipL, b.kneeL], [b.hipR, b.kneeR]].forEach(([a0, b0]) => { ctx.beginPath(); ctx.moveTo(a0.x, a0.y); ctx.lineTo(b0.x, b0.y); ctx.stroke(); });
   ctx.strokeStyle = shade(skin, f.x - R*2, f.x + R*2); ctx.lineWidth = R*0.48; [[b.shL, b.elbowL], [b.shR, b.elbowR]].forEach(([a0, b0]) => { ctx.beginPath(); ctx.moveTo(a0.x, a0.y); ctx.lineTo(b0.x, b0.y); ctx.stroke(); }); ctx.restore();
@@ -2380,6 +2381,47 @@ function drawFigure(ctx, c, b, f, i, mode, lw){
   ctx.fillStyle = shade(skin, f.x - R, f.x + R); ctx.beginPath(); ctx.arc(f.x, f.y, R, 0, TAU); ctx.fill();
   ctx.fillStyle = hair; ctx.beginPath(); ctx.arc(f.x - c.lean*R*0.1, f.y - R*0.18, R*1.06, PI*1.05, PI*1.95 + 0.25); ctx.fill();
   if (!flat && rim) { ctx.strokeStyle = 'rgba(255,240,215,.85)'; ctx.lineWidth = R*0.08; ctx.beginPath(); const a0 = Math.atan2(lp.y - f.y, lp.x - f.x); ctx.arc(f.x, f.y, R*0.98, a0 - 0.9, a0 + 0.9); ctx.stroke(); }
+}
+function drawDoll(ctx, c, b, f, i, lw, hairCol){
+  // 3D風の素体：頭＝球、胸郭・骨盤＝楕円体、首・上腕・太もも＝円柱。光源の向きで陰影を付け、デッサン人形風のガイド線を乗せる
+  const R = f.r, lp = lightPoint(c), rim = c.light.kind === 'rim', hi = c.contrast === 'high';
+  const base = i ? '#b7b3ad' : '#c8c3bb', dark = '#5f5b58', light = '#f4f1ea';
+  const Ld = (() => { const d = {x: lp.x - f.x, y: lp.y - f.y}; const n = Math.hypot(d.x, d.y) || 1; return {x: d.x/n, y: d.y/n}; })();
+  const guide = 'rgba(70,64,60,.32)';
+  const cyl = (a, b0, w, cut) => { // 円柱：軸に直交する方向へのグラデーション。cut＝切り口（肘・膝）側を薄く
+    const dx = b0.x - a.x, dy = b0.y - a.y, len = Math.hypot(dx, dy) || 1, nx = -dy/len, ny = dx/len; const mx = (a.x + b0.x)/2, my = (a.y + b0.y)/2;
+    const sgn = (nx*Ld.x + ny*Ld.y) >= 0 ? -1 : 1;
+    const g = ctx.createLinearGradient(mx + nx*w/2*sgn, my + ny*w/2*sgn, mx - nx*w/2*sgn, my - ny*w/2*sgn);
+    g.addColorStop(0, mix(base, light, rim ? 0.1 : 0.55)); g.addColorStop(0.42, base); g.addColorStop(0.85, mix(base, dark, rim ? 0.65 : 0.5)); g.addColorStop(1, mix(base, dark, 0.35));
+    ctx.save(); ctx.lineCap = 'round'; ctx.strokeStyle = g; ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b0.x, b0.y); ctx.stroke();
+    if (cut) { const fg = ctx.createLinearGradient(a.x, a.y, b0.x, b0.y); fg.addColorStop(0, 'rgba(50,48,46,0)'); fg.addColorStop(0.7, 'rgba(50,48,46,0)'); fg.addColorStop(1, 'rgba(50,48,46,.45)'); ctx.strokeStyle = fg; ctx.stroke(); }
+    // 中心線（人形のガイド）
+    ctx.strokeStyle = guide; ctx.lineWidth = lw(1); ctx.lineCap = 'butt'; ctx.beginPath(); ctx.moveTo(a.x + nx*w*0.08, a.y + ny*w*0.08); ctx.lineTo(b0.x + nx*w*0.08, b0.y + ny*w*0.08); ctx.stroke();
+    ctx.restore(); };
+  const ball = (cx, cy, rx, ry, rot) => { // 楕円体：光源側にハイライトをずらした放射グラデーション
+    ctx.save(); ctx.translate(cx, cy); ctx.rotate(rot); ctx.scale(1, ry/rx);
+    const lx = Ld.x*Math.cos(rot) + Ld.y*Math.sin(rot), ly = (-Ld.x*Math.sin(rot) + Ld.y*Math.cos(rot))*rx/ry;
+    const g = ctx.createRadialGradient(lx*rx*0.45, ly*rx*0.45, rx*0.05, 0, 0, rx*1.08);
+    g.addColorStop(0, mix(base, light, rim ? 0.15 : 0.6)); g.addColorStop(0.5, base); g.addColorStop(0.85, mix(base, dark, rim ? 0.6 : 0.45)); g.addColorStop(1, mix(base, dark, 0.7));
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, rx, 0, TAU); ctx.fill(); ctx.restore(); };
+  const ring = (cx, cy, rx, ry, rot, t, squash) => { // 楕円体に乗る横方向のガイド線（手前側の半周）
+    ctx.save(); ctx.translate(cx, cy); ctx.rotate(rot); ctx.strokeStyle = guide; ctx.lineWidth = lw(1); ctx.beginPath(); ctx.ellipse(0, ry*t, rx*Math.sqrt(Math.max(0, 1 - t*t)), ry*squash, 0, 0, PI); ctx.stroke(); ctx.restore(); };
+  const meridian = (cx, cy, rx, ry, rot, off) => { ctx.save(); ctx.translate(cx, cy); ctx.rotate(rot); ctx.strokeStyle = guide; ctx.lineWidth = lw(1); ctx.beginPath(); ctx.ellipse(0, 0, Math.max(rx*0.06, Math.abs(off)*rx), ry, 0, off >= 0 ? -PI/2 : PI/2, off >= 0 ? PI/2 : PI*1.5); ctx.stroke(); ctx.restore(); };
+  const shW = dist(b.shL, b.shR)/2, hipW = clamp(Math.max(dist(b.hipL, b.hipR)/2, shW*0.72), R*0.8, R*1.5);
+  const ribRx = clamp(shW*0.95, R*1.0, R*1.8), ribRy = clamp(dist(b.shC, b.hipC)*0.5, R*1.0, R*1.6), ribC = {x: b.shC.x + (b.hipC.x - b.shC.x)*0.28, y: b.shC.y + (b.hipC.y - b.shC.y)*0.28};
+  const lerpP = (a, b0, t) => ({x: a.x + (b0.x - a.x)*t, y: a.y + (b0.y - a.y)*t});
+  const neckTop = {x: f.x + (b.shC.x - f.x)*0.38, y: f.y + (b.shC.y - f.y)*0.38}; // 頭の球の下あたり
+  // 太もも（膝で切る）→ 骨盤 → 腹（芯）→ 胸郭 → 肩の球 → 上腕（肘で切る）→ 首 → 頭
+  cyl(lerpP(b.hipL, b.hipC, 0.3), b.kneeL, R*0.8, true); cyl(lerpP(b.hipR, b.hipC, 0.3), b.kneeR, R*0.8, true);
+  ball(b.hipC.x, b.hipC.y, hipW, hipW*0.68, b.htilt); ring(b.hipC.x, b.hipC.y, hipW, hipW*0.68, b.htilt, 0.1, 0.35);
+  cyl(ribC, b.hipC, Math.min(ribRx, hipW)*1.15, false);
+  ball(ribC.x, ribC.y, ribRx, ribRy, b.tilt); ring(ribC.x, ribC.y, ribRx, ribRy, b.tilt, -0.2, 0.28); ring(ribC.x, ribC.y, ribRx, ribRy, b.tilt, 0.4, 0.28); meridian(ribC.x, ribC.y, ribRx, ribRy, b.tilt, c.lean*0.18);
+  ball(b.shL.x, b.shL.y, R*0.42, R*0.42, 0); ball(b.shR.x, b.shR.y, R*0.42, R*0.42, 0);
+  cyl(b.shL, b.elbowL, R*0.52, true); cyl(b.shR, b.elbowR, R*0.52, true);
+  cyl(neckTop, lerpP(b.shC, ribC, 0.5), R*0.62, false);
+  ball(f.x, f.y, R, R*1.06, 0); ring(f.x, f.y, R, R*1.06, 0, 0.05, 0.22); meridian(f.x, f.y, R, R*1.06, 0, c.lean*0.3);
+  // 逆光のふち（デッサン人形なので髪の塊は乗せない。髪の流れは別要素）
+  if (rim) { ctx.strokeStyle = 'rgba(255,240,215,.85)'; ctx.lineWidth = R*0.08; ctx.beginPath(); const a0 = Math.atan2(lp.y - f.y, lp.x - f.x); ctx.arc(f.x, f.y, R*0.98, a0 - 0.9, a0 + 0.9); ctx.stroke(); }
 }
 function gazePath(c){
   // 視線の道は固定の向き：右上（イメージ）→ 左下（内的感覚）→ 右下（外の感覚）→ 中央（情報）。反転はしない
