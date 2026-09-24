@@ -317,7 +317,7 @@ footer.book{background:var(--panel);border:1px solid var(--line);border-radius:v
   <footer class="book">
     <div class="bookHead"><b>構図を連続で配置</b><span class="n" id="bookCount" style="font-family:var(--num);color:var(--accent);font-weight:600"></span></div>
     <div class="bookRow" id="bookRow"></div>
-    <div class="bookActs"><button class="primary" id="bookPng" title="並んだ順に番号を付けて PNG にし、ZIP で一括保存">PNG 一括書き出し</button><button class="ghost" id="bookClip" title="並んだ順にレイヤー分け PSD（ZIP）">CLIP 一括</button><button class="ghost" id="bookClear">並びを空に</button></div>
+    <div class="bookActs"><button class="primary" id="bookPng" title="並んだ順に番号を付けて PNG にし、ZIP で一括保存">PNG 一括書き出し</button><button class="ghost" id="bookClip" title="並んだ順にレイヤー分け PSD（ZIP）">CLIP 一括書き出し</button><button class="ghost" id="bookClear">配置をリセット</button></div>
   </footer>
 </div></div>
 
@@ -3668,7 +3668,7 @@ async function exportBookPNG(){
 }
 $('bookPng').addEventListener('click', exportBookPNG);
 $('bookClip').addEventListener('click', exportClip);
-$('bookClear').addEventListener('click', () => { if (!pageOrder.length) return; pushUndo(); comps.forEach(c => { c.checked = false; }); pageOrder = []; renderThumbs(); renderBook(); storeLater(); toast('並びを空にしました（Ctrl+Z で戻せます）'); });
+$('bookClear').addEventListener('click', () => { if (!pageOrder.length) return; pushUndo(); comps.forEach(c => { c.checked = false; }); pageOrder = []; renderThumbs(); renderBook(); storeLater(); toast('配置をリセットしました（Ctrl+Z で戻せます）'); });
 function updateClipCount(){ const n = comps.filter(c => c.checked).length; $('clipCount').textContent = n ? `(${n})` : ''; }
 async function exportClip(){
   let list = syncPageOrder(); if (!list.length && curComp()) list = [curComp()];
@@ -3733,8 +3733,8 @@ const ZH = {
   '見せ場に向けて構図を組み直しました': '已朝看點重新組合構圖',
   'CLIPで読み込む構図に含める': '納入要用 CLIP 讀入的構圖',
   '構図を連続で配置': '連續排列構圖', 'チェックで構図を採用・ドラッグ＆ドロップで順番を変えられます': '勾選即採用構圖・拖放可調整順序',
-  '並んだ順に番号を付けて PNG にし、ZIP で一括保存': '依排列順序編號輸出 PNG，並以 ZIP 一次儲存', '並んだ順にレイヤー分け PSD（ZIP）': '依排列順序輸出分圖層 PSD（ZIP）', 'PNG 一括書き出し': '一次匯出 PNG', 'CLIP 一括': 'CLIP 一次匯出', '並びを空に': '清空排序', '並びから外す': '從排序移除',
-  'まだ空です。右の一覧でチェックを入れてください': '還是空的。請在右側列表勾選', '枚を書き出しています…': '張正在匯出…', '枚を ZIP で書き出しました（番号順）': '張已以 ZIP 匯出（依編號）', '並びを空にしました（Ctrl+Z で戻せます）': '已清空排列（可用 Ctrl+Z 復原）',
+  '並んだ順に番号を付けて PNG にし、ZIP で一括保存': '依排列順序編號輸出 PNG，並以 ZIP 一次儲存', '並んだ順にレイヤー分け PSD（ZIP）': '依排列順序輸出分圖層 PSD（ZIP）', 'PNG 一括書き出し': '一次匯出 PNG', 'CLIP 一括書き出し': 'CLIP 一次匯出', '配置をリセット': '重設排列', '並びから外す': '從排序移除',
+  'まだ空です。右の一覧でチェックを入れてください': '還是空的。請在右側列表勾選', '枚を書き出しています…': '張正在匯出…', '枚を ZIP で書き出しました（番号順）': '張已以 ZIP 匯出（依編號）', '配置をリセットしました（Ctrl+Z で戻せます）': '已重設排列（可用 Ctrl+Z 復原）',
   '」をテンプレートに保存しました': '」已儲存為範本',
   '書き出す構図案を選んでください': '請選擇要匯出的構圖方案',
   '（読ませた構図を混ぜています）': '（已混入讀入的構圖）',
