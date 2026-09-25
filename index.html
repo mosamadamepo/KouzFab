@@ -1737,8 +1737,14 @@ function tplToFrame(tpl, mirror, sk){
   const P = p => ({x: (mirror ? 1 - p.x : p.x)*TW + dx, y: p.y*TH + dy});
   const out = {faces: tpl.faces.map(f => Object.assign(P(f), {r: f.r*VMIN})), strokes: tpl.strokes.map(s => s.map(P)), tris: tpl.tris.map(t => t.map(P)), vp: tpl.vp ? P(tpl.vp) : null, emph: (tpl.emph || []).map(e => ({kind: e.kind, pts: e.pts.map(P)})), hands: (tpl.hands || []).map(h => Object.assign(P(h), {s: h.s*VMIN, rot: mirror ? -h.rot : h.rot, pose: 'free', d: 0.6, pts: h.pts ? h.pts.map(P) : undefined})), pose: tpl.pose ? Object.fromEntries(Object.entries(tpl.pose).map(([k, q]) => [k, q ? P(q) : null])) : null};
   if (out.faces.length && sk.faces.length) {
-    const tf = {x: out.faces[0].x, y: out.faces[0].y, r: out.faces[0].r}, uf = sk.faces[0], k = clamp(uf.r/tf.r, 0.5, 2.2); // tf はコピー（M が顔を動かした後も基準がずれないように）
-    const M = p => { p.x = uf.x + (p.x - tf.x)*k; p.y = uf.y + (p.y - tf.y)*k; return p; };
+    const tf = {x: out.faces[0].x, y: out.faces[0].y, r: out.faces[0].r}, uf = sk.faces[0]; let k = clamp(uf.r/tf.r, 0.5, 2.2); // tf はコピー（M が顔を動かした後も基準がずれないように）
+    // スケッチの顔に合わせて拡大・移動しても、構図（顔・線・三角）がキャンバスから出ないところまでにとどめる（読ませた構図はそのままの見え方を守る）
+    const box = {x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity}, add = (p, r) => { r = r || 0; box.x0 = Math.min(box.x0, p.x - r); box.y0 = Math.min(box.y0, p.y - r); box.x1 = Math.max(box.x1, p.x + r); box.y1 = Math.max(box.y1, p.y + r); };
+    out.faces.forEach(f => add(f, f.r)); out.strokes.forEach(s => s.forEach(q => add(q))); out.tris.forEach(t => t.forEach(q => add(q))); out.hands.forEach(h => add(h, h.s)); if (out.pose) Object.values(out.pose).forEach(q => { if (q) add(q); }); if (out.vp && out.vp.x >= 0 && out.vp.x <= VW && out.vp.y >= 0 && out.vp.y <= VH) add(out.vp); // 絵の中にある消失点も外へ出さない
+    const bw = box.x1 - box.x0, bh = box.y1 - box.y0; if (bw > 0 && bh > 0) k = Math.min(k, VW/bw, VH/bh);
+    const ox = uf.x + (box.x0 - tf.x)*k, oy = uf.y + (box.y0 - tf.y)*k; // 移動後の左上。はみ出す分だけ戻す
+    const sx = ox < 0 ? -ox : ox + bw*k > VW ? VW - ox - bw*k : 0, sy = oy < 0 ? -oy : oy + bh*k > VH ? VH - oy - bh*k : 0;
+    const M = p => { p.x = uf.x + (p.x - tf.x)*k + sx; p.y = uf.y + (p.y - tf.y)*k + sy; return p; };
     out.faces.forEach(f => { f.r *= k; }); out.faces.forEach(M); out.strokes.forEach(s => s.forEach(M)); out.tris.forEach(t => t.forEach(M)); if (out.vp) M(out.vp); out.emph.forEach(e => e.pts.forEach(M)); out.hands.forEach(h => { M(h); h.s *= k; if (h.pts) h.pts.forEach(M); }); if (out.pose) Object.values(out.pose).forEach(q => { if (q) M(q); });
   }
   if (!out.faces.length) out.faces.push({x: VW*0.5, y: VH*0.4, r: 120});
