@@ -1,6 +1,6 @@
 // 配布版（index.html）を http://localhost:8765/ で開いて、生成・見開き・本の並び・3D 素体の読み込みまで一通り動くか確かめる。
 // 先に: python3 tools/build.py && python3 -m http.server 8765   （リポジトリ直下で）
-const { chromium } = require('playwright');
+const { chromium } = require(require.resolve('playwright', {paths: [__dirname + '/../tools']}));
 (async () => {
   const b = await chromium.launch({executablePath: process.env.CHROMIUM || undefined, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader']});
   const p = await (await b.newContext({viewport: {width: 1500, height: 1000}})).newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message));

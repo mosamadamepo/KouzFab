@@ -31,6 +31,8 @@ node ../tests/zh.js                    # 期待：leftover JP in zh mode: 0
 git add -A && git commit -m "…" && git push   # Pages は数十秒で更新
 ```
 
+- `tools/.npmrc`（legacy-peer-deps）があるので `npm i` はそのまま通る（three-vrm 2.1.2 の peer 要求と three 0.160.1 の食い違いを無視するため）。`npm run build:3d` を使うときは esbuild の postinstall が npm に止められていることがあるので、`cd tools && npm install-scripts approve esbuild && npm i`。
+- `tests/zh.js` はなぞる用の画像をテスト内で作る。リポジトリに画像は置かない（`*.png` は無視される）。
 - 文言を足したら、`ZH` 辞書（`// ---------- language` の節）に繁體中文を必ず足す。`tests/zh.js` が 0 になること。
 - `PLUS`（= `typeof Pose !== 'undefined'`）が true なのは配布版だけ。3D 素体・骨格検出・カメラバーは配布版のみ。アーティファクト版では出ない前提でコードを書く。
 - 配布版の `k3init()` は `./vendor/kouzu3d.js` を動的 import する。
@@ -59,7 +61,7 @@ git add -A && git commit -m "…" && git push   # Pages は数十秒で更新
 
 ## 未解決・次にやること
 
-- **作者の環境で「構図を生成すると顔も素体も出ない」**（2026-09-25 報告。GitHub は古い版のままだった）。こちらの最新 src ではテンプレート入りでも再現せず（`tests/smoke.js` の face off-canvas: 0）。最新版を反映してから作者の環境で確認し、再現したら作者の `kouzu-fabrica` / `kouzu-templates` を JSON で書き出してもらって調べる。
+- **作者の環境で「構図を生成すると顔も素体も出ない」**（2026-09-25 報告。GitHub は古い版のままだった）。2026-09-25 に最新版が Pages に反映済みで、素の状態（localStorage 空）の Pages 版では生成 24 案・顔のはみ出し 0・素体読み込みも確認済み。作者の環境でまだ出ないなら、ブラウザのキャッシュ更新（Ctrl+F5）のあと、作者の `kouzu-fabrica` / `kouzu-templates` を JSON で書き出してもらって調べる。
 - 添削の分析が甘い：自分の完成絵を基準にする／指摘に ○× を付けて学習、を検討中。
 - 見開きのオン・オフが全構図に一括でかかる（1 ページと見開きを混ぜられない）。
 - テンプレートの JSON 書き出しに判定の学習データ（マス分類・骨格のずれ）も含める案。

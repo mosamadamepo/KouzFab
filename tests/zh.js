@@ -1,5 +1,5 @@
 // 繁體中文表示に日本語が残っていないか（ZH 辞書の抜け）を調べる。期待: leftover JP in zh mode: 0
-const { chromium } = require('playwright');
+const { chromium } = require(require.resolve('playwright', {paths: [__dirname + '/../tools']}));
 (async () => {
   const b = await chromium.launch({executablePath: process.env.CHROMIUM || undefined}).catch(async e=>{ return await chromium.launch(); });
   const ctx = await b.newContext({viewport:{width:1400,height:900}});
@@ -25,7 +25,9 @@ const { chromium } = require('playwright');
   // templates tab empty
   await p.click('#gridTabs [data-tab=tpls]'); await p.waitForTimeout(200); await scan('tpls-empty');
   // trace flow
-  await p.setInputFiles('#tplFile', ['shot2.png']); await p.waitForTimeout(700); await scan('trace');
+  // なぞる用の画像はテスト内で作る（リポジトリに画像を置かない）
+  const png = Buffer.from((await p.evaluate(() => { const c = document.createElement('canvas'); c.width = 400; c.height = 600; const g = c.getContext('2d'); g.fillStyle = '#e8d8c8'; g.fillRect(0, 0, 400, 600); g.fillStyle = '#c89878'; g.beginPath(); g.arc(200, 180, 60, 0, Math.PI * 2); g.fill(); g.fillRect(150, 240, 100, 250); return c.toDataURL('image/png'); })).split(',')[1], 'base64');
+  await p.setInputFiles('#tplFile', [{name: 'shot2.png', mimeType: 'image/png', buffer: png}]); await p.waitForTimeout(700); await scan('trace');
   const box = await p.$eval('#main', e => { const r = e.getBoundingClientRect(); return {x:r.left,y:r.top,w:r.width,h:r.height}; });
   const at = (u,v)=>({x: box.x+box.w*u, y: box.y+box.h*v});
   let a=at(0.4,0.3); await p.mouse.move(a.x,a.y); await p.mouse.down(); let bb=at(0.5,0.3); await p.mouse.move(bb.x,bb.y,{steps:4}); await p.mouse.up();
