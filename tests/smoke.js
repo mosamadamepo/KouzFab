@@ -10,7 +10,7 @@ const { chromium } = require(require.resolve('playwright', {paths: [__dirname + 
   const bad = await p.evaluate(() => JSON.parse(localStorage.getItem('kouzu-fabrica')).comps.filter(c => { const f = c.faces[0]; return !(f.x > 0 && f.x < c.VW && f.y > 0 && f.y < c.VH); }).length);
   console.log('comps with face off-canvas:', bad);
   for (const k of [0, 1, 2]) { await p.evaluate(k => [...document.querySelectorAll('#thumbs .thumb .chk input')][k].click(), k); await p.waitForTimeout(150); }
-  await p.click('#spreadChk'); await p.waitForTimeout(1500); await p.click('#spreadChk'); await p.waitForTimeout(800);
+  await p.click('#spreadChk', {force: true}); await p.waitForTimeout(1500); await p.click('#spreadChk', {force: true}); await p.waitForTimeout(800);
   console.log('book:', await p.$eval('#bookCount', e => e.innerText.replace(/\n/g, ' ')));
   await p.click('#modes [data-mode=concept]'); await p.waitForTimeout(1500); await p.screenshot({path: 'smoke.png'});
   console.log('errors', errs); await b.close(); process.exit(errs.length || bad ? 1 : 0);

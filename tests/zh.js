@@ -8,7 +8,7 @@ const { chromium } = require(require.resolve('playwright', {paths: [__dirname + 
   const html = require('fs').readFileSync(require('path').join(__dirname,'..','src','kouzu-fabrica.html'),'utf8');
   await p.setContent('<!doctype html><html><head><meta charset=utf-8></head><body>'+html+'</body></html>', {waitUntil:'load'});
   await p.waitForTimeout(600);
-  await p.selectOption('#langSel','zh'); await p.waitForTimeout(300);
+  await p.selectOption('#langSel','zh',{force:true}); await p.waitForTimeout(300);
   const found = new Set();
   const scan = async (label) => {
     const r = await p.evaluate(() => {
@@ -52,8 +52,8 @@ const { chromium } = require(require.resolve('playwright', {paths: [__dirname + 
   await p.click('#sortBtn'); await p.waitForTimeout(200); await scan('sort');
   await p.screenshot({path:'zh.png'});
   // switch back to ja and verify header restored
-  await p.selectOption('#langSel','ja'); await p.waitForTimeout(300);
-  const back = await p.$eval('#genBtn', e=>e.textContent) + ' / ' + await p.$eval('.brand .logo', e=>e.textContent) + ' / ' + await p.$eval('.stage .tag', e=>e.textContent);
+  await p.selectOption('#langSel','ja',{force:true}); await p.waitForTimeout(300);
+  const back = await p.$eval('#genBtn', e=>e.textContent) + ' / ' + await p.$eval('.brand .sub', e=>e.textContent) + ' / ' + await p.$eval('.stage .tag', e=>e.textContent);
   console.log('errors:', errs); console.log('leftover JP in zh mode:', found.size); [...found].forEach(x=>console.log('  ', x)); console.log('back to ja:', back);
   await b.close();
 })().catch(e=>{console.error('FAIL', e.message); process.exit(1);});

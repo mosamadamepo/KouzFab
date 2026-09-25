@@ -49,8 +49,13 @@ label.field{display:flex;align-items:center;gap:6px;color:var(--muted);font-size
 header.top{display:flex;flex-direction:column;gap:6px;min-width:0}
 .hrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
 .brand{display:flex;align-items:baseline;gap:10px;margin-right:auto}
-.brand .logo{font-size:23px;font-weight:700;letter-spacing:.02em}
-.brand .sub{font-family:var(--num);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.hmenu{position:relative}
+.hmenu button.ghost{display:flex;align-items:center;justify-content:center;width:32px;height:32px;padding:0;border-radius:9px;color:var(--muted)}
+.hmenu.open button.ghost,.hmenu button.ghost:hover{color:var(--text);background:var(--panel2)}
+.hpanel{display:none;position:absolute;right:0;top:calc(100% + 6px);z-index:30;flex-direction:column;align-items:stretch;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;box-shadow:0 12px 36px rgba(0,0,0,.5);white-space:nowrap}
+.hpanel label.field{justify-content:space-between;font-size:14px}
+.hmenu.open .hpanel{display:flex}
+.brand .sub{font-family:var(--num);font-size:15px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
 .modes{display:flex;background:var(--panel);border-radius:10px;padding:3px;gap:2px}
 .modes button{background:transparent;padding:4px 12px}
 .modes button.on{background:var(--panel2);color:var(--accent)}
@@ -132,6 +137,7 @@ main > .grid{min-height:0}
 .editor:not(.closed) .camBar{right:290px}
 .editor:not(.closed) .viewBar{right:290px}
 .editor:not(.closed) .stage .hint{right:290px}
+@media (max-width:900px),(pointer:coarse){.stage .hint{display:none}} /* スマホ：キャンバスに重なる説明は出さない */
 .editor:not(.closed) .stage.cam .hint{right:400px}
 .props h3{margin:0;font-size:13px;letter-spacing:.12em;color:var(--dim);font-weight:500;text-transform:uppercase;font-family:var(--num)}
 .props .name{font-size:16px;font-weight:500;line-height:1.3}
@@ -278,11 +284,15 @@ footer.book{background:var(--panel);border:1px solid var(--line);border-radius:v
 <div id="zoom"><div id="app">
   <header class="top">
     <div class="hrow">
-      <div class="brand"><span class="logo">構図ファブリカ</span><span class="sub">Compositio Fabrica</span></div>
+      <div class="brand"><span class="sub">Compositio Fabrica</span></div>
       <div class="tabs" id="appTabs"><button data-app="make" class="on">構図をつくる</button><button data-app="crit" title="描きかけの絵を読み込むと、疏密・明度・主次・図底・主力線などを診断して、案を採点して返します。画像はこの端末の外に出ません">描きかけを添削</button></div>
-      <div class="minor" style="margin-left:auto">
+      <div class="hmenu" id="hmenu" style="margin-left:auto">
+        <button class="ghost" id="hmenuBtn" title="表示・サイズ・見開き・書き出し・言語" aria-label="表示・サイズ・見開き・書き出し・言語" aria-expanded="false"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/></svg></button>
+        <div class="minor hpanel" id="hpanel">
         <label class="field" title="画面全体の文字と部品の大きさ（ピンチでも変えられます）">表示 <select id="zoomSel"><option value="1.15">大</option><option value="1">中</option><option value="0.85">小</option><option value="0.7">極小</option></select></label>
         <label class="field">サイズ <select id="sizeSel"></select></label><label class="field" title="チェックで横に2倍（見開き）。外すと閉じて1ページに戻ります"><input type="checkbox" id="spreadChk" style="accent-color:var(--accent)"> 見開き</label><label class="field">書き出し <select id="resSel"></select></label>
+        <label class="field">言語 <select id="langSel" aria-label="Language" title="Language"><option value="ja">日本語</option><option value="zh">繁體中文</option></select></label>
+        </div>
       </div>
     </div>
     <div class="hrow">
@@ -294,7 +304,6 @@ footer.book{background:var(--panel);border:1px solid var(--line);border-radius:v
         <button data-mode="concept">コンセプト</button>
         <button data-mode="flat">平面</button>
       </div>
-      <select id="langSel" class="minor" aria-label="Language" title="Language"><option value="ja">日本語</option><option value="zh">繁體中文</option></select>
     </div>
   </header>
 
@@ -3590,6 +3599,11 @@ let drag = null;
 function toV(e){ const u = toUnit(e); return {x: u.x*VW, y: u.y*VH}; }
 const activePointers = new Set();
 main.addEventListener('contextmenu', e => e.preventDefault()); // 右クリックは消しゴム
+// スマホ：キャンバスをダブルタップ＝元に戻す（Ctrl+Z の代わり。1 回目のタップで起きた変化はなかったことにしてから、ひとつ前へ戻す）
+{ let last = null;
+  main.addEventListener('pointerdown', e => { if (e.pointerType !== 'touch' || e.button !== 0) return; const now = performance.now(), stack = trace ? traceUndo : undoStack, pop = trace ? traceUndoPop : undo;
+    if (last && now - last.t < 350 && Math.hypot(e.clientX - last.x, e.clientY - last.y) < 30) { e.preventDefault(); e.stopImmediatePropagation(); while (stack.length > last.n) pop(); if (stack.length) { pop(); toast('元に戻しました'); } else toast('戻せる操作がありません'); last = null; drag = null; triTaps = []; renderAll(); return; }
+    last = {t: now, x: e.clientX, y: e.clientY, n: stack.length}; }, true); }
 main.addEventListener('pointerdown', e => {
   if (e.button === 2) { main.setPointerCapture(e.pointerId); if (trace) { tracePointerDown(e); return; } const p = toV(e), c = curComp(); pushUndo(); eraseAt(p, c); drag = {kind: 'rerase', c}; renderAll(); return; }
   if (e.button !== 0) return;
@@ -3947,6 +3961,7 @@ const ZH = {
   'マーカーで見せ場を塗る': '用螢光筆塗出看點',
   '三角：3点タップで追加': '三角：點 3 點加入',
   '戻せる操作がありません': '沒有可復原的操作',
+  '元に戻しました': '已復原',
   '囲む／マーカー：見せ場': '圈選／螢光筆：看點',
   'テンプレートとして保存': '儲存為範本',
   '画像なし（線だけ編集）': '無影像（只編輯線條）',
@@ -4044,6 +4059,8 @@ const ZH = {
   '選択・移動': '選取・移動',
   '消しゴム': '橡皮擦',
   '書き出し': '匯出',
+  '言語': '語言',
+  '表示・サイズ・見開き・書き出し・言語': '顯示・尺寸・跨頁・匯出・語言',
   'まだ不明': '尚不明',
   'サイド光': '側光',
   '下へ流す': '往下流',
@@ -4518,6 +4535,9 @@ function clearAll(){
 }
 $('genBtn').addEventListener('click', () => { if (trace) { toast('先になぞりを保存するか、やめてください'); return; } generateAll(); });
 $('tplBtn').addEventListener('click', () => $('tplFile').click());
+// 上のバーの歯車：表示・サイズ・見開き・書き出し・言語をまとめて出す（外をタップで閉じる）
+$('hmenuBtn').addEventListener('click', e => { e.stopPropagation(); const on = $('hmenu').classList.toggle('open'); $('hmenuBtn').setAttribute('aria-expanded', on ? 'true' : 'false'); });
+document.addEventListener('pointerdown', e => { if (!$('hmenu').contains(e.target)) { $('hmenu').classList.remove('open'); $('hmenuBtn').setAttribute('aria-expanded', 'false'); } });
 $('tplFile').addEventListener('change', e => { const files = [...e.target.files]; e.target.value = ''; if (!files.length) return; if (trace) { trace.queue.push(...files); renderProps(); return; } startTrace(files[0], files.slice(1)); });
 $('gridTabs').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; gridTab = b.dataset.tab; renderThumbs(); });
 // drag & drop artwork anywhere on the app → trace it (画像は端末内だけ)
