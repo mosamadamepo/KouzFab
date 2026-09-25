@@ -2297,14 +2297,17 @@ function fluffLoop(src, o){ // → {pts, tips, c, r, area}
   const N = 60, base = resampleClosed(src, N); if (!base) return null; const r = rng(o.seed || 1), amt = o.fluff == null ? 0.6 : o.fluff;
   const c = {x: 0, y: 0}; base.forEach(q => { c.x += q.x; c.y += q.y; }); c.x /= N; c.y /= N; let rm = 0; base.forEach(q => rm += dist(q, c)); rm /= N;
   const lobes = 3 + Math.floor(r()*3), ph = r()*TAU, ph2 = r()*TAU, w = o.wind || null;
+  const pin = i => { const s = Math.min(i, N - i)/(N*0.12); return s >= 1 ? 1 : s*s*(3 - 2*s); }; // 始点（なぞり始めた点）は動かさない。離れるほどふわっとさせる
   let pts = base.map((q, i) => { const t = i/N*TAU, d = {x: q.x - c.x, y: q.y - c.y}, L = Math.hypot(d.x, d.y) || 1, u = {x: d.x/L, y: d.y/L};
     let k = 1 + amt*(0.06 + 0.24*Math.sin(t*lobes + ph) + 0.09*Math.sin(t*lobes*2.6 + ph2)); // 大きな房と小さな波
     if (w) { const dw = Math.max(0, u.x*w.x + u.y*w.y); k += amt*0.45*dw*dw; k -= amt*0.12*Math.max(0, -(u.x*w.x + u.y*w.y)); } // 風下へ流れ、風上は締まる
     k += amt*0.07*Math.max(0, u.y); // 重さで少し下へ垂れる
+    k = 1 + (k - 1)*pin(i);
     return {x: c.x + d.x*k, y: c.y + d.y*k}; });
   for (let pass = 0; pass < 2; pass++) pts = pts.map((q, i) => { const a = pts[(i+N-1) % N], b = pts[(i+1) % N]; return {x: a.x*0.25 + q.x*0.5 + b.x*0.25, y: a.y*0.25 + q.y*0.5 + b.y*0.25}; }); // 柔らかく
+  pts = pts.map((q, i) => { const p = pin(i), b = base[i]; return p >= 1 ? q : {x: b.x + (q.x - b.x)*p, y: b.y + (q.y - b.y)*p}; }); // 平滑化でも始点はずらさない
   const tips = []; const rad = pts.map(q => dist(q, c));
-  for (let i = 0; i < N; i++) { let peak = true; for (let k = -3; k <= 3; k++) if (k && rad[(i+k+N) % N] >= rad[i]) { peak = false; break; } if (!peak) continue; const q = pts[i], u = {x: (q.x - c.x)/(rad[i] || 1), y: (q.y - c.y)/(rad[i] || 1)}; const dw = w ? Math.max(0, u.x*w.x + u.y*w.y) : 0; const len = rm*amt*(0.22 + 0.3*dw) ; if (len < rm*0.05) continue;
+  for (let i = 0; i < N; i++) { let peak = true; for (let k = -3; k <= 3; k++) if (k && rad[(i+k+N) % N] >= rad[i]) { peak = false; break; } if (!peak || pin(i) < 1) continue; const q = pts[i], u = {x: (q.x - c.x)/(rad[i] || 1), y: (q.y - c.y)/(rad[i] || 1)}; const dw = w ? Math.max(0, u.x*w.x + u.y*w.y) : 0; const len = rm*amt*(0.22 + 0.3*dw) ; if (len < rm*0.05) continue;
     const a = pts[(i+N-2) % N], b = pts[(i+2) % N]; tips.push({base: [a, b], tip: {x: q.x + u.x*len + (w ? w.x*len*0.4 : 0), y: q.y + u.y*len + (w ? w.y*len*0.4 : 0)}, root: q}); }
   let area = 0; for (let i = 0, j = N - 1; i < N; j = i++) area += (pts[j].x + pts[i].x)*(pts[j].y - pts[i].y); area = Math.abs(area)/2;
   return {pts, tips, c, r: rm, area};
