@@ -1,0 +1,17 @@
+{
+  "name": "kouzfab-tools",
+  "private": true,
+  "description": "vendor/kouzu3d.js（three.js + three-vrm のバンドル）の再生成とテスト用",
+  "scripts": {
+    "build:3d": "esbuild k3d.entry.js --bundle --format=esm --minify --outfile=../vendor/kouzu3d.js",
+    "test": "node ../tests/smoke.js && node ../tests/zh.js"
+  },
+  "dependencies": {
+    "@pixiv/three-vrm": "2.1.2",
+    "three": "0.160.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "playwright": "^1.47.0"
+  }
+}
