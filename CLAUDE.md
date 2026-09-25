@@ -49,9 +49,10 @@ git add -A && git commit -m "…" && git push   # Pages は数十秒で更新
 - **generator**：`makeComp()` が 1 案をつくる。`buildBody()`（ポーズ・体の入れ方＝まっすぐ／腰を折る／さかさま）、`kousei()`（構成 6 軸）、`scoreComp()`。
 - **templates**：過去絵をなぞったテンプレート（`kouzu-templates`）。`tplToFrame()` でスケッチの顔に合わせる。`habits()` が癖の傾向。
 - **髪の毛（囲み）**：`fluffLoop()` が囲みを風・重さでぶわっと膨らませる。上部中央の横バー `renderHairPanel()`。
-- **3D素体**：`k3loadVRM` / `k3pose`（構図の骨格 → ボーン回転。`c.facing`＝体の向き、`c.headFacing`＝顔の向き＝首のひねり。自動なら体の向きから 45% カメラへ戻し、後ろ向きなら振り返る。生成時の既定は `genFacing` / `genHeadFacing`）/ `k3render`（顔の丸に頭を合わせる。`c.cam` でカメラバーの回転・拡大・移動）/ `k3splitArms`（肘から先を別メッシュにして 10% 不透明）/ `k3variantMats`（2 人目以降を色違い）。
+- **3D素体**：`k3loadVRM` / `k3pose`（構図の骨格 → ボーン回転。`c.facing`＝体の向き、`c.headFacing`＝顔の向き＝首のひねり。自動なら体の向きから 45% カメラへ戻し、後ろ向きなら振り返る。生成時の既定は `genFacing` / `genHeadFacing`）/ `k3render`（顔の丸に頭を合わせる。`c.cam` でカメラバーの回転・拡大・移動）/ `k3fingers`（VRM の指ボーンで手の形 `HAND_SHAPES`。置いた手 `c.hands[i].shape`、置いていない腕は `c.handShapes`。`pickHandShape()` が顔との距離で候補を変える。`k3pose` 内の 2 本骨 IK で手首を置いた手の位置へ届かせ、3D の手が出ているときは手のスタンプは描かない）/ `k3splitArms`（`k3arm`＝肘から先を 10% 不透明にしてスタンプを使う。既定はオフ）/ `k3variantMats`（2 人目以降を色違い）。
 - **カメラバー / 表示バー**：`initCamBar()`（3D カメラ）、`initViewBar()`（キャンバスの見え方＝拡大・回転・移動。`view` と `toUnit()` で座標を逆変換）。
 - **本の並び**：`pageOrder`（構図 id と `blank:…`）、`bookSlots()` / `bookSpreads()`（綴じ・1p 単独）、`exportBookPNG()`。見開きは `spread` と `setAspectKeep()`（縦横同倍率で余白を足す）。
+- **光**：`lightPoint(c)`。`c.light.dir`（向き）に加えて、光の印をドラッグすると `c.light.pos`（位置）が付き、全体の明暗がそこを中心にずれる。スライダーを動かすと位置は解除。見せ場のスポットは `c.focus` の 1.25 倍の半径。
 - **添削**：`analyzeArt()`（9 軸の診断。いまは固定のしきい値で、学習はしない）、`critComps()`（提案）。
 - **学習**：`autoModel`（肌色・丸の大きさ等）、マス分類器 `trainCellModel()`、骨格のずれ `learnPoseBias()`。どれも端末内だけ。
 

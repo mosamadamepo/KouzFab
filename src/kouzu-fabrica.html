@@ -1637,7 +1637,7 @@ function scalePts(obj, sx, sy){
     for (const k in obj) if (k !== 'x' && k !== 'y' && k !== 'rx' && k !== 'ry' && typeof obj[k] === 'object') scalePts(obj[k], sx, sy);
   }
 }
-const KEEP_SKIP = ['flow', 'cam', 'score', 'kousei', 'vis', 'light', 'bodies'];
+const KEEP_SKIP = ['flow', 'cam', 'score', 'kousei', 'vis', 'bodies'];
 function keepPts(obj, k, dx, seen){ // 見開きの開閉：縦横同じ倍率で縮め（見え方・角度はそのまま）、横に余白を足す
   seen = seen || new WeakSet(); if (!obj || typeof obj !== 'object' || seen.has(obj)) return; seen.add(obj);
   if (Array.isArray(obj)) { obj.forEach(o => keepPts(o, k, dx, seen)); return; }
@@ -1992,7 +1992,7 @@ function makeComp(p){
   // hands
   const hs = c.lean >= 0 ? 1 : -1;
   const pd = POSE_DEF[c.pose]; const wristHand = (w, e, label) => ({x: clamp(w.x, R*0.3, VW - R*0.3), y: clamp(w.y, R*0.3, VH - R*0.3), s: R*0.55, rot: Math.atan2(w.y - e.y, w.x - e.x) + PI/2, pose: label, d: 0.55});
-  if (!T && pd && !['stand', 'twist', 'lean', 'arch'].includes(c.pose) && c.shot !== 'long') { // ポーズが手の位置を決めるとき：手首に手を置く（見える範囲のもの）
+  if (!T && pd && !['stand', 'twist', 'lean', 'arch'].includes(c.pose)) { // ポーズが手の位置を決めるとき：手首に手を置く（見える範囲のもの）
     [[b.wrL, b.elbowL], [b.wrR, b.elbowR]].forEach(([w, e]) => { if (w.y < VH*1.05 && w.y > -R && Math.abs(w.x - VW/2) < VW*0.6 && dist(w, head) > R*0.6) c.hands.push(wristHand(w, e, 'free')); });
   }
   else if (c.shot === 'up') {
@@ -2017,6 +2017,8 @@ function makeComp(p){
   if (em && em.length) { c.emph = JSON.parse(JSON.stringify(em)); applyFocus(c, true); }
   scoreComp(c);
   c.name = tpl ? `${tpl.name}${c.mirror ? '（反転）' : ''}・${SHOTS[c.shot]}` : `${SHOTS[c.shot]}・${ANGLES[c.angle]}・${PATTERNS[c.pattern]}`;
+  c.hands.forEach((h, i) => { if (!h.shape) h.shape = pickHandShape(r, h, head, R); }); // 3D の指の形（顔との距離で候補が変わる）
+  c.handShapes = [pickHandShape(r, {x: head.x - R*3, y: head.y + R*3}, head, R), pickHandShape(r, {x: head.x + R*3, y: head.y + R*3}, head, R)]; // 手を置いていない腕の指の形
   return c;
 }
 function forceLine(c){
@@ -2308,6 +2310,19 @@ function fitHand(pts, face, unit){ // pts in the target space; unit = length uni
   return {x: cx + ax*(L/2 - s*0.8)*0.0, y: cy + ay*0, s, rot: Math.atan2(ay, ax) + PI/2, pose: 'free', d: 0.6};
 }
 // ---------- 髪の毛（囲み）：囲んだ塊を、風と重さで「ぶわっと」膨らませる簡易物理。色は塊ごと ----------
+// 手の形（3D の指）：どの指をどれだけ曲げるか（0＝伸ばす、1＝握る）。spread＝指を開く
+const HAND_SHAPES = {
+  relax: {name: 'ゆるく', curl: [0.35, 0.3, 0.35, 0.4, 0.45], spread: 0.1},
+  open: {name: 'ひらく', curl: [0.1, 0.05, 0.05, 0.05, 0.05], spread: 0.6},
+  fist: {name: 'にぎる', curl: [0.8, 0.95, 0.95, 0.95, 0.95], spread: 0},
+  point: {name: 'さす', curl: [0.5, 0.0, 0.9, 0.95, 0.95], spread: 0.1},
+  peace: {name: 'ピース', curl: [0.6, 0.0, 0.0, 0.95, 0.95], spread: 0.5},
+  rest: {name: 'そえる', curl: [0.25, 0.25, 0.35, 0.45, 0.55], spread: 0.25},
+  comb: {name: 'すく', curl: [0.3, 0.2, 0.25, 0.3, 0.35], spread: 0.7},
+  pinch: {name: 'つまむ', curl: [0.55, 0.55, 0.75, 0.85, 0.9], spread: 0.05}
+};
+// 顔との距離で手の形の候補を変える：顔のそば＝そえる・すく・つまむ、中間＝ひらく・さす・ゆるく、遠く＝ゆるく・にぎる・ひらく
+function pickHandShape(r, h, head, R){ const d = dist(h, head)/(R || 1); const cand = d < 2.2 ? ['rest', 'rest', 'comb', 'pinch', 'relax', 'peace'] : d < 5 ? ['open', 'point', 'relax', 'relax', 'peace', 'pinch'] : ['relax', 'relax', 'fist', 'open', 'point']; return cand[Math.floor(r()*cand.length)]; }
 const HAIR_PAL = ['#3a2b2b', '#6b4736', '#1f2531', '#e8d6a8', '#c8c9d6', '#b8394a', '#3b6cb8', '#3aa06b', '#8a4ab8', '#f0a3c2'];
 function resampleClosed(src, N){ const pts = src.filter((q, i) => !i || dist(q, src[i-1]) > 0.01); if (pts.length < 3) return null; const seg = []; let L = 0; for (let i = 0; i < pts.length; i++) { const d = dist(pts[i], pts[(i+1) % pts.length]); seg.push(d); L += d; } if (L < 1) return null;
   const out = []; let i = 0, acc = 0; for (let k = 0; k < N; k++) { const t = k/N*L; while (acc + seg[i] < t && i < pts.length - 1) { acc += seg[i]; i++; } const a = pts[i], b = pts[(i+1) % pts.length], u = seg[i] ? (t - acc)/seg[i] : 0; out.push({x: a.x + (b.x - a.x)*u, y: a.y + (b.y - a.y)*u}); } return out; }
@@ -2465,7 +2480,7 @@ function boxFaces(c, s){
 }
 function poly(ctx, pts){ ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.closePath(); }
 function layerPath(ctx, l){ ctx.beginPath(); ctx.moveTo(-10, VH + 10); for (let x = -10; x <= VW + 10; x += 25) ctx.lineTo(x, l.y + Math.sin(x*l.freq + l.phase)*l.amp + Math.sin(x*l.freq*2.7 + l.phase*1.3)*l.amp*0.35); ctx.lineTo(VW + 10, VH + 10); ctx.closePath(); }
-function lightPoint(c){ return {x: VW/2 + Math.cos(c.light.dir)*VW*0.48, y: VH/2 + Math.sin(c.light.dir)*VH*0.48}; }
+function lightPoint(c){ if (c.light.pos) return {x: c.light.pos.x, y: c.light.pos.y}; return {x: VW/2 + Math.cos(c.light.dir)*VW*0.48, y: VH/2 + Math.sin(c.light.dir)*VH*0.48}; } // pos：光をドラッグでずらしたとき（画面のどこにでも置ける）
 
 // ---------- rendering ----------
 function drawSketchCanvas(ctx, W, H, o){
@@ -2578,11 +2593,11 @@ function drawComp(ctx, c, W, H, o){
   // figures
   const figs = c.bodies.map((b, i) => ({b, f: c.faces[i], i})).sort((a, b) => a.f.r - b.f.r);
   const long3d = o.export3d || (W >= 700 ? 1024 : 360);
-  if (on('figure')) figs.forEach(({b, f, i}) => { if (mode === 'concept' && k3draw(ctx, c, long3d, i)) return; drawFigure(ctx, c, b, f, i, mode, lw); });
+  let hands3d = false; if (on('figure')) figs.forEach(({b, f, i}) => { if (mode === 'concept' && k3draw(ctx, c, long3d, i)) { if (!i && !k3arm) hands3d = true; return; } drawFigure(ctx, c, b, f, i, mode, lw); }); // 3D の手が出ているときは手のスタンプは描かない
   if (v.hairMass !== false && on('hairMass')) (c.hairMasses || []).forEach(hm => drawHairMass(ctx, hm, mode, lw));
   // near solids & hands (foreground)
   if (v.solids && on('solidsNear')) solidsSorted.filter(x => x.d >= 0.7).forEach(drawSolid);
-  if (v.hands && on('hands')) c.hands.forEach(h => {
+  if (v.hands && on('hands') && !hands3d) c.hands.forEach(h => {
     if (mode === 'line') { ctx.strokeStyle = rgba(COL.face, .55 + 0.45*h.d); ctx.lineWidth = lw(1.4 + 1.8*h.d); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; handPath(ctx, h); ctx.fillStyle = rgba(COL.face, .08); ctx.fill(); ctx.stroke(); }
     else if (mode === 'flat') handFill(ctx, h, h.d > 0.8 ? '#1f2024' : '#2e2f33');
     else { handFill(ctx, h, rgba(COL.face, .88)); ctx.strokeStyle = 'rgba(40,30,20,.85)'; ctx.lineWidth = lw(1.6 + 1.2*h.d); ctx.lineJoin = 'round'; ctx.lineCap = 'round'; handPath(ctx, h); ctx.stroke(); } // コンセプト：VRM に埋もれないように濃いオレンジ＋縁取り
@@ -2590,11 +2605,11 @@ function drawComp(ctx, c, W, H, o){
   // lighting overlays (concept)
   if (mode === 'concept' && light && on('light')) {
     const lp = lightPoint(c), rad = Math.max(VW, VH);
-    let g = ctx.createRadialGradient(lp.x, lp.y, 0, lp.x, lp.y, rad*1.1); g.addColorStop(0, `rgba(255,246,222,${hi ? .34 : .2})`); g.addColorStop(1, 'rgba(255,246,222,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, VW, VH);
+    let g = ctx.createRadialGradient(lp.x, lp.y, 0, lp.x, lp.y, rad*(c.light.pos ? 0.75 : 1.1)); g.addColorStop(0, `rgba(255,246,222,${hi ? .34 : .2})`); g.addColorStop(1, 'rgba(255,246,222,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, VW, VH);
     const op = {x: VW - lp.x, y: VH - lp.y}; g = ctx.createRadialGradient(op.x, op.y, 0, op.x, op.y, rad*0.95); g.addColorStop(0, `rgba(20,18,30,${hi ? .38 : .18})`); g.addColorStop(1, 'rgba(20,18,30,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, VW, VH);
     if (hi) { g = ctx.createRadialGradient(VW/2, VH/2, Math.min(VW,VH)*0.35, VW/2, VH/2, rad*0.85); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.35)'); ctx.fillStyle = g; ctx.fillRect(0, 0, VW, VH); }
   }
-  if (c.focus && mode !== 'line' && v.light && on('light')) { const f = c.focus, rr = Math.max(f.rx, f.ry)*1.9; const g = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, rr); g.addColorStop(0, mode === 'flat' ? 'rgba(255,255,255,.4)' : 'rgba(255,240,205,.42)'); g.addColorStop(1, 'rgba(255,240,205,0)'); ctx.fillStyle = g; ctx.fillRect(f.x - rr, f.y - rr, rr*2, rr*2); }
+  if (c.focus && mode !== 'line' && v.light && on('light')) { const f = c.focus, rr = Math.max(f.rx, f.ry)*1.25; /* スポットは見せ場のまわりだけ */ const g = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, rr); g.addColorStop(0, mode === 'flat' ? 'rgba(255,255,255,.4)' : 'rgba(255,240,205,.42)'); g.addColorStop(1, 'rgba(255,240,205,0)'); ctx.fillStyle = g; ctx.fillRect(f.x - rr, f.y - rr, rr*2, rr*2); }
   // guides
   if ((mode === 'line' || v.guides) && on('guides')) drawGuides(ctx, c, lw, mode === 'line' ? 1 : 0.6);
   if (o.emph) drawEmph(ctx, c.emph, lw);
@@ -2974,9 +2989,9 @@ function bootstrapLearning(){ // 残してある 160px サムネイルからも�
 
 
 // ---------- 3D素体（配布版のみ）：VRM（VRoid など）を three.js で描き、構図の骨格でポーズを取らせる。モデルは端末内（IndexedDB）にだけ残る ----------
-let K3 = null, k3 = null, k3use = true, k3gray = false, k3arm = true, k3loading = false; // k3arm：肘から先を 10% の不透明度に（手は自分で描く）
+let K3 = null, k3 = null, k3use = true, k3gray = false, k3arm = false, k3loading = false; // k3arm：肘から先を 10% の不透明度に（手は自分で描く）。既定は 3D の手を使う
 const k3cache = new Map();
-try { k3use = localStorage.getItem('kouzu-k3use') !== '0'; k3gray = localStorage.getItem('kouzu-k3gray') === '1'; k3arm = localStorage.getItem('kouzu-k3arm') !== '0'; } catch(e) {}
+try { k3use = localStorage.getItem('kouzu-k3use') !== '0'; k3gray = localStorage.getItem('kouzu-k3gray') === '1'; k3arm = localStorage.getItem('kouzu-k3arm2') === '1'; } catch(e) {}
 function k3db(){ return new Promise((res, rej) => { const rq = indexedDB.open('kouzu-fabrica', 1); rq.onupgradeneeded = () => rq.result.createObjectStore('files'); rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error); }); }
 async function k3store(key, val){ try { const db = await k3db(); await new Promise((res, rej) => { const tx = db.transaction('files', 'readwrite'); tx.objectStore('files').put(val, key); tx.oncomplete = res; tx.onerror = () => rej(tx.error); }); } catch(e) {} }
 async function k3fetch(key){ try { const db = await k3db(); return await new Promise((res, rej) => { const tx = db.transaction('files', 'readonly'); const rq = tx.objectStore('files').get(key); rq.onsuccess = () => res(rq.result || null); rq.onerror = () => rej(rq.error); }); } catch(e) { return null; } }
@@ -3051,7 +3066,21 @@ function k3pose(c, idx, facing){ // 構図の素体（bodies[idx]・faces[idx]�
   const P3 = (p, k) => new THREE.Vector3(p.x, -p.y, -Z(k) + PZ(k));
   const hipL = P3(b.hipL, 'hipL'), hipR = P3(b.hipR, 'hipR'), shL = P3(b.shL, 'shL'), shR = P3(b.shR, 'shR'), hipC = hipL.clone().add(hipR).multiplyScalar(0.5), shC = shL.clone().add(shR).multiplyScalar(0.5);
   const head = P3(f, 'head'), neck = P3(b.neck, 'neck'), elL = P3(b.elbowL, 'elL'), elR = P3(b.elbowR, 'elR'), knL = P3(b.kneeL, 'knL'), knR = P3(b.kneeR, 'knR'), ftL = P3(b.footL, 'ftL'), ftR = P3(b.footR, 'ftR');
-  const wrL = sk.wrL ? P3(sk.wrL, 'wrL') : (b.wrL ? P3(b.wrL, 'wrL') : null), wrR = sk.wrR ? P3(sk.wrR, 'wrR') : (b.wrR ? P3(b.wrR, 'wrR') : null);
+  let wrL = sk.wrL ? P3(sk.wrL, 'wrL') : (b.wrL ? P3(b.wrL, 'wrL') : null), wrR = sk.wrR ? P3(sk.wrR, 'wrR') : (b.wrR ? P3(b.wrR, 'wrR') : null);
+  // 3D の手：置いた手（c.hands）のところへ手首を届かせる（肩・肘・手首の 2 本の骨で、肘の曲がる側は元のまま）。1 人目だけ
+  const handOn = {L: null, R: null};
+  if (!idx && !k3arm && !sk.wrL && !sk.wrR && c.hands && c.hands.length) {
+    const arms = {L: {sh: b.shL, el: b.elbowL, wr: b.wrL || b.elbowL}, R: {sh: b.shR, el: b.elbowR, wr: b.wrR || b.elbowR}};
+    const want = c.hands.slice(0, 2).map(h => ({h, dL: dist(h, arms.L.wr), dR: dist(h, arms.R.wr)})).sort((a, b0) => Math.min(a.dL, a.dR) - Math.min(b0.dL, b0.dR));
+    want.forEach(w => { let side = w.dL <= w.dR ? 'L' : 'R'; if (handOn[side]) side = side === 'L' ? 'R' : 'L'; if (handOn[side]) return; handOn[side] = w.h; });
+    const ik = (side, h) => { const a = arms[side], L1 = dist(a.sh, a.el) || R, L2 = dist(a.el, a.wr) || R, t = {x: h.x, y: h.y}; const dx = t.x - a.sh.x, dy = t.y - a.sh.y, len = Math.hypot(dx, dy) || 1e-6, D = Math.min(len, (L1 + L2)*0.98);
+      const ux = dx/len, uy = dy/len; const cosA = clamp((L1*L1 + D*D - L2*L2)/(2*L1*D), -1, 1), A = Math.acos(cosA);
+      const bendSign = Math.sign((a.el.x - a.sh.x)*uy - (a.el.y - a.sh.y)*ux) || (side === 'L' ? -1 : 1); // 元の肘がある側へ曲げる
+      const ex = a.sh.x + (ux*Math.cos(A) - uy*Math.sin(A)*bendSign)*L1, ey = a.sh.y + (uy*Math.cos(A) + ux*Math.sin(A)*bendSign)*L1;
+      const zf = R*((h.d == null ? 0.55 : h.d) - 0.5)*2.2 + (dist(h, f) < R*2.2 ? R*0.9 : 0); // 手前の手ほど手前、顔のそばは顔より少し手前
+      const ek = side === 'L' ? 'elL' : 'elR'; return {el: new THREE.Vector3(ex, -ey, -Z(ek) + PZ(ek)*0.5 + zf*0.5), wr: new THREE.Vector3(t.x, -t.y, zf)}; };
+    if (handOn.L) { const q = ik('L', handOn.L); elL.copy(q.el); wrL = q.wr; } if (handOn.R) { const q = ik('R', handOn.R); elR.copy(q.el); wrR = q.wr; }
+  }
   const dir = (a, b0) => b0.clone().sub(a).normalize();
   const basis = (xAxis, yAxis) => { const x = xAxis.clone().normalize(); const z = new THREE.Vector3().crossVectors(x, yAxis).normalize(); if (z.lengthSq() < 1e-6) z.set(0, 0, 1); const y = new THREE.Vector3().crossVectors(z, x).normalize(); const m = new THREE.Matrix4().makeBasis(x, y, z); return new THREE.Quaternion().setFromRotationMatrix(m); };
   const one = (rest, target) => new THREE.Quaternion().setFromUnitVectors(rest, target.clone().normalize());
@@ -3078,9 +3107,18 @@ function k3pose(c, idx, facing){ // 構図の素体（bodies[idx]・faces[idx]�
   const yawOf = a => new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), a); const yawQ = yawOf(by), headQ = yawOf(hy), neckQ = yawOf(by + (hy - by)*0.45);
   const pq = new THREE.Quaternion();
   order.forEach(name => { const node = H.getNormalizedBoneNode(name); if (!node || !targets[name]) return; const yq = name === 'head' ? headQ : name === 'neck' ? neckQ : yawQ; node.parent.updateWorldMatrix(true, false); node.parent.getWorldQuaternion(pq); node.quaternion.copy(pq.invert().multiply(yq.clone().multiply(targets[name]))); node.updateWorldMatrix(false, false); });
+  // 指の形：置いた手はその形、置いていない腕は構図ごとの形（k3arm＝肘から先を薄くしているときは T ポーズのまま）
+  if (!k3arm) { const shapes = c.handShapes || ['relax', 'relax']; k3fingers(H, 'left', HAND_SHAPES[(handOn.R && handOn.R.shape) || shapes[1]] || HAND_SHAPES.relax); k3fingers(H, 'right', HAND_SHAPES[(handOn.L && handOn.L.shape) || shapes[0]] || HAND_SHAPES.relax); } // 画面左の腕＝モデルの右手
   vrm.humanoid.update && vrm.humanoid.update();
 }
 const K3_YAW = {front: 0, qL: 0.6, qR: -0.6, side: 1.35, back: PI};
+function k3fingers(H, side, shape){ // VRM の指ボーンを曲げる。T ポーズで指は腕の延長（左手＝+X）、手のひらは下向き → 曲げは Z 軸まわり（左は −、右は ＋）、開きは Y 軸まわり
+  const sgn = side === 'left' ? -1 : 1, fingers = [['Thumb', ['Metacarpal', 'Proximal', 'Distal']], ['Index', ['Proximal', 'Intermediate', 'Distal']], ['Middle', ['Proximal', 'Intermediate', 'Distal']], ['Ring', ['Proximal', 'Intermediate', 'Distal']], ['Little', ['Proximal', 'Intermediate', 'Distal']]];
+  fingers.forEach(([fn, segs], fi) => { const curl = shape.curl[fi] || 0, spreadK = (fi === 0 ? 0 : (fi - 2.5))*shape.spread*0.22; // 中指を中心に扇に開く
+    segs.forEach((sg, si) => { const node = H.getNormalizedBoneNode(side + fn + sg); if (!node) return; node.rotation.set(0, 0, 0);
+      if (fi === 0) { node.rotation.y = -sgn*curl*(si === 0 ? 0.35 : 0.55); node.rotation.z = sgn*curl*0.15; } // 親指は手のひらへ折れる
+      else { node.rotation.z = sgn*curl*(si === 0 ? 1.25 : si === 1 ? 1.35 : 0.9); if (si === 0) node.rotation.y = -sgn*spreadK; } }); });
+}
 const DIR_Z = {bend: {head: 1.8, shL: 1.0, shR: 1.0, elL: 1.4, elR: 1.4, wrL: 1.8, wrR: 1.8, knL: -0.4, knR: -0.4, ftL: -0.6, ftR: -0.6}}; // 腰を折る：頭と肩が手前、脚は奥へ
 function k3render(c, W, H, idx){ // → renderer.domElement（透明背景）。頭が顔の丸に重なるようにモデルを置く。idx＝何人目か
   const {THREE} = K3, r = k3.renderer, cam = k3.camera, vrm = k3.vrm; if (!vrm) return null; idx = idx || 0;
@@ -3112,7 +3150,7 @@ function k3render(c, W, H, idx){ // → renderer.domElement（透明背景）。
   k3applyGray(k3gray, idx);
   r.render(k3.scene, cam); return r.domElement;
 }
-function k3key(c, W, idx){ const b = c.bodies[idx || 0]; return JSON.stringify([idx || 0, k3arm, c.cam || null, c.faces[idx || 0], b.dir, b.shL, b.shR, b.hipL, b.hipR, b.elbowL, b.elbowR, b.wrL, b.wrR, b.kneeL, b.kneeR, b.footL, b.footR, c.skel, c.facing, c.headFacing, c.lean, c.light, c.angle, c.vp, c.contrast, W, k3gray, k3.name]); }
+function k3key(c, W, idx){ const b = c.bodies[idx || 0]; return JSON.stringify([idx || 0, k3arm, c.cam || null, c.faces[idx || 0], b.dir, b.shL, b.shR, b.hipL, b.hipR, b.elbowL, b.elbowR, b.wrL, b.wrR, b.kneeL, b.kneeR, b.footL, b.footR, c.skel, c.facing, c.headFacing, c.lean, c.light, c.angle, c.vp, c.contrast, c.hands, c.handShapes, W, k3gray, k3.name]); }
 function k3draw(ctx, c, long, idx){ // drawComp から：虚座標系（scale 済み）の ctx に描く。まだ準備できていなければ false。idx＝何人目か
   if (!k3 || !k3.vrm || !k3use) return false; idx = idx || 0; if (!c.bodies[idx] || c.bodies[idx].fromPose && idx) return false;
   const W = VW >= VH ? long : Math.round(long*VW/VH), H = VW >= VH ? Math.round(long*VH/VW) : long; const key = k3key(c, W, idx);
@@ -3151,13 +3189,13 @@ function k3props(box, c){ // 設定パネルの「3D素体」グループ（配�
   if (!PLUS) return;
   const g = document.createElement('div'); g.className = 'group';
   const has = !!(k3 && k3.vrm);
-  g.innerHTML = `<h3>3D素体（VRM）</h3><p class="note">${has ? `読み込み中の素体：<b>${k3.name}</b>${k3.meta && k3.meta.authors ? `（${[].concat(k3.meta.authors).join('・')}）` : ''}` : 'VRoid Studio などで作った VRM を読み込むと、コンセプト表示の素体が本物の 3D になり、この構図のポーズを取ります。モデルはこのブラウザ内にだけ保存され、送信しません。'}</p><div class="row" style="display:flex;gap:6px;flex-wrap:wrap"><button class="ghost" id="vrmLoad" style="flex:1">${has ? '別の VRM に替える' : 'VRM を読み込む'}</button>${has ? '<button class="ghost" id="vrmClear">外す</button>' : ''}</div>${has ? `<div class="chips"><button class="tg${k3use ? ' on' : ''}" id="vrmUse">コンセプト表示で使う</button><button class="tg${k3gray ? ' on' : ''}" id="vrmGray">グレーの素体</button><button class="tg${k3arm ? ' on' : ''}" id="vrmArm" title="肘から先（前腕・手・指）を 10% の不透明度にして、手は自分の形で置けるようにする">肘から先を薄く</button></div>${c ? '<div class="row" style="display:flex;gap:6px"><button class="ghost" id="vrmObj" style="flex:1">OBJ 書き出し（この構図のポーズ）</button></div><p class="note">クリスタ：ファイル → 読み込み → 3Dデータ で OBJ を開くと、ポーズ済みの素体がキャンバスに乗ります（関節はクリスタでは動かせません）。</p>' : ''}` : ''}<input type="file" id="vrmFile" accept=".vrm,.glb" hidden>`;
+  g.innerHTML = `<h3>3D素体（VRM）</h3><p class="note">${has ? `読み込み中の素体：<b>${k3.name}</b>${k3.meta && k3.meta.authors ? `（${[].concat(k3.meta.authors).join('・')}）` : ''}` : 'VRoid Studio などで作った VRM を読み込むと、コンセプト表示の素体が本物の 3D になり、この構図のポーズを取ります。モデルはこのブラウザ内にだけ保存され、送信しません。'}</p><div class="row" style="display:flex;gap:6px;flex-wrap:wrap"><button class="ghost" id="vrmLoad" style="flex:1">${has ? '別の VRM に替える' : 'VRM を読み込む'}</button>${has ? '<button class="ghost" id="vrmClear">外す</button>' : ''}</div>${has ? `<div class="chips"><button class="tg${k3use ? ' on' : ''}" id="vrmUse">コンセプト表示で使う</button><button class="tg${k3gray ? ' on' : ''}" id="vrmGray">グレーの素体</button><button class="tg${k3arm ? ' on' : ''}" id="vrmArm" title="オンにすると肘から先（前腕・手・指）を 10% の不透明度にして、手はスタンプで置く。オフ（既定）なら 3D の手と指を使う">肘から先を薄く（手はスタンプ）</button></div>${c ? '<div class="row" style="display:flex;gap:6px"><button class="ghost" id="vrmObj" style="flex:1">OBJ 書き出し（この構図のポーズ）</button></div><p class="note">クリスタ：ファイル → 読み込み → 3Dデータ で OBJ を開くと、ポーズ済みの素体がキャンバスに乗ります（関節はクリスタでは動かせません）。</p>' : ''}` : ''}<input type="file" id="vrmFile" accept=".vrm,.glb" hidden>`;
   g.querySelector('#vrmLoad').addEventListener('click', () => g.querySelector('#vrmFile').click());
   g.querySelector('#vrmFile').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if (f) k3loadFile(f); });
   const cl = g.querySelector('#vrmClear'); if (cl) cl.addEventListener('click', k3clear);
   const us = g.querySelector('#vrmUse'); if (us) us.addEventListener('click', () => { k3use = !k3use; try { localStorage.setItem('kouzu-k3use', k3use ? '1' : '0'); } catch(e) {} renderAll(); });
   const gr = g.querySelector('#vrmGray'); if (gr) gr.addEventListener('click', () => { k3gray = !k3gray; try { localStorage.setItem('kouzu-k3gray', k3gray ? '1' : '0'); } catch(e) {} k3cache.clear(); renderAll(); });
-  const ar = g.querySelector('#vrmArm'); if (ar) ar.addEventListener('click', () => { k3arm = !k3arm; try { localStorage.setItem('kouzu-k3arm', k3arm ? '1' : '0'); } catch(e) {} k3cache.clear(); renderAll(); });
+  const ar = g.querySelector('#vrmArm'); if (ar) ar.addEventListener('click', () => { k3arm = !k3arm; try { localStorage.setItem('kouzu-k3arm2', k3arm ? '1' : '0'); } catch(e) {} k3cache.clear(); renderAll(); });
   const ob = g.querySelector('#vrmObj'); if (ob) ob.addEventListener('click', () => k3exportOBJ(c));
   box.appendChild(g);
 }
@@ -3567,7 +3605,7 @@ function renderProps(){
   if (PLUS) box.appendChild(chipGroup('顔の向き（3D素体）', HEAD_FACINGS, c.headFacing || 'auto', k => re({headFacing: k})));
   box.appendChild(chipGroup('光', LIGHTS, c.light.kind, k => { pushUndo(); c.light.kind = k; c.edited = true; scoreComp(c); renderAll(); storeLater(); }));
   const dial = document.createElement('div'); dial.className = 'lightdial'; dial.innerHTML = `<span style="color:var(--muted);font-size:14px">光の向き</span><input type="range" id="lightDir" min="-180" max="180" value="${Math.round(c.light.dir*180/PI)}">`;
-  dial.querySelector('input').addEventListener('input', e => { c.light.dir = e.target.value*PI/180; c.edited = true; renderMain(); });
+  dial.querySelector('input').addEventListener('input', e => { c.light.dir = e.target.value*PI/180; c.light.pos = null; c.edited = true; renderMain(); }); // スライダーは向きだけ（位置のずらしは解除）
   dial.querySelector('input').addEventListener('change', () => { renderAll(); storeLater(); });
   box.appendChild(dial);
   box.appendChild(chipGroup('コントラスト', CONTRASTS, c.contrast, k => { pushUndo(); c.contrast = k; c.edited = true; scoreComp(c); renderAll(); storeLater(); }));
@@ -3678,7 +3716,7 @@ function moveHandle(c, h, p){
   else if (h.t === 'hairm') moveHairMass(c.hairMasses[h.i], p);
   else if (h.t === 'hino') { c.hino.x = p.x; c.hino.y = p.y; }
   else if (h.t === 'vp') { if (h.off) { c.vp.x += p.x - h.x; c.vp.y += p.y - h.y; } else { c.vp.x = p.x; c.vp.y = p.y; } }
-  else if (h.t === 'light') { c.light.dir = Math.atan2((p.y - VH/2)/VH, (p.x - VW/2)/VW); }
+  else if (h.t === 'light') { c.light.dir = Math.atan2((p.y - VH/2)/VH, (p.x - VW/2)/VW); c.light.pos = {x: p.x, y: p.y}; } // 光はドラッグで位置ごとずらせる
   h.x = p.x; h.y = p.y;
 }
 function moveHairMass(hm, p){ const dx = p.x - hm.c.x, dy = p.y - hm.c.y; const mv = q => { q.x += dx; q.y += dy; }; hm.src.forEach(mv); hm.pts.forEach(mv); hm.tips.forEach(t => { mv(t.tip); mv(t.root); }); hm.c.x += dx; hm.c.y += dy; }
@@ -3852,7 +3890,7 @@ function mirrorPts(obj, W, seen){ seen = seen || new WeakSet(); if (!obj || type
   if (Array.isArray(obj)) { obj.forEach(o => mirrorPts(o, W, seen)); return; }
   if (typeof obj.x === 'number') obj.x = W - obj.x; if (typeof obj.x0 === 'number') { const a = W - obj.x1, b = W - obj.x0; obj.x0 = a; obj.x1 = b; } if (typeof obj.rot === 'number') obj.rot = -obj.rot;
   for (const k in obj) if (!['flow', 'cam', 'score', 'kousei', 'vis', 'light', 'bodies'].includes(k) && typeof obj[k] === 'object') mirrorPts(obj[k], W, seen); }
-function mirrorComp(c){ mirrorPts(c, c.VW || VW); if (c.flow) c.flow.x = -c.flow.x; c.lean = -(c.lean || 0); if (c.light) c.light.dir = PI - c.light.dir; if (c.cam) { c.cam.yaw = -(c.cam.yaw || 0); c.cam.x = -(c.cam.x || 0); } c.facing = ({qL: 'qR', qR: 'qL'})[c.facing] || c.facing; c.headFacing = ({qL: 'qR', qR: 'qL'})[c.headFacing] || c.headFacing;
+function mirrorComp(c){ mirrorPts(c, c.VW || VW); if (c.flow) c.flow.x = -c.flow.x; c.lean = -(c.lean || 0); if (c.light) { c.light.dir = PI - c.light.dir; if (c.light.pos) c.light.pos.x = (c.VW || VW) - c.light.pos.x; } if (c.cam) { c.cam.yaw = -(c.cam.yaw || 0); c.cam.x = -(c.cam.x || 0); } c.facing = ({qL: 'qR', qR: 'qL'})[c.facing] || c.facing; c.headFacing = ({qL: 'qR', qR: 'qL'})[c.headFacing] || c.headFacing;
   c.mirror = !c.mirror; if (!/（反転）/.test(c.name)) c.name += '（反転）'; else c.name = c.name.replace('（反転）', ''); rebuildBodies(c); scoreComp(c); c.edited = true; return c; }
 function cloneComp(c){ const nc = JSON.parse(JSON.stringify(c)); nc.id = nextId(); delete nc.recoLabel; nc.checked = false; return nc; }
 function closeCtx(){ const m = document.querySelector('.ctxMenu'); if (m) m.remove(); }
@@ -4059,6 +4097,7 @@ const ZH = {
   '選択・移動': '選取・移動',
   '消しゴム': '橡皮擦',
   '書き出し': '匯出',
+  '肘から先を薄く（手はスタンプ）': '手肘以下變淡（手用圖章）', 'オンにすると肘から先（前腕・手・指）を 10% の不透明度にして、手はスタンプで置く。オフ（既定）なら 3D の手と指を使う': '開啟後手肘以下（前臂・手・手指）以 10% 不透明度顯示，手用圖章放置。關閉（預設）則使用 3D 的手與手指',
   '言語': '語言',
   '表示・サイズ・見開き・書き出し・言語': '顯示・尺寸・跨頁・匯出・語言',
   'まだ不明': '尚不明',
