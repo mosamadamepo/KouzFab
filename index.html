@@ -1567,6 +1567,8 @@ const SHOTS = {up:'アップ', mid:'ミドル', long:'ロング'};
 const ANGLES = {eye:'アイレベル', low:'あおり', high:'ふかん'};
 const POSES = {stand:'立ち', twist:'ひねり', lean:'前傾', arch:'反り', hip:'腰に手', wave:'手を上げる', cheek:'頬に手', hug:'胸の前で腕', sit:'座り', kneel:'片膝', crouch:'しゃがみ', jump:'跳ぶ', run:'走る'};
 const FACINGS = {front:'正面', qL:'斜め（左）', qR:'斜め（右）', side:'横向き', back:'後ろ向き'};
+const HEAD_FACINGS = {auto:'自動', front:'正面', qL:'斜め（左）', qR:'斜め（右）', side:'横顔', back:'後ろ'}; // 顔の向き（首のひねり）。おまかせ＝体の向きから少しカメラへ戻す。後ろ向きの体なら振り返る
+const GEN_FACINGS = Object.assign({auto:'自動'}, FACINGS);
 // 関節のオフセット（R 単位、y は下向き）。腕は肩から、脚は腰から。sgn（重心の側）で左右を反転する
 const POSE_DEF = {
   stand: {aL: [[-0.15, 1.5], [-0.15, 3.0]], aR: [[0.15, 1.5], [0.15, 3.0]]},
@@ -1606,7 +1608,7 @@ let VW = VMIN, VH = VMIN, aspect = 1;
 let sketch = null;   // {faces:[{x,y,r}], strokes:[[{x,y}]], emph:[{kind,pts}], vp:{x,y}|null}
 let comps = [];
 let selected = null; // comp id or null (sketch mode)
-let tool = 'select', viewMode = 'line', sortByScore = true, genCount = 24;
+let tool = 'select', viewMode = 'line', sortByScore = true, genCount = 24, genFacing = 'auto', genHeadFacing = 'auto';
 let underlay = null, underlayAlpha = 0.35;
 let recos = [];
 let showLabels = true;
@@ -1634,7 +1636,7 @@ const rgba = (h, a) => { const [r,g,b] = hexToRgb(h); return `rgba(${r},${g},${b
 const mix = (h1, h2, t) => { const a = hexToRgb(h1), b = hexToRgb(h2); return `rgb(${Math.round(lerp(a[0],b[0],t))},${Math.round(lerp(a[1],b[1],t))},${Math.round(lerp(a[2],b[2],t))})`; };
 let uid = 1; const nextId = () => 'c' + (uid++) + '_' + Date.now().toString(36);
 function toast(msg){ const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 1800); }
-function store(){ try { localStorage.setItem('kouzu-fabrica', JSON.stringify({sketch, comps, selected, viewMode, aspect, sizeIdx: $('sizeSel').value, resIdx: $('resSel').value, genCount, seedBase, b5: true, pageOrder, pageBlanks, bookBind, spread, bookCover})); } catch(e){} }
+function store(){ try { localStorage.setItem('kouzu-fabrica', JSON.stringify({sketch, comps, selected, viewMode, aspect, sizeIdx: $('sizeSel').value, resIdx: $('resSel').value, genCount, genFacing, genHeadFacing, seedBase, b5: true, pageOrder, pageBlanks, bookBind, spread, bookCover})); } catch(e){} }
 const storeLater = () => { clearTimeout(store._t); store._t = setTimeout(store, 400); };
 
 function scalePts(obj, sx, sy){
@@ -1882,7 +1884,7 @@ function makeHair(head, R, flow, r, kind){
 function makeComp(p){
   const r = rng(p.seed);
   const sk = p.sketch, mf = mainFace(sk), inferred = inferShot(mf.r);
-  const c = {id: nextId(), seed: p.seed, VW, VH, shot: p.shot, angle: p.angle, pattern: p.pattern, people: p.people, pose: p.pose, facing: p.facing || 'front', bodyDir: p.bodyDir || 'auto', light: {dir: p.lightDir, kind: p.lightKind}, contrast: p.contrast,
+  const c = {id: nextId(), seed: p.seed, VW, VH, shot: p.shot, angle: p.angle, pattern: p.pattern, people: p.people, pose: p.pose, facing: p.facing || 'front', headFacing: p.headFacing || 'auto', bodyDir: p.bodyDir || 'auto', light: {dir: p.lightDir, kind: p.lightKind}, contrast: p.contrast,
     faces: [], vp: null, tris: [], solids: [], hands: [], hair: [], hino: null, land: null, leads: [], frames: [], focus: null, emph: [], edited: false,
     vis: {tri:true, spine:true, hair:true, hairMass:true, solids:true, hands:true, hino:true, frames:true, grid:true, leads:true, force:true, gaze:true, valueC:true, light:true, land:true, guides:true}};
   let flow = flowVec(sk, r); c.flow = flow; c.lean = flow.x >= 0 ? 0.6 : -0.6; c.autoDir = r() < 0.5 ? 'up' : 'bend';
@@ -2155,8 +2157,9 @@ function randomParams(r, sk, i){
   if (h && h.vpY != null && r() < 0.5) angle = h.vpY > 0.66 ? 'low' : h.vpY < 0.3 ? 'high' : 'eye';
   let pattern = pats[i % pats.length]; if (pattern === 'land' && r() < 0.5) pattern = 'tri';
   const people = sk.faces.length > 1 ? sk.faces.length : 1; // 人数はデフォルト1人（スケッチに顔を複数置いたときだけ増える）
-  const fk = r(); const facing = fk < 0.5 ? 'front' : fk < 0.85 ? (r() < 0.5 ? 'qL' : 'qR') : fk < 0.95 ? 'side' : 'back';
-  return {shot, angle, pattern, people, pose: pick(r, Object.keys(POSES)), facing, lightDir: pick(r, [-2.4, -0.7, -1.57, 2.4, 0.5, -3.0]), lightKind: pick(r, Object.keys(LIGHTS)), contrast: r() < 0.45 ? 'high' : 'soft'};
+  const fk = r(); let facing = fk < 0.5 ? 'front' : fk < 0.88 ? (r() < 0.5 ? 'qL' : 'qR') : fk < 0.98 ? 'side' : 'back'; // 後ろ向きは顔が見えず点が伸びないので、ごくまれに
+  if (genFacing !== 'auto') facing = genFacing;
+  return {shot, angle, pattern, people, pose: pick(r, Object.keys(POSES)), facing, headFacing: genHeadFacing, lightDir: pick(r, [-2.4, -0.7, -1.57, 2.4, 0.5, -3.0]), lightKind: pick(r, Object.keys(LIGHTS)), contrast: r() < 0.45 ? 'high' : 'soft'};
 }
 function generateAll(onlyTpl){
   pushUndo();
@@ -2175,7 +2178,7 @@ function generateAll(onlyTpl){
   toast(onlyTpl ? `「${onlyTpl.name}」から ${comps.length} 案を生成しました` : `${comps.length} 案を生成しました${templates.length ? '（読ませた構図を混ぜています）' : ''}`);
 }
 function regenComp(c, changes){
-  const p = {seed: c.seed, sketch, shot: c.shot, angle: c.angle, pattern: c.pattern, people: c.people, pose: c.pose, facing: c.facing, bodyDir: c.bodyDir, lightDir: c.light.dir, lightKind: c.light.kind, contrast: c.contrast, forceAngle: true, tplId: c.tplId, mirror: c.mirror};
+  const p = {seed: c.seed, sketch, shot: c.shot, angle: c.angle, pattern: c.pattern, people: c.people, pose: c.pose, facing: c.facing, headFacing: c.headFacing, bodyDir: c.bodyDir, lightDir: c.light.dir, lightKind: c.light.kind, contrast: c.contrast, forceAngle: true, tplId: c.tplId, mirror: c.mirror};
   Object.assign(p, changes || {});
   p.peopleExplicit = !!(changes && 'people' in changes);
   if (p.pattern !== 'tpl') p.tplId = null; else if (!p.tplId) p.pattern = 'tri';
@@ -3077,9 +3080,13 @@ function k3pose(c, idx, facing){ // 構図の素体（bodies[idx]・faces[idx]�
   };
   const order = ['hips', 'spine', 'chest', 'upperChest', 'neck', 'head', 'rightUpperArm', 'rightLowerArm', 'leftUpperArm', 'leftLowerArm', 'rightUpperLeg', 'rightLowerLeg', 'leftUpperLeg', 'leftLowerLeg'];
   // 体の向き：ポーズ全体を Y 軸まわりに回す（骨のワールド姿勢を直接決めるので scene の回転では効かない）
-  const yawQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), K3_YAW[facing || c.facing || 'front'] || 0);
+  const by = K3_YAW[facing || c.facing || 'front'] || 0;
+  // 首のひねり：顔の向きは体とは別に決める。おまかせ＝体の向きから 45% カメラへ戻す（後ろ向きなら振り返る）。指定があれば、首が回る範囲（±80°）でその向きへ
+  const hf = idx ? 'auto' : (c.headFacing || 'auto'); let hy;
+  if (hf === 'auto') hy = (facing || c.facing) === 'back' ? PI - 1.3*((c.lean || 0) >= 0 ? 1 : -1) : by*0.55; else { let d = (K3_YAW[hf] || 0) - by; d = Math.atan2(Math.sin(d), Math.cos(d)); hy = by + clamp(d, -1.4, 1.4); }
+  const yawOf = a => new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), a); const yawQ = yawOf(by), headQ = yawOf(hy), neckQ = yawOf(by + (hy - by)*0.45);
   const pq = new THREE.Quaternion();
-  order.forEach(name => { const node = H.getNormalizedBoneNode(name); if (!node || !targets[name]) return; node.parent.updateWorldMatrix(true, false); node.parent.getWorldQuaternion(pq); node.quaternion.copy(pq.invert().multiply(yawQ.clone().multiply(targets[name]))); node.updateWorldMatrix(false, false); });
+  order.forEach(name => { const node = H.getNormalizedBoneNode(name); if (!node || !targets[name]) return; const yq = name === 'head' ? headQ : name === 'neck' ? neckQ : yawQ; node.parent.updateWorldMatrix(true, false); node.parent.getWorldQuaternion(pq); node.quaternion.copy(pq.invert().multiply(yq.clone().multiply(targets[name]))); node.updateWorldMatrix(false, false); });
   vrm.humanoid.update && vrm.humanoid.update();
 }
 const K3_YAW = {front: 0, qL: 0.6, qR: -0.6, side: 1.35, back: PI};
@@ -3114,7 +3121,7 @@ function k3render(c, W, H, idx){ // → renderer.domElement（透明背景）。
   k3applyGray(k3gray, idx);
   r.render(k3.scene, cam); return r.domElement;
 }
-function k3key(c, W, idx){ const b = c.bodies[idx || 0]; return JSON.stringify([idx || 0, k3arm, c.cam || null, c.faces[idx || 0], b.dir, b.shL, b.shR, b.hipL, b.hipR, b.elbowL, b.elbowR, b.wrL, b.wrR, b.kneeL, b.kneeR, b.footL, b.footR, c.skel, c.facing, c.light, c.angle, c.vp, c.contrast, W, k3gray, k3.name]); }
+function k3key(c, W, idx){ const b = c.bodies[idx || 0]; return JSON.stringify([idx || 0, k3arm, c.cam || null, c.faces[idx || 0], b.dir, b.shL, b.shR, b.hipL, b.hipR, b.elbowL, b.elbowR, b.wrL, b.wrR, b.kneeL, b.kneeR, b.footL, b.footR, c.skel, c.facing, c.headFacing, c.lean, c.light, c.angle, c.vp, c.contrast, W, k3gray, k3.name]); }
 function k3draw(ctx, c, long, idx){ // drawComp から：虚座標系（scale 済み）の ctx に描く。まだ準備できていなければ false。idx＝何人目か
   if (!k3 || !k3.vrm || !k3use) return false; idx = idx || 0; if (!c.bodies[idx] || c.bodies[idx].fromPose && idx) return false;
   const W = VW >= VH ? long : Math.round(long*VW/VH), H = VW >= VH ? Math.round(long*VH/VW) : long; const key = k3key(c, W, idx);
@@ -3521,6 +3528,7 @@ function renderProps(){
   if (!c) {
     box.innerHTML = `<h3>生成の設定</h3>`;
     const g = chipGroup('生成する数', {12: '12', 24: '24', 36: '36'}, genCount, k => { genCount = +k; renderProps(); storeLater(); }); box.appendChild(g);
+    if (PLUS) { box.appendChild(chipGroup('体の向き', GEN_FACINGS, genFacing, k => { genFacing = k; renderProps(); storeLater(); })); box.appendChild(chipGroup('顔の向き', HEAD_FACINGS, genHeadFacing, k => { genHeadFacing = k; renderProps(); storeLater(); })); }
     const p = document.createElement('p'); p.className = 'note'; p.textContent = '条件：立体感（前後の大小差・パース・重なり）と、見せたいものへ導く線（三角の頂点・髪の流れ・導線）で採点します。顔の丸が大きいほどアップ、小さいほどロングとして扱います。';
     box.appendChild(p);
     const u = document.createElement('div'); u.className = 'group'; u.innerHTML = `<h3>下絵（自分の端末内だけ）</h3>`;
@@ -3565,6 +3573,7 @@ function renderProps(){
   box.appendChild(chipGroup('軸のポーズ', POSES, c.pose, k => re({pose: k})));
   box.appendChild(chipGroup('体の入れ方', BODYDIRS, c.bodyDir || 'auto', k => re({bodyDir: k})));
   if (PLUS) box.appendChild(chipGroup('体の向き（3D素体）', FACINGS, c.facing || 'front', k => re({facing: k})));
+  if (PLUS) box.appendChild(chipGroup('顔の向き（3D素体）', HEAD_FACINGS, c.headFacing || 'auto', k => re({headFacing: k})));
   box.appendChild(chipGroup('光', LIGHTS, c.light.kind, k => { pushUndo(); c.light.kind = k; c.edited = true; scoreComp(c); renderAll(); storeLater(); }));
   const dial = document.createElement('div'); dial.className = 'lightdial'; dial.innerHTML = `<span style="color:var(--muted);font-size:14px">光の向き</span><input type="range" id="lightDir" min="-180" max="180" value="${Math.round(c.light.dir*180/PI)}">`;
   dial.querySelector('input').addEventListener('input', e => { c.light.dir = e.target.value*PI/180; c.edited = true; renderMain(); });
@@ -3852,7 +3861,7 @@ function mirrorPts(obj, W, seen){ seen = seen || new WeakSet(); if (!obj || type
   if (Array.isArray(obj)) { obj.forEach(o => mirrorPts(o, W, seen)); return; }
   if (typeof obj.x === 'number') obj.x = W - obj.x; if (typeof obj.x0 === 'number') { const a = W - obj.x1, b = W - obj.x0; obj.x0 = a; obj.x1 = b; } if (typeof obj.rot === 'number') obj.rot = -obj.rot;
   for (const k in obj) if (!['flow', 'cam', 'score', 'kousei', 'vis', 'light', 'bodies'].includes(k) && typeof obj[k] === 'object') mirrorPts(obj[k], W, seen); }
-function mirrorComp(c){ mirrorPts(c, c.VW || VW); if (c.flow) c.flow.x = -c.flow.x; c.lean = -(c.lean || 0); if (c.light) c.light.dir = PI - c.light.dir; if (c.cam) { c.cam.yaw = -(c.cam.yaw || 0); c.cam.x = -(c.cam.x || 0); } c.facing = ({qL: 'qR', qR: 'qL'})[c.facing] || c.facing;
+function mirrorComp(c){ mirrorPts(c, c.VW || VW); if (c.flow) c.flow.x = -c.flow.x; c.lean = -(c.lean || 0); if (c.light) c.light.dir = PI - c.light.dir; if (c.cam) { c.cam.yaw = -(c.cam.yaw || 0); c.cam.x = -(c.cam.x || 0); } c.facing = ({qL: 'qR', qR: 'qL'})[c.facing] || c.facing; c.headFacing = ({qL: 'qR', qR: 'qL'})[c.headFacing] || c.headFacing;
   c.mirror = !c.mirror; if (!/（反転）/.test(c.name)) c.name += '（反転）'; else c.name = c.name.replace('（反転）', ''); rebuildBodies(c); scoreComp(c); c.edited = true; return c; }
 function cloneComp(c){ const nc = JSON.parse(JSON.stringify(c)); nc.id = nextId(); delete nc.recoLabel; nc.checked = false; return nc; }
 function closeCtx(){ const m = document.querySelector('.ctxMenu'); if (m) m.remove(); }
@@ -4258,7 +4267,7 @@ const ZH = {
   '・骨格あり': '・有骨架',
   '3D素体（VRM）': '3D素體（VRM）',
   '腰に手': '手叉腰', '手を上げる': '舉手', '頬に手': '手托臉頰', '胸の前で腕': '雙臂交叉胸前', '座り': '坐', '片膝': '單膝跪', 'しゃがみ': '蹲', '跳ぶ': '跳', '走る': '跑',
-  '体の向き（3D素体）': '身體朝向（3D素體）', '正面': '正面', '斜め（左）': '斜側（左）', '斜め（右）': '斜側（右）', '横向き': '側面', '後ろ向き': '背面', '読み込み中の素体：': '目前的素體：', '別の VRM に替える': '換成別的 VRM', 'VRM を読み込む': '讀入 VRM', '外す': '移除',
+  '体の向き（3D素体）': '身體朝向（3D素體）', '顔の向き（3D素体）': '臉的朝向（3D素體）', '体の向き': '身體朝向', '顔の向き': '臉的朝向', '横顔': '側臉', '後ろ': '背後', '正面': '正面', '斜め（左）': '斜側（左）', '斜め（右）': '斜側（右）', '横向き': '側面', '後ろ向き': '背面', '読み込み中の素体：': '目前的素體：', '別の VRM に替える': '換成別的 VRM', 'VRM を読み込む': '讀入 VRM', '外す': '移除',
   'VRoid Studio などで作った VRM を読み込むと、コンセプト表示の素体が本物の 3D になり、この構図のポーズを取ります。モデルはこのブラウザ内にだけ保存され、送信しません。': '讀入用 VRoid Studio 等製作的 VRM 後，概念顯示的素體會變成真正的 3D，並擺出這個構圖的姿勢。模型只保存在這個瀏覽器內，不會傳送。',
   'コンセプト表示で使う': '在概念顯示中使用', 'グレーの素体': '灰色素體', '肘から先を薄く': '手肘以下變淡', '肘から先（前腕・手・指）を 10% の不透明度にして、手は自分の形で置けるようにする': '把手肘以下（前臂・手・手指）設為 10% 不透明度，讓手可以用自己的形狀放置', 'OBJ 書き出し（この構図のポーズ）': '匯出 OBJ（此構圖的姿勢）',
   'クリスタ：ファイル → 読み込み → 3Dデータ で OBJ を開くと、ポーズ済みの素体がキャンバスに乗ります（関節はクリスタでは動かせません）。': 'CLIP STUDIO：檔案 → 讀入 → 3D 資料，開啟 OBJ 後，擺好姿勢的素體就會放到畫布上（關節無法在 CLIP STUDIO 內移動）。',
@@ -4588,7 +4597,7 @@ if (window.innerWidth < 700 && uiZoom > 0.7) applyZoom(0.7, false);
   try { const t = JSON.parse(localStorage.getItem('kouzu-templates') || '[]'); if (Array.isArray(t)) templates = t.filter(x => x && x.id && Array.isArray(x.faces)); } catch(e) { templates = []; }
   let saved = null; try { saved = JSON.parse(localStorage.getItem('kouzu-fabrica') || 'null'); } catch(e) { saved = null; }
   if (saved && saved.sketch && Array.isArray(saved.comps)) {
-    sketch = saved.sketch; comps = saved.comps; selected = saved.selected; viewMode = saved.viewMode || 'line'; genCount = saved.genCount || 24; seedBase = saved.seedBase || seedBase; pageBlanks = saved.pageBlanks || {}; bookBind = saved.bookBind || 'L'; spread = !!saved.spread; bookCover = saved.bookCover !== false; $('spreadChk').checked = spread; pageOrder = Array.isArray(saved.pageOrder) ? saved.pageOrder : comps.filter(c => c.checked).map(c => c.id);
+    sketch = saved.sketch; comps = saved.comps; selected = saved.selected; viewMode = saved.viewMode || 'line'; genCount = saved.genCount || 24; genFacing = saved.genFacing || 'auto'; genHeadFacing = saved.genHeadFacing || 'auto'; seedBase = saved.seedBase || seedBase; pageBlanks = saved.pageBlanks || {}; bookBind = saved.bookBind || 'L'; spread = !!saved.spread; bookCover = saved.bookCover !== false; $('spreadChk').checked = spread; pageOrder = Array.isArray(saved.pageOrder) ? saved.pageOrder : comps.filter(c => c.checked).map(c => c.id);
     if (saved.sizeIdx != null && saved.b5) $('sizeSel').value = saved.sizeIdx; else $('sizeSel').value = DEFAULT_SIZE; if (saved.resIdx) $('resSel').value = saved.resIdx;
     setAspect(sizeAspect(), true);
     comps.forEach(c => { c.VW = VW; c.VH = VH; if (c.vis.hairMass == null) c.vis.hairMass = true; (c.hairMasses || []).forEach(hm => { if (!hm.pts) refluff(hm, c); }); rebuildBodies(c); scoreComp(c); });
