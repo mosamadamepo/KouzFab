@@ -2204,11 +2204,11 @@ function makeRecos(){
     ['距離を変える', {shot: cyc[c.shot]}],
     ['角度を変える', {angle: acyc[c.angle]}],
     c.tplId ? ['左右反転', {mirror: !c.mirror}] : ['対になる形', {pattern: pcomp[c.pattern]}],
-    [c.people > 1 ? 'ひとりに絞る' : 'ふたりにする', c.people > 1 ? {people: 1, pattern: 'hairflow'} : {people: 2, pattern: 'tri2'}],
+    [c.people > 1 ? 'ひとりに絞る' : 'ふたりにする', c.people > 1 ? {people: 1, pattern: 'hairflow'} : {people: 2, pattern: c.tplId ? 'tpl' : 'tri2'}], // 読ませた構図なら、その構図のまま 2 人目を足す
     [c.pattern === 'land' ? '寄りの一枚' : '風景で引く', c.pattern === 'land' ? {pattern: 'combo', shot: 'up'} : {pattern: 'land', shot: 'long'}],
     ['光を反転', {lightKind: c.light.kind === 'rim' ? 'key' : 'rim', lightDir: c.light.dir + PI, contrast: c.contrast === 'high' ? 'soft' : 'high', pose: c.pose === 'twist' ? 'stand' : 'twist'}]
   ];
-  defs.forEach(([label, ch], i) => { const nc = makeComp(Object.assign({}, base, ch, {seed: c.seed + 977*(i+1) + 13})); nc.recoLabel = label; recos.push(nc); });
+  defs.forEach(([label, ch], i) => { const nc = makeComp(Object.assign({}, base, ch, {seed: c.seed + 977*(i+1) + 13, peopleExplicit: 'people' in ch})); /* 読ませた構図でも「ふたりにする」で人数が増えるように */ nc.recoLabel = label; recos.push(nc); });
 }
 
 // ---------- hand silhouette from the artwork: rough loop → skin/foreground mask inside it → simplified outline ----------
