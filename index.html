@@ -1746,7 +1746,7 @@ function tplToFrame(tpl, mirror, sk){
   const TW = tpl.aspect >= 1 ? VMIN*tpl.aspect : VMIN, TH = tpl.aspect >= 1 ? VMIN : VMIN/tpl.aspect;
   const dx = (VW - TW)/2, dy = (VH - TH)/2;
   const P = p => ({x: (mirror ? 1 - p.x : p.x)*TW + dx, y: p.y*TH + dy});
-  const out = {faces: tpl.faces.map(f => Object.assign(P(f), {r: f.r*VMIN})), strokes: tpl.strokes.map(s => s.map(P)), tris: tpl.tris.map(t => t.map(P)), vp: tpl.vp ? P(tpl.vp) : null, emph: (tpl.emph || []).map(e => ({kind: e.kind, pts: e.pts.map(P)})), hands: (tpl.hands || []).map(h => Object.assign(P(h), {s: h.s*VMIN, rot: mirror ? -h.rot : h.rot, pose: 'free', d: 0.6, pts: h.pts ? h.pts.map(P) : undefined})), pose: tpl.pose ? Object.fromEntries(Object.entries(tpl.pose).map(([k, q]) => [k, q ? P(q) : null])) : null};
+  const out = {faces: tpl.faces.map(f => Object.assign(P(f), {r: f.r*VMIN})), strokes: tpl.strokes.map(s => s.map(P)), tris: tpl.tris.map(t => t.map(P)), vp: tpl.vp ? P(tpl.vp) : null, emph: (tpl.emph || []).map(e => ({kind: e.kind, pts: e.pts.map(P)})), hands: (tpl.hands || []).map(h => Object.assign(P(h), {s: h.s*VMIN, rot: mirror ? -h.rot : h.rot, pose: 'free', d: 0.6, shape: h.shape, shapeBy: h.shapeBy, pts: h.pts ? h.pts.map(P) : undefined})), pose: tpl.pose ? Object.fromEntries(Object.entries(tpl.pose).map(([k, q]) => [k, q ? P(q) : null])) : null};
   if (out.faces.length && sk.faces.length) {
     const tf = {x: out.faces[0].x, y: out.faces[0].y, r: out.faces[0].r}, uf = sk.faces[0]; let k = clamp(uf.r/tf.r, 0.5, 2.2); // tf はコピー（M が顔を動かした後も基準がずれないように）
     // スケッチの顔に合わせて拡大・移動しても、構図（顔・線・三角）がキャンバスから出ないところまでにとどめる（読ませた構図はそのままの見え方を守る）
@@ -2331,7 +2331,18 @@ const HAND_SHAPES = {
   pinch: {name: 'つまむ', curl: [0.55, 0.55, 0.75, 0.85, 0.9], spread: 0.05}
 };
 // 顔との距離で手の形の候補を変える：顔のそば＝そえる・すく・つまむ、中間＝ひらく・さす・ゆるく、遠く＝ゆるく・にぎる・ひらく
-function pickHandShape(r, h, head, R){ const d = dist(h, head)/(R || 1); const cand = d < 2.2 ? ['rest', 'rest', 'comb', 'pinch', 'relax', 'peace'] : d < 5 ? ['open', 'point', 'relax', 'relax', 'peace', 'pinch'] : ['relax', 'relax', 'fist', 'open', 'point']; return cand[Math.floor(r()*cand.length)]; }
+const handBand = d => d < 2.2 ? 0 : d < 5 ? 1 : 2; // 顔との距離（顔の半径が単位）→ そば／中間／遠く
+const HAND_CANDS = [['rest', 'rest', 'comb', 'pinch', 'relax', 'peace'], ['open', 'point', 'relax', 'relax', 'peace', 'pinch'], ['relax', 'relax', 'fist', 'open', 'point']];
+function pickHandShape(r, h, head, R){ // 既定の候補に、自分で選んだ手の形（autoModel.handPref、距離帯ごとの回数）を重みとして足す
+  const band = handBand(dist(h, head)/(R || 1)), w = {}; HAND_CANDS[band].forEach(k => { w[k] = (w[k] || 0) + 1; });
+  const pref = (autoModel.handPref || [])[band] || {}; Object.entries(pref).forEach(([k, n]) => { if (HAND_SHAPES[k] && n > 0) w[k] = (w[k] || 0) + n*2; });
+  const ks = Object.keys(w), tot = ks.reduce((a, k) => a + w[k], 0); let x = r()*tot; for (const k of ks) { x -= w[k]; if (x < 0) return k; } return ks[ks.length - 1];
+}
+function learnHandShape(band, shape, prev){ // 選び直したら前の 1 回を取り消す（同じ手を何度押しても数が膨らまない）
+  const hp = autoModel.handPref = (autoModel.handPref && autoModel.handPref.length === 3) ? autoModel.handPref : [{}, {}, {}];
+  if (prev && hp[band][prev] > 0) hp[band][prev]--; hp[band][shape] = (hp[band][shape] || 0) + 1; storeAutoModel();
+}
+function handShapeGroup(title, cur, onPick){ return chipGroup(title, Object.fromEntries(Object.entries(HAND_SHAPES).map(([k, v]) => [k, v.name])), cur || '', onPick); }
 const HAIR_PAL = ['#3a2b2b', '#6b4736', '#1f2531', '#e8d6a8', '#c8c9d6', '#b8394a', '#3b6cb8', '#3aa06b', '#8a4ab8', '#f0a3c2'];
 function resampleClosed(src, N){ const pts = src.filter((q, i) => !i || dist(q, src[i-1]) > 0.01); if (pts.length < 3) return null; const seg = []; let L = 0; for (let i = 0; i < pts.length; i++) { const d = dist(pts[i], pts[(i+1) % pts.length]); seg.push(d); L += d; } if (L < 1) return null;
   const out = []; let i = 0, acc = 0; for (let k = 0; k < N; k++) { const t = k/N*L; while (acc + seg[i] < t && i < pts.length - 1) { acc += seg[i]; i++; } const a = pts[i], b = pts[(i+1) % pts.length], u = seg[i] ? (t - acc)/seg[i] : 0; out.push({x: a.x + (b.x - a.x)*u, y: a.y + (b.y - a.y)*u}); } return out; }
@@ -2868,7 +2879,7 @@ function applyView(){ main.style.transform = `translate(${view.x}px, ${view.y}px
 function zoomViewAt(z, clientX, clientY){ const st = $('stage').getBoundingClientRect(); const px = (clientX == null ? st.left + st.width/2 : clientX) - (st.left + st.width/2), py = (clientY == null ? st.top + st.height/2 : clientY) - (st.top + st.height/2); const nz = clamp(z, 0.2, 8), k = nz/view.z; view.x = px - (px - view.x)*k; view.y = py - (py - view.y)*k; view.z = nz; applyView(); }
 function toN(e){ return toUnit(e); }
 // ---------- auto-trace learning: the user's corrections tune the detector (stored only in this browser) ----------
-let autoModel = {n: 0, skin: null, faceScale: 1, faceDy: 0, strokes: 2.5, triW: 1, poseN: 0, poseBias: {}, poseFaceK: 1, poseFaceDy: 0};
+let autoModel = {n: 0, skin: null, faceScale: 1, faceDy: 0, strokes: 2.5, triW: 1, poseN: 0, poseBias: {}, poseFaceK: 1, poseFaceDy: 0, handPref: [{}, {}, {}]};
 try { const m = JSON.parse(localStorage.getItem('kouzu-automodel') || 'null'); if (m && typeof m.n === 'number') autoModel = Object.assign(autoModel, m); } catch(e) {}
 function storeAutoModel(){ try { localStorage.setItem('kouzu-automodel', JSON.stringify(autoModel)); } catch(e) {} }
 function pxHSV(r, g, b){ const mx = Math.max(r, g, b), mn = Math.min(r, g, b), v = mx/255, sat = mx ? (mx - mn)/mx : 0; let hue = 0; if (mx !== mn) { if (mx === r) hue = ((g - b)/(mx - mn)) % 6; else if (mx === g) hue = (b - r)/(mx - mn) + 2; else hue = (r - g)/(mx - mn) + 4; hue *= 60; if (hue < 0) hue += 360; } return [hue, sat, v]; }
@@ -2990,7 +3001,7 @@ function mlDetect(img){ // 学習した分類器で 顔・流れの種・手 を
     else hands.push({x: (x0 + x1)/2/iw, y: (y0 + y1)/2/ih, s: Math.max(x1 - x0, y1 - y0)/mi*0.32, rot: 0}); });
   return {faces, flow, hands, S: w};
 }
-function resetLearning(){ autoModel = {n: 0, skin: null, faceScale: 1, faceDy: 0, strokes: 2.5, triW: 1, poseN: 0, poseBias: {}, poseFaceK: 1, poseFaceDy: 0}; storeAutoModel(); learnSet = []; cellModel = null; try { localStorage.removeItem('kouzu-learnset'); localStorage.removeItem('kouzu-cellmodel'); } catch(e) {} }
+function resetLearning(){ autoModel = {n: 0, skin: null, faceScale: 1, faceDy: 0, strokes: 2.5, triW: 1, poseN: 0, poseBias: {}, poseFaceK: 1, poseFaceDy: 0, handPref: [{}, {}, {}]}; storeAutoModel(); learnSet = []; cellModel = null; try { localStorage.removeItem('kouzu-learnset'); localStorage.removeItem('kouzu-cellmodel'); } catch(e) {} }
 function bootstrapLearning(){ // 残してある 160px サムネイルからも学習用の統計を作る（画像は読まない・残さない）
   const todo = templates.filter(t => t.thumb && t.faces.length && !learnSet.some(it => it.id === t.id)); if (!todo.length) return;
   let left = todo.length; todo.forEach(t => { const im = new Image(); im.onload = () => { try { const feat = cellFeatures(im), L = cellLabels(feat, t), q = new Uint8Array(feat.F.length); for (let i = 0; i < q.length; i++) q[i] = Math.round(feat.F[i]*255); learnSet.push({id: t.id, cw: feat.cw, ch: feat.ch, f: q, l: L}); } catch(e) {} if (--left === 0) { while (learnSet.length > MAX_LEARN) learnSet.shift(); trainCellModel(); storeLearn(); if (trace) renderProps(); } }; im.onerror = () => { if (--left === 0) { trainCellModel(); storeLearn(); } }; im.src = t.thumb; });
@@ -3552,6 +3563,8 @@ function renderProps(){
       toast(`顔 ${r.faces.length}・動線 ${r.strokes.length}・三角 ${r.tris.length}・手 ${(r.hands || []).length} を判定しました${r.learned ? '（学習した分類器）' : ''}。違うところは動かすか消してください（Ctrl+Z で戻せます）`);
     });
     box.appendChild(auto);
+    if (PLUS && (t.hands || []).length && t.faces.length) { const a = trace.img ? trace.img.width/trace.img.height : (t.aspect || 1), sx = a >= 1 ? a : 1, sy = a >= 1 ? 1 : 1/a; // 正規化座標 → 短辺を 1 とする長さ
+      t.hands.slice(0, 4).forEach((h, i) => box.appendChild(handShapeGroup(`手の形（手 ${i + 1}・3D素体の基準）`, h.shape, k => { tracePush(); const f = t.faces.slice().sort((p, q) => Math.hypot((p.x - h.x)*sx, (p.y - h.y)*sy) - Math.hypot((q.x - h.x)*sx, (q.y - h.y)*sy))[0]; learnHandShape(handBand(Math.hypot((f.x - h.x)*sx, (f.y - h.y)*sy)/(f.r || 0.05)), k, h.shapeBy === 'user' ? h.shape : null); h.shape = k; h.shapeBy = 'user'; renderProps(); }))); }
     const cnt = document.createElement('p'); cnt.className = 'note'; cnt.textContent = `顔 ${t.faces.length}・動線 ${t.strokes.length}・三角 ${t.tris.length}・手 ${(t.hands || []).length}・見せ場 ${(t.emph || []).length}${t.vp ? '・消失点あり' : ''}${t.pose ? '・骨格あり' : ''}`; box.appendChild(cnt);
     const keep = document.createElement('label'); keep.className = 'row'; keep.innerHTML = `<input type="checkbox" ${t.keepThumb !== false ? 'checked' : ''}> 160pxの小さなサムネイルも残す（このブラウザ内だけ）`; keep.querySelector('input').addEventListener('change', e => { t.keepThumb = e.target.checked; }); box.appendChild(keep);
     const a = document.createElement('div'); a.className = 'actions';
@@ -3619,6 +3632,10 @@ function renderProps(){
   box.appendChild(dial);
   box.appendChild(chipGroup('コントラスト', CONTRASTS, c.contrast, k => { pushUndo(); c.contrast = k; c.edited = true; scoreComp(c); renderAll(); storeLater(); }));
   if (c.vp) box.appendChild(vpSliders(() => c.vp, () => { c.vis.grid = true; c.angle = inferAngleFromVp(c.vp); rebuildBodies(c); c.name = `${SHOTS[c.shot]}・${ANGLES[c.angle]}・${PATTERNS[c.pattern]}`; c.edited = true; scoreComp(c); renderMain(); }, () => { renderAll(); storeLater(); }));
+  if (PLUS) { const head = c.faces[0], R = head ? (head.r || head.rx || 40) : 40; // 手の形（3D素体）：選んだ形は距離帯ごとに覚えて、次の生成の候補に効く
+    c.hands.slice(0, 2).forEach((h, i) => box.appendChild(handShapeGroup(`手の形（置いた手 ${i + 1}）`, h.shape, k => { pushUndo(); const prev = h.shapeBy === 'user' ? h.shape : null; if (head) learnHandShape(handBand(dist(h, head)/R), k, prev); h.shape = k; h.shapeBy = 'user'; c.edited = true; renderAll(); storeLater(); })));
+    if (c.hands.length < 2) [['画面左の手', 0], ['画面右の手', 1]].forEach(([lb, j]) => { const hs = c.handShapes = c.handShapes || ['relax', 'relax']; box.appendChild(handShapeGroup(`手の形（${lb}）`, hs[j], k => { pushUndo(); const by = c.handShapesBy = c.handShapesBy || []; learnHandShape(1, k, by[j] ? hs[j] : null); hs[j] = k; by[j] = true; c.edited = true; renderAll(); storeLater(); })); });
+  }
   k3props(box, c);
   const lg = document.createElement('div'); lg.className = 'group'; lg.innerHTML = `<h3>表示する要素</h3>`; const ch = document.createElement('div'); ch.className = 'chips';
   Object.entries(LAYERS).forEach(([k, l]) => { const b = document.createElement('button'); b.className = 'tg' + (c.vis[k] ? ' on' : ''); b.textContent = l; b.addEventListener('click', () => { c.vis[k] = !c.vis[k]; scoreComp(c); renderAll(); storeLater(); }); ch.appendChild(b); });
@@ -4306,7 +4323,7 @@ const ZH = {
   '・骨格あり': '・有骨架',
   '3D素体（VRM）': '3D素體（VRM）',
   '腰に手': '手叉腰', '手を上げる': '舉手', '頬に手': '手托臉頰', '胸の前で腕': '雙臂交叉胸前', '座り': '坐', '片膝': '單膝跪', 'しゃがみ': '蹲', '跳ぶ': '跳', '走る': '跑',
-  '体の向き（3D素体）': '身體朝向（3D素體）', '顔の向き（3D素体）': '臉的朝向（3D素體）', '体の向き': '身體朝向', '顔の向き': '臉的朝向', '横顔': '側臉', '後ろ': '背後', '正面': '正面', '斜め（左）': '斜側（左）', '斜め（右）': '斜側（右）', '横向き': '側面', '後ろ向き': '背面', '読み込み中の素体：': '目前的素體：', '別の VRM に替える': '換成別的 VRM', 'VRM を読み込む': '讀入 VRM', '外す': '移除',
+  '体の向き（3D素体）': '身體朝向（3D素體）', '顔の向き（3D素体）': '臉的朝向（3D素體）', '手の形（置いた手 ': '手勢（放置的手 ', '手の形（画面左の手）': '手勢（畫面左側的手）', '手の形（画面右の手）': '手勢（畫面右側的手）', '手の形（手 ': '手勢（手 ', '・3D素体の基準）': '・3D素體的基準）', 'ゆるく': '放鬆', 'ひらく': '張開', 'にぎる': '握拳', 'ピース': '比耶', 'そえる': '輕放', 'つまむ': '捏', 'さす': '指向', 'すく': '撥髮', '体の向き': '身體朝向', '顔の向き': '臉的朝向', '横顔': '側臉', '後ろ': '背後', '正面': '正面', '斜め（左）': '斜側（左）', '斜め（右）': '斜側（右）', '横向き': '側面', '後ろ向き': '背面', '読み込み中の素体：': '目前的素體：', '別の VRM に替える': '換成別的 VRM', 'VRM を読み込む': '讀入 VRM', '外す': '移除',
   'VRoid Studio などで作った VRM を読み込むと、コンセプト表示の素体が本物の 3D になり、この構図のポーズを取ります。モデルはこのブラウザ内にだけ保存され、送信しません。': '讀入用 VRoid Studio 等製作的 VRM 後，概念顯示的素體會變成真正的 3D，並擺出這個構圖的姿勢。模型只保存在這個瀏覽器內，不會傳送。',
   'コンセプト表示で使う': '在概念顯示中使用', 'グレーの素体': '灰色素體', '肘から先を薄く': '手肘以下變淡', '肘から先（前腕・手・指）を 10% の不透明度にして、手は自分の形で置けるようにする': '把手肘以下（前臂・手・手指）設為 10% 不透明度，讓手可以用自己的形狀放置', 'OBJ 書き出し（この構図のポーズ）': '匯出 OBJ（此構圖的姿勢）',
   'クリスタ：ファイル → 読み込み → 3Dデータ で OBJ を開くと、ポーズ済みの素体がキャンバスに乗ります（関節はクリスタでは動かせません）。': 'CLIP STUDIO：檔案 → 讀入 → 3D 資料，開啟 OBJ 後，擺好姿勢的素體就會放到畫布上（關節無法在 CLIP STUDIO 內移動）。',
