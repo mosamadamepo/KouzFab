@@ -53,18 +53,18 @@ git add -A && git commit -m "…" && git push   # Pages は数十秒で更新
 - **カメラバー / 表示バー**：`initCamBar()`（3D カメラ）、`initViewBar()`（キャンバスの見え方＝拡大・回転・移動。`view` と `toUnit()` で座標を逆変換）。
 - **本の並び**：`pageOrder`（構図 id と `blank:…`）、`bookSlots()` / `bookSpreads()`（綴じ・1p 単独）、`exportBookPNG()`。見開きは `spread` と `setAspectKeep()`（縦横同倍率で余白を足す）。
 - **光**：`lightPoint(c)`。`c.light.dir`（向き）に加えて、光の印をドラッグすると `c.light.pos`（位置）が付き、全体の明暗がそこを中心にずれる。スライダーを動かすと位置は解除。見せ場のスポットは `c.focus` の 1.25 倍の半径。
-- **添削**：`analyzeArt()`（9 軸の診断。いまは固定のしきい値で、学習はしない）、`critComps()`（提案）。
+- **添削**：`analyzeArt()`（9 軸の診断。気になるところの重さに、○×で学習した指摘ごとの感度 `critGain()`＝`critFb` を掛ける。`voteIssue()` は同じ絵で押し直すと前の票を戻す）、`critComps()`（提案）。
 - **学習**：`autoModel`（肌色・丸の大きさ等）、マス分類器 `trainCellModel()`、骨格のずれ `learnPoseBias()`。手の形の好み `learnHandShape()`（選び直すと前の 1 回を取り消す）。どれも端末内だけ。
 
 - **スマホ（Poser 風）**：コンテナ幅 860px 以下で、キャンバスを画面いっぱいにし、下の `#mdock`（構図一覧・設定・本の並び）で 1 つだけ下からシートとして出す（`applyDock()`、`#app.m-lib` / `.m-book` / `propsOpen`）。提案欄（footer.reco）はスマホでは出さない。
 
 ## localStorage のキー
 
-`kouzu-fabrica`（スケッチ・構図案・本の並び・見開き）、`kouzu-templates`、`kouzu-automodel`、`kouzu-learnset`、`kouzu-cellmodel`、`kouzu-lang`、`kouzu-zoom`、`kouzu-props`、`kouzu-k3use`、`kouzu-k3gray`、`kouzu-k3arm`。IndexedDB `kouzu-fabrica` / `files` / `vrm` に読み込んだ VRM。
+`kouzu-fabrica`（スケッチ・構図案・本の並び・見開き）、`kouzu-templates`、`kouzu-automodel`、`kouzu-learnset`、`kouzu-cellmodel`、`kouzu-lang`、`kouzu-zoom`、`kouzu-props`、`kouzu-k3use`、`kouzu-k3gray`、`kouzu-k3arm`、`kouzu-critfb`（添削の○×）。IndexedDB `kouzu-fabrica` / `files` / `vrm` に読み込んだ VRM。
 
 ## 未解決・次にやること
 
 - ~~作者の環境で「構図を生成すると顔も素体も出ない」~~ → 2026-09-25 解決。原因は `tplToFrame()` がスケッチの顔の大きさ（アップ）に合わせて読ませた構図を最大 2.2 倍に拡大し、顔・三角・消失点がキャンバス外へ出ていたこと。いまは「顔・線・三角・（絵の中の）消失点がキャンバスに収まる範囲」までしか拡大・移動しない。
-- 添削の分析が甘い：自分の完成絵を基準にする／指摘に ○× を付けて学習、を検討中。
+- 添削の分析が甘い：指摘の ○× 学習は 2026-09-26 に入れた。自分の完成絵を基準にする案は未着手。
 - 見開きのオン・オフが全構図に一括でかかる（1 ページと見開きを混ぜられない）。
 - テンプレートの JSON 書き出しに判定の学習データ（マス分類・骨格のずれ）も含める案。

@@ -248,6 +248,10 @@ footer.book{background:var(--panel);border:1px solid var(--line);border-radius:v
 .issue b{font-weight:500;font-size:13.5px}
 .issue small{color:var(--muted);font-size:12px}
 .issue .sev{height:4px;border-radius:2px;background:#e88;display:block;margin-top:3px}
+.issue .vote{display:flex;gap:4px;align-items:center;margin-top:3px;font-size:11.5px;color:var(--muted)}
+.issue .vote button{min-width:30px;padding:1px 8px;border-radius:7px;border:1px solid var(--line);background:none;color:var(--muted);font-size:13px}
+.issue .vote button.on{border-color:var(--accent);color:var(--accent)}
+.issue.ng{opacity:.5}
 .nowScore{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
 .nowScore b{font-family:var(--num);font-size:28px;color:var(--accent);font-weight:600;line-height:1}
 .nowScore small{color:var(--dim);font-size:12px}
@@ -4346,7 +4350,7 @@ const ZH = {
   '・骨格あり': '・有骨架',
   '3D素体（VRM）': '3D素體（VRM）',
   '腰に手': '手叉腰', '手を上げる': '舉手', '頬に手': '手托臉頰', '胸の前で腕': '雙臂交叉胸前', '座り': '坐', '片膝': '單膝跪', 'しゃがみ': '蹲', '跳ぶ': '跳', '走る': '跑',
-  '体の向き（3D素体）': '身體朝向（3D素體）', '顔の向き（3D素体）': '臉的朝向（3D素體）', '手の形（置いた手 ': '手勢（放置的手 ', '手の形（画面左の手）': '手勢（畫面左側的手）', '手の形（画面右の手）': '手勢（畫面右側的手）', '手の形（手 ': '手勢（手 ', '・3D素体の基準）': '・3D素體的基準）', 'ゆるく': '放鬆', 'ひらく': '張開', 'にぎる': '握拳', 'ピース': '比耶', 'そえる': '輕放', 'つまむ': '捏', '構図一覧': '構圖列表', '本の並び': '書的排列', 'さす': '指向', 'すく': '撥髮', '体の向き': '身體朝向', '顔の向き': '臉的朝向', '横顔': '側臉', '後ろ': '背後', '正面': '正面', '斜め（左）': '斜側（左）', '斜め（右）': '斜側（右）', '横向き': '側面', '後ろ向き': '背面', '読み込み中の素体：': '目前的素體：', '別の VRM に替える': '換成別的 VRM', 'VRM を読み込む': '讀入 VRM', '外す': '移除',
+  '体の向き（3D素体）': '身體朝向（3D素體）', '顔の向き（3D素体）': '臉的朝向（3D素體）', '手の形（置いた手 ': '手勢（放置的手 ', '手の形（画面左の手）': '手勢（畫面左側的手）', '手の形（画面右の手）': '手勢（畫面右側的手）', '手の形（手 ': '手勢（手 ', '・3D素体の基準）': '・3D素體的基準）', 'ゆるく': '放鬆', 'ひらく': '張開', 'にぎる': '握拳', 'ピース': '比耶', 'そえる': '輕放', 'つまむ': '捏', '当たっている（この指摘を強める）': '說得對（加強這項指摘）', '外れている（この指摘を弱める）': '說得不對（減弱這項指摘）', '○×の学習をリセット': '重設○×的學習', '添削の○×学習をリセットしました': '已重設批改的○×學習', '感度 ': '靈敏度 ', '構図一覧': '構圖列表', '本の並び': '書的排列', 'さす': '指向', 'すく': '撥髮', '体の向き': '身體朝向', '顔の向き': '臉的朝向', '横顔': '側臉', '後ろ': '背後', '正面': '正面', '斜め（左）': '斜側（左）', '斜め（右）': '斜側（右）', '横向き': '側面', '後ろ向き': '背面', '読み込み中の素体：': '目前的素體：', '別の VRM に替える': '換成別的 VRM', 'VRM を読み込む': '讀入 VRM', '外す': '移除',
   'VRoid Studio などで作った VRM を読み込むと、コンセプト表示の素体が本物の 3D になり、この構図のポーズを取ります。モデルはこのブラウザ内にだけ保存され、送信しません。': '讀入用 VRoid Studio 等製作的 VRM 後，概念顯示的素體會變成真正的 3D，並擺出這個構圖的姿勢。模型只保存在這個瀏覽器內，不會傳送。',
   'コンセプト表示で使う': '在概念顯示中使用', 'グレーの素体': '灰色素體', '肘から先を薄く': '手肘以下變淡', '肘から先（前腕・手・指）を 10% の不透明度にして、手は自分の形で置けるようにする': '把手肘以下（前臂・手・手指）設為 10% 不透明度，讓手可以用自己的形狀放置', 'OBJ 書き出し（この構図のポーズ）': '匯出 OBJ（此構圖的姿勢）',
   'クリスタ：ファイル → 読み込み → 3Dデータ で OBJ を開くと、ポーズ済みの素体がキャンバスに乗ります（関節はクリスタでは動かせません）。': 'CLIP STUDIO：檔案 → 讀入 → 3D 資料，開啟 OBJ 後，擺好姿勢的素體就會放到畫布上（關節無法在 CLIP STUDIO 內移動）。',
@@ -4392,6 +4396,15 @@ try { const l = localStorage.getItem('kouzu-lang'); if (l === 'zh') { lang = 'zh
 // ---------- 添削：描きかけの絵を読んで構成の弱点を診断し、マーカー／導線／▲の案を採点して返す（画像は端末内だけ） ----------
 let appTab = 'make', crit = null; // crit: {img, an, props, sel, dim} — img はメモリ上だけ
 const CAXES = [['somitsu', '疏密'], ['contrast', '明度対比'], ['seq', '大中小'], ['shuji', '主次'], ['zutei', '図底'], ['force', '主力線'], ['balance', '重心'], ['ten', '点'], ['color', '色の主次']];
+// 添削の ○×：指摘ごとの感度（1＝既定）。○で上げ、×で下げて、次の診断の重さに掛ける。端末内だけ
+let critFb = {}; try { const v = JSON.parse(localStorage.getItem('kouzu-critfb') || '{}'); if (v && typeof v === 'object') critFb = v; } catch(e) {}
+const critGain = key => (critFb[key] && critFb[key].g) || 1;
+function voteIssue(key, v, prev){ // 同じ絵で押し直したら前の票を戻してから入れる
+  const f = critFb[key] = critFb[key] || {g: 1, o: 0, x: 0}; const step = {o: 1.12, x: 0.8};
+  if (prev) { f.g /= step[prev]; f[prev] = Math.max(0, f[prev] - 1); }
+  if (v) { f.g *= step[v]; f[v]++; } f.g = clamp(f.g, 0.2, 1.8);
+  try { localStorage.setItem('kouzu-critfb', JSON.stringify(critFb)); } catch(e) {}
+}
 const CISSUE = {
   somitsu: ['疏密が均一で、リズムがない', '主役のまわりを最密に、ほかを疎に'],
   contrast: ['明度のコントラストが足りない', '主役の周りで明暗を逆に振る'],
@@ -4481,7 +4494,7 @@ function analyzeArt(img, faceHint){
   const now = Math.round(Object.values(ax).reduce((a, b) => a + b, 0)/CAXES.length*100);
   // ---- 気になるところ（重さ 0..1）----
   const issues = [];
-  const add = (key, sev) => { if (sev > 0.05) issues.push({key, sev: clamp(sev, 0, 1), text: CISSUE[key][0], fix: CISSUE[key][1]}); };
+  const add = (key, sev) => { sev = clamp(sev, 0, 1)*critGain(key); if (sev > 0.05) issues.push({key, sev: clamp(sev, 0, 1), text: CISSUE[key][0], fix: CISSUE[key][1]}); };
   add('somitsu', (0.5 - ax.somitsu)/0.5);
   add('contrast', (0.55 - ax.contrast)/0.55);
   add('seq', (0.45 - ax.seq)/0.45);
@@ -4572,7 +4585,12 @@ function renderCritSide(){
   const ns = document.createElement('div'); ns.className = 'nowScore'; ns.innerHTML = `<b>${an.now}</b><span>いまの採点</span><small>${an.subject.face ? '顔を主役として判定' : 'いちばん密な場所を主役として判定'}</small>`; box.appendChild(ns);
   const bars = document.createElement('div'); bars.className = 'bars'; CAXES.forEach(([k, l]) => { const v = Math.round(an.ax[k]*100); const d = document.createElement('div'); d.className = 'bar'; d.innerHTML = `<span>${l}</span><i><b style="width:${v}%;background:${v >= 60 ? 'var(--ok)' : v >= 35 ? 'var(--accent)' : '#e88'}"></b></i><em>${v}</em>`; bars.appendChild(d); }); box.appendChild(bars);
   const h3 = document.createElement('h3'); h3.textContent = an.issues.length ? '気になるところ' : '大きな弱点はありません'; box.appendChild(h3);
-  const il = document.createElement('div'); il.className = 'issues'; an.issues.slice(0, 6).forEach(i => { const d = document.createElement('div'); d.className = 'issue'; d.innerHTML = `<b>${i.text}</b><small>${i.fix}</small><span class="sev" style="width:${Math.round(i.sev*100)}%"></span>`; il.appendChild(d); }); box.appendChild(il);
+  const il = document.createElement('div'); il.className = 'issues'; an.issues.slice(0, 6).forEach(i => { const d = document.createElement('div'); d.className = 'issue'; d.innerHTML = `<b>${i.text}</b><small>${i.fix}</small><span class="sev" style="width:${Math.round(i.sev*100)}%"></span>`;
+    const votes = crit.votes = crit.votes || {}, vt = document.createElement('div'); vt.className = 'vote'; vt.innerHTML = `<button data-v="o" title="当たっている（この指摘を強める）">○</button><button data-v="x" title="外れている（この指摘を弱める）">×</button><span>${critFb[i.key] && (critFb[i.key].o || critFb[i.key].x) ? `感度 ${Math.round(critGain(i.key)*100)}%` : ''}</span>`;
+    const paint = () => { [...vt.querySelectorAll('button')].forEach(b => b.classList.toggle('on', votes[i.key] === b.dataset.v)); d.classList.toggle('ng', votes[i.key] === 'x'); vt.querySelector('span').textContent = `感度 ${Math.round(critGain(i.key)*100)}%`; };
+    vt.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; const prev = votes[i.key] || null, v = prev === b.dataset.v ? null : b.dataset.v; voteIssue(i.key, v, prev); votes[i.key] = v; paint(); });
+    d.appendChild(vt); if (votes[i.key]) paint(); il.appendChild(d); }); box.appendChild(il);
+  if (Object.keys(critFb).length) { const rs = document.createElement('button'); rs.className = 'ghost'; rs.textContent = '○×の学習をリセット'; rs.addEventListener('click', () => { critFb = {}; try { localStorage.removeItem('kouzu-critfb'); } catch(e) {} crit.votes = {}; renderCritSide(); toast('添削の○×学習をリセットしました'); }); box.appendChild(rs); }
   crit.props.forEach(p => { const el = document.createElement('div'); el.className = 'thumb' + (crit.sel === p.id ? ' sel' : ''); el.tabIndex = 0; el.setAttribute('role', 'button');
     const cv = document.createElement('canvas'); const w = 300, h = Math.round(w/an.aspect); cv.width = w; cv.height = h; drawCrit(cv.getContext('2d'), w, h, p, {dim: 0.45, labels: false});
     const wrap = document.createElement('div'); wrap.className = 'pic'; wrap.style.setProperty('--ar', String(an.aspect)); wrap.appendChild(cv); el.appendChild(wrap);
