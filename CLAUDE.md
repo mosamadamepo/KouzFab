@@ -56,6 +56,8 @@ git add -A && git commit -m "…" && git push   # Pages は数十秒で更新
 - **添削**：`analyzeArt()`（9 軸の診断。いまは固定のしきい値で、学習はしない）、`critComps()`（提案）。
 - **学習**：`autoModel`（肌色・丸の大きさ等）、マス分類器 `trainCellModel()`、骨格のずれ `learnPoseBias()`。手の形の好み `learnHandShape()`（選び直すと前の 1 回を取り消す）。どれも端末内だけ。
 
+- **スマホ（Poser 風）**：コンテナ幅 860px 以下で、キャンバスを画面いっぱいにし、下の `#mdock`（構図一覧・設定・本の並び）で 1 つだけ下からシートとして出す（`applyDock()`、`#app.m-lib` / `.m-book` / `propsOpen`）。提案欄（footer.reco）はスマホでは出さない。
+
 ## localStorage のキー
 
 `kouzu-fabrica`（スケッチ・構図案・本の並び・見開き）、`kouzu-templates`、`kouzu-automodel`、`kouzu-learnset`、`kouzu-cellmodel`、`kouzu-lang`、`kouzu-zoom`、`kouzu-props`、`kouzu-k3use`、`kouzu-k3gray`、`kouzu-k3arm`。IndexedDB `kouzu-fabrica` / `files` / `vrm` に読み込んだ VRM。

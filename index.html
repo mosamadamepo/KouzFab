@@ -278,6 +278,28 @@ footer.book{background:var(--panel);border:1px solid var(--line);border-radius:v
   .thumbs{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
 }
 #zoom.narrow{overflow:auto}
+/* スマホ（Poser 風）：キャンバス＝素体を画面いっぱいに、下のドックから一覧・設定・本をシートで出す */
+.mdock{display:none}
+@container (max-width:860px){
+  #app{height:100%;min-height:0;grid-template-rows:auto minmax(0,1fr) auto auto;gap:6px;padding-block:6px}
+  #app.crit{height:auto}
+  main{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr);position:relative}
+  .editor,.editor.closed{grid-template-rows:minmax(0,1fr) auto}
+  .stage{min-height:0}
+  .editor > footer.reco{display:none}
+  main > .grid{display:none;position:absolute;left:0;right:0;bottom:0;height:min(58%,480px);max-height:none;z-index:6;box-shadow:0 -10px 30px rgba(0,0,0,.45)}
+  #app.m-lib main > .grid{display:flex}
+  footer.book{display:none;flex-wrap:wrap}
+  #app.m-book footer.book{display:flex}
+  .props{left:0;right:0;top:auto;bottom:0;width:auto;max-height:56%;border-radius:14px 14px 0 0}
+  .editor:not(.closed) .camBar,.editor:not(.closed) .viewBar{right:10px}
+  .drawerBtn{display:none}
+  .mdock{display:flex;gap:6px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:4px}
+  .mdock button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 0;font-size:18px;line-height:1;background:none;border:0;border-radius:10px;color:var(--muted)}
+  .mdock button span{font-size:12px}
+  .mdock button.on{background:rgba(255,255,255,.08);color:var(--accent)}
+  #app.crit .mdock{display:none}
+}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
@@ -379,6 +401,7 @@ footer.book{background:var(--panel);border:1px solid var(--line);border-radius:v
     <div class="bookRow" id="bookRow"></div>
     <div class="bookActs"><button class="primary" id="bookPng" title="並んだ順に番号を付けて PNG にし、ZIP で一括保存">PNG 一括書き出し</button><button class="ghost" id="bookClip" title="並んだ順にレイヤー分け PSD（ZIP）">CLIP 一括書き出し</button><button class="ghost" id="bookBlank" title="選んでいるページの後ろ（なければ最後）にベタ塗りの1ページを挟みます。クリックで色が変わります">ベタ塗りページを挟む</button><button class="ghost" id="bookClear">配置をリセット</button></div>
   </footer>
+  <nav class="mdock" id="mdock"><button data-m="lib">▦<span>構図一覧</span></button><button data-m="props">⚙<span>設定</span></button><button data-m="book">▤<span>本の並び</span></button></nav>
 </div></div>
 
 <div class="modal" id="modal"><div class="box">
@@ -4323,7 +4346,7 @@ const ZH = {
   '・骨格あり': '・有骨架',
   '3D素体（VRM）': '3D素體（VRM）',
   '腰に手': '手叉腰', '手を上げる': '舉手', '頬に手': '手托臉頰', '胸の前で腕': '雙臂交叉胸前', '座り': '坐', '片膝': '單膝跪', 'しゃがみ': '蹲', '跳ぶ': '跳', '走る': '跑',
-  '体の向き（3D素体）': '身體朝向（3D素體）', '顔の向き（3D素体）': '臉的朝向（3D素體）', '手の形（置いた手 ': '手勢（放置的手 ', '手の形（画面左の手）': '手勢（畫面左側的手）', '手の形（画面右の手）': '手勢（畫面右側的手）', '手の形（手 ': '手勢（手 ', '・3D素体の基準）': '・3D素體的基準）', 'ゆるく': '放鬆', 'ひらく': '張開', 'にぎる': '握拳', 'ピース': '比耶', 'そえる': '輕放', 'つまむ': '捏', 'さす': '指向', 'すく': '撥髮', '体の向き': '身體朝向', '顔の向き': '臉的朝向', '横顔': '側臉', '後ろ': '背後', '正面': '正面', '斜め（左）': '斜側（左）', '斜め（右）': '斜側（右）', '横向き': '側面', '後ろ向き': '背面', '読み込み中の素体：': '目前的素體：', '別の VRM に替える': '換成別的 VRM', 'VRM を読み込む': '讀入 VRM', '外す': '移除',
+  '体の向き（3D素体）': '身體朝向（3D素體）', '顔の向き（3D素体）': '臉的朝向（3D素體）', '手の形（置いた手 ': '手勢（放置的手 ', '手の形（画面左の手）': '手勢（畫面左側的手）', '手の形（画面右の手）': '手勢（畫面右側的手）', '手の形（手 ': '手勢（手 ', '・3D素体の基準）': '・3D素體的基準）', 'ゆるく': '放鬆', 'ひらく': '張開', 'にぎる': '握拳', 'ピース': '比耶', 'そえる': '輕放', 'つまむ': '捏', '構図一覧': '構圖列表', '本の並び': '書的排列', 'さす': '指向', 'すく': '撥髮', '体の向き': '身體朝向', '顔の向き': '臉的朝向', '横顔': '側臉', '後ろ': '背後', '正面': '正面', '斜め（左）': '斜側（左）', '斜め（右）': '斜側（右）', '横向き': '側面', '後ろ向き': '背面', '読み込み中の素体：': '目前的素體：', '別の VRM に替える': '換成別的 VRM', 'VRM を読み込む': '讀入 VRM', '外す': '移除',
   'VRoid Studio などで作った VRM を読み込むと、コンセプト表示の素体が本物の 3D になり、この構図のポーズを取ります。モデルはこのブラウザ内にだけ保存され、送信しません。': '讀入用 VRoid Studio 等製作的 VRM 後，概念顯示的素體會變成真正的 3D，並擺出這個構圖的姿勢。模型只保存在這個瀏覽器內，不會傳送。',
   'コンセプト表示で使う': '在概念顯示中使用', 'グレーの素体': '灰色素體', '肘から先を薄く': '手肘以下變淡', '肘から先（前腕・手・指）を 10% の不透明度にして、手は自分の形で置けるようにする': '把手肘以下（前臂・手・手指）設為 10% 不透明度，讓手可以用自己的形狀放置', 'OBJ 書き出し（この構図のポーズ）': '匯出 OBJ（此構圖的姿勢）',
   'クリスタ：ファイル → 読み込み → 3Dデータ で OBJ を開くと、ポーズ済みの素体がキャンバスに乗ります（関節はクリスタでは動かせません）。': 'CLIP STUDIO：檔案 → 讀入 → 3D 資料，開啟 OBJ 後，擺好姿勢的素體就會放到畫布上（關節無法在 CLIP STUDIO 內移動）。',
@@ -4582,6 +4605,13 @@ new ResizeObserver(() => { if (appTab === 'crit') { fitCrit(); renderCritMain();
 let propsOpen = true; try { const v = localStorage.getItem('kouzu-props'); if (v === '0') propsOpen = false; else if (v == null && window.innerWidth < 1100) propsOpen = false; } catch(e) {}
 function applyDrawer(){ document.querySelector('.editor').classList.toggle('closed', !propsOpen); $('drawerIcon').textContent = propsOpen ? '▸' : '◂'; $('drawerLabel').textContent = propsOpen ? '閉じる' : '設定'; try { localStorage.setItem('kouzu-props', propsOpen ? '1' : '0'); } catch(e) {} }
 $('drawerBtn').addEventListener('click', () => { propsOpen = !propsOpen; applyDrawer(); });
+function applyDock(m){ // スマホのドック：一覧・設定・本はどれか 1 つだけ下から出す（同じボタンでしまう）
+  const app = $('app'); const cur = app.classList.contains('m-lib') ? 'lib' : app.classList.contains('m-book') ? 'book' : propsOpen ? 'props' : '';
+  const next = m === cur ? '' : m; app.classList.toggle('m-lib', next === 'lib'); app.classList.toggle('m-book', next === 'book');
+  if ((next === 'props') !== propsOpen) { propsOpen = next === 'props'; applyDrawer(); }
+  [...$('mdock').children].forEach(b => b.classList.toggle('on', b.dataset.m === next)); fitCanvas(); renderMain();
+}
+$('mdock').addEventListener('click', e => { const b = e.target.closest('button'); if (b) applyDock(b.dataset.m); });
 applyDrawer();
 SIZES.forEach(([l, a], i) => { const o = document.createElement('option'); o.value = i; o.textContent = l; $('sizeSel').appendChild(o); });
 RES.forEach(([l, v]) => { const o = document.createElement('option'); o.value = v; o.textContent = l; $('resSel').appendChild(o); });
