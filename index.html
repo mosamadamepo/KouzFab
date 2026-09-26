@@ -2186,7 +2186,7 @@ function randomParams(r, sk, i){
   if (h && h.vpY != null && r() < 0.5) angle = h.vpY > 0.66 ? 'low' : h.vpY < 0.3 ? 'high' : 'eye';
   let pattern = pats[i % pats.length]; if (pattern === 'land' && r() < 0.5) pattern = 'tri';
   const people = sk.faces.length > 1 ? sk.faces.length : 1; // 人数はデフォルト1人（スケッチに顔を複数置いたときだけ増える）
-  const fk = r(); let facing = fk < 0.5 ? 'front' : fk < 0.88 ? (r() < 0.5 ? 'qL' : 'qR') : fk < 0.98 ? 'side' : 'back'; // 後ろ向きは顔が見えず点が伸びないので、ごくまれに
+  const fk = r(); let facing = fk < 0.52 ? 'front' : fk < 0.9 ? (r() < 0.5 ? 'qL' : 'qR') : 'side'; // 後頭部や背中は写さない（後ろ向きは設定で選んだときだけ）
   if (genFacing !== 'auto') facing = genFacing;
   return {shot, angle, pattern, people, pose: pick(r, Object.keys(POSES)), facing, headFacing: genHeadFacing, lightDir: pick(r, [-2.4, -0.7, -1.57, 2.4, 0.5, -3.0]), lightKind: pick(r, Object.keys(LIGHTS)), contrast: r() < 0.45 ? 'high' : 'soft'};
 }
@@ -3106,11 +3106,14 @@ function k3pose(c, idx, facing){ // 構図の素体（bodies[idx]・faces[idx]�
   H.resetNormalizedPose && H.resetNormalizedPose();
   const b0 = c.bodies[idx], f = c.faces[idx], sk = idx ? {} : (c.skel || {}); const R = f.r || 100;
   // さかさま：画面の左右がモデルの左右と入れ替わる（Z 軸まわりに 180° 回した体）
-  const b = b0.dir === 'up' ? Object.assign({}, b0, {shL: b0.shR, shR: b0.shL, elbowL: b0.elbowR, elbowR: b0.elbowL, wrL: b0.wrR, wrR: b0.wrL, hipL: b0.hipR, hipR: b0.hipL, kneeL: b0.kneeR, kneeR: b0.kneeL, footL: b0.footR, footR: b0.footL}) : b0;
+  const sw = Object.assign({}, b0, {shL: b0.shR, shR: b0.shL, elbowL: b0.elbowR, elbowR: b0.elbowL, wrL: b0.wrR, wrR: b0.wrL, hipL: b0.hipR, hipR: b0.hipL, kneeL: b0.kneeR, kneeR: b0.kneeL, footL: b0.footR, footR: b0.footL});
   const Z = k => (sk[k] && typeof sk[k].z === 'number') ? sk[k].z*VW : 0; // MediaPipe の奥行き（画像幅と同じ単位）
-  const pz = POSE_Z[c.pose] || {}, dz = DIR_Z[b.dir] || {}, flip = (b.sgn || 1) < 0; // 検出骨格が無い関節はポーズ表＋体の入れ方の奥行きを使う（sgn で左右入れ替え）
+  const pz = POSE_Z[c.pose] || {}, dz = DIR_Z[b0.dir] || {}, flip = (b0.sgn || 1) < 0; // 検出骨格が無い関節はポーズ表＋体の入れ方の奥行きを使う（sgn で左右入れ替え）
   const PZ = k => { if (sk[k] && typeof sk[k].z === 'number') return 0; const kk = flip ? k.replace(/L$/, '_').replace(/R$/, 'L').replace(/_$/, 'R') : k; return ((pz[kk] || 0) + (dz[k] || 0))*R; };
   const P3 = (p, k) => new THREE.Vector3(p.x, -p.y, -Z(k) + PZ(k));
+  // 背中・後頭部は見せない：奥行き込みで胸の向き（肩の並び×背骨）がカメラ（+Z）側になる左右を選ぶ。決めきれない（真横）ときは、さかさまなら入れ替え
+  const chestZ = bb => { const x = P3(bb.shR, 'shR').sub(P3(bb.shL, 'shL')), y = P3(bb.shL, 'shL').add(P3(bb.shR, 'shR')).sub(P3(bb.hipL, 'hipL')).sub(P3(bb.hipR, 'hipR')); return (x.x*y.y - x.y*y.x)/((x.length()*y.length()) || 1); };
+  const cz0 = chestZ(b0), b = Math.abs(cz0) < 0.1 ? (b0.dir === 'up' ? sw : b0) : (cz0 > 0 ? b0 : sw);
   const hipL = P3(b.hipL, 'hipL'), hipR = P3(b.hipR, 'hipR'), shL = P3(b.shL, 'shL'), shR = P3(b.shR, 'shR'), hipC = hipL.clone().add(hipR).multiplyScalar(0.5), shC = shL.clone().add(shR).multiplyScalar(0.5);
   const head = P3(f, 'head'), neck = P3(b.neck, 'neck'), elL = P3(b.elbowL, 'elL'), elR = P3(b.elbowR, 'elR'), knL = P3(b.kneeL, 'knL'), knR = P3(b.kneeR, 'knR'), ftL = P3(b.footL, 'ftL'), ftR = P3(b.footR, 'ftR');
   let wrL = sk.wrL ? P3(sk.wrL, 'wrL') : (b.wrL ? P3(b.wrL, 'wrL') : null), wrR = sk.wrR ? P3(sk.wrR, 'wrR') : (b.wrR ? P3(b.wrR, 'wrR') : null);
@@ -3138,7 +3141,7 @@ function k3pose(c, idx, facing){ // 構図の素体（bodies[idx]・faces[idx]�
     chest: basis(shR.clone().sub(shL), shC.clone().sub(hipC)),
     upperChest: basis(shR.clone().sub(shL), shC.clone().sub(hipC)),
     neck: basis(shR.clone().sub(shL), dir(shC, head)),
-    head: basis(shR.clone().sub(shL), b.dir === 'bend' ? new THREE.Vector3(0, 0.55, 0.83) : dir(neck, head)), // 腰を折ったときは顔をカメラ側へ起こす
+    head: basis(shR.clone().sub(shL), b.dir === 'bend' && b === b0 ? new THREE.Vector3(0, 0.55, 0.83) : dir(neck, head)), // 腰を折ったときは顔をカメラ側へ起こす
     rightUpperArm: one(new THREE.Vector3(-1, 0, 0), dir(shL, elL)), leftUpperArm: one(new THREE.Vector3(1, 0, 0), dir(shR, elR)),
     rightLowerArm: wrL ? one(new THREE.Vector3(-1, 0, 0), dir(elL, wrL)) : one(new THREE.Vector3(-1, 0, 0), dir(shL, elL)),
     leftLowerArm: wrR ? one(new THREE.Vector3(1, 0, 0), dir(elR, wrR)) : one(new THREE.Vector3(1, 0, 0), dir(shR, elR)),
