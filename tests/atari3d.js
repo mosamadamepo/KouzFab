@@ -27,7 +27,10 @@ const { chromium } = require(require.resolve('playwright', {paths: [__dirname + 
   const circle = (cx, cy, rx, ry) => Array.from({length: 33}, (_, i) => [cx + rx * Math.cos(i / 32 * 6.283), cy + ry * Math.sin(i / 32 * 6.283)]);
   console.log('armed after art:', await p.evaluate(() => __atari.st.armed));
   await drag('#stArt', circle(0.5, 0.31, 0.2, 0.15));
-  await p.setInputFiles('#fRef', {name: 'ref.png', mimeType: 'image/png', buffer: Buffer.from(ref, 'base64')});
+  // 資料はボタンから：資料タブの空の画面の「資料を開く」→ ファイル選択
+  await p.click('#bar [data-view=ref]');
+  const [fc] = await Promise.all([p.waitForEvent('filechooser'), p.click('#empty [data-open=ref]')]);
+  await fc.setFiles({name: 'ref.png', mimeType: 'image/png', buffer: Buffer.from(ref, 'base64')});
   await p.waitForTimeout(300);
   console.log('armed after ref:', await p.evaluate(() => __atari.st.armed));
   await drag('#stRef', circle(0.5, 0.5, 0.24, 0.42));

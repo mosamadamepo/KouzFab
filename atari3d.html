@@ -51,7 +51,8 @@ main{display:flex;flex-direction:column;min-width:0;min-height:0}
 .stage svg{pointer-events:none;overflow:visible}
 .stage.lasso{cursor:crosshair}
 .empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:var(--sub);padding:20px}
-.empty b{display:block;color:var(--ink);font-size:15px;margin-bottom:6px}
+.empty b{display:block;color:var(--ink);font-size:15px;margin-bottom:10px}
+.empty button.big{font-size:15px;padding:10px 22px;margin-bottom:10px}
 #toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#222;color:#fff;padding:7px 14px;border-radius:20px;font-size:12px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}
 #toast.show{opacity:.92}
 .drop #wrap{outline:3px dashed var(--acc);outline-offset:-8px}
@@ -75,7 +76,13 @@ main{display:flex;flex-direction:column;min-width:0;min-height:0}
   </section>
 
   <section>
-    <h2><span class="n">2</span>パーツ</h2>
+    <h2><span class="n">2</span>資料</h2>
+    <div class="row"><button id="bRef" class="pri">資料を開く</button><span id="sRefImg" class="st">まだありません</span></div>
+    <input type="file" id="fRef" accept="image/*" hidden>
+  </section>
+
+  <section>
+    <h2>パーツ</h2>
     <div id="parts"></div>
     <div class="row"><button id="bAdd">＋ パーツを足す</button><button id="bDup">複製</button><button id="bDel">消す</button></div>
   </section>
@@ -83,9 +90,8 @@ main{display:flex;flex-direction:column;min-width:0;min-height:0}
   <section id="secPart">
     <h2><span class="n">3</span>囲む</h2>
     <div class="row"><button id="bTarget">絵の上でアタリを囲む</button><span id="sTarget" class="st"></span></div>
-    <div class="row"><button id="bRef">資料を開く</button><button id="bRefLasso">資料のパーツを囲む</button></div>
+    <div class="row"><button id="bRefLasso">資料のパーツを囲む</button><button id="bRef2">別の資料を開く</button></div>
     <div class="row"><span id="sRef" class="st"></span></div>
-    <input type="file" id="fRef" accept="image/*" hidden>
 
     <h2 style="margin-top:12px"><span class="n">4</span>立体にする</h2>
     <select id="selMethod"></select>
@@ -130,6 +136,7 @@ main{display:flex;flex-direction:column;min-width:0;min-height:0}
   <div id="bar">
     <button data-view="art" class="on">絵</button><button data-view="ref">資料</button>
     <div id="hint"></div>
+    <button id="bOpenBar">開く</button>
   </div>
   <div id="wrap">
     <div id="stArt" class="stage" hidden><canvas id="cArt"></canvas><canvas id="c3d"></canvas><svg id="ovArt"></svg></div>
@@ -529,8 +536,9 @@ function layout() {
   const em = $('#empty');
   em.hidden = showArt || showRef;
   em.innerHTML = st.view === 'art'
-    ? '<div><b>描きかけの絵を開いてください</b>「絵を開く」／ここへドラッグ＆ドロップ／Ctrl+V で貼り付け</div>'
-    : '<div><b>資料を開いてください</b>「資料を開く」／ここへドラッグ＆ドロップ／Ctrl+V で貼り付け</div>';
+    ? '<div><b>描きかけの絵を開いてください</b><button class="pri big" data-open="art">絵を開く</button><br>ここへドラッグ＆ドロップ／Ctrl+V で貼り付けもできます</div>'
+    : '<div><b>資料を開いてください</b><button class="pri big" data-open="ref">資料を開く</button><br>ここへドラッグ＆ドロップ／Ctrl+V で貼り付けもできます</div>';
+  $('#bOpenBar').textContent = st.view === 'art' ? (st.art ? '別の絵を開く' : '絵を開く') : (st.ref ? '別の資料を開く' : '資料を開く');
   requestRender(); drawOverlays();
 }
 new ResizeObserver(layout).observe($('#wrap'));
@@ -741,6 +749,7 @@ function refresh() {
   $('#bTarget').classList.toggle('on', st.armed === 'target');
   $('#bRefLasso').classList.toggle('on', st.armed === 'ref');
   $('#bRefLasso').disabled = !st.ref;
+  $('#sRefImg').textContent = st.ref ? `${st.ref.w}×${st.ref.h}` : 'まだありません'; $('#sRefImg').className = 'st' + (st.ref ? ' ok' : '');
   if (p) { selM.value = p.method; $('#ckMirror').checked = p.mirror; $('#ckInv').checked = p.invert; }
   $('#ckInvWrap').hidden = !p || p.method !== 'relief';
   for (const b of ['#bFit', '#bFitStretch', '#bRotReset']) $(b).disabled = !has();
@@ -753,7 +762,7 @@ function refresh() {
   else if (!st.art) h = 'まず描きかけの絵を開いてください';
   else if (!p) h = '「＋ パーツを足す」で始めます';
   else if (!p.target) h = '「絵の上でアタリを囲む」で、パーツを入れる範囲を決めます';
-  else if (!st.ref) h = '「資料を開く」で、パーツの資料を読み込みます（ドロップ・貼り付けも可）';
+  else if (!st.ref) h = '「2 資料を開く」で、パーツの資料を読み込みます';
   else if (!p.crop) h = '「資料のパーツを囲む」で、使う部分を囲みます';
   else h = 'ドラッグで移動／右ドラッグで回転／ホイールで拡大縮小。合ったら「透過 PNG で書き出す」';
   $('#hint').innerHTML = h;
@@ -808,7 +817,9 @@ function toast(s) { const t = $('#toast'); t.textContent = s; t.classList.add('s
 
 $('#bArt').onclick = () => $('#fArt').click();
 $('#fArt').onchange = e => { openFile(e.target.files[0], 'art'); e.target.value = ''; };
-$('#bRef').onclick = () => $('#fRef').click();
+$('#bRef').onclick = $('#bRef2').onclick = () => $('#fRef').click();
+$('#bOpenBar').onclick = () => $(st.view === 'art' ? '#fArt' : '#fRef').click();
+$('#empty').addEventListener('click', e => { const k = e.target.closest('[data-open]')?.dataset.open; if (k) $(k === 'art' ? '#fArt' : '#fRef').click(); });
 $('#fRef').onchange = e => { openFile(e.target.files[0], 'ref'); e.target.value = ''; };
 $('#bAdd').onclick = () => { disarm(); addPart(); };
 $('#bDup').onclick = () => dupPart(st.cur);
