@@ -15,7 +15,7 @@
 | `mediapipe/pose/` | MediaPipe Pose 0.5（旧版）を自前ホスト。骨格検出はブラウザ内で推論 |
 | `models/moo.vrm` | 同梱の 3D 素体（VRoid 製、作者が同梱を許可済み） |
 | `tests/smoke.js` / `tests/zh.js` | Playwright の動作確認／繁體中文の訳抜けチェック |
-| `atari3d.html` | **パーツ立体アタリ**（別ツール・単一ファイル・ビルドなし）。上のタブ＝絵／資料（＋で何枚でも）、下のトレイ＝パーツのアイコン、キャンバス右上＝ツール、右＝選んだパーツの設定。資料でペン（囲むとパーツ化）／投げ縄（囲んだパーツを消す）→ トレイから絵へドラッグ → TransformControls のハンドル（W/E/R）で合わせる → 透過 PNG。立体化は `GEN`（メカ＝色の k-means で段＋面取り・丸い区画はドーム・暗い細線は溝／ふくらませる／押し出す／回転体／レリーフ／箱・円柱・球）、`st.lowpoly` で単純化、線画は法線＋深度の後処理（`linePass`）。表示の拡大・移動は `camera.setViewOffset`。three と TransformControls は `./vendor/kouzu3d.js`、無ければ CDN（importmap）。日本語のみ（ZH 辞書の対象外） |
+| `atari3d.html` | **パーツ立体アタリ**（別ツール・単一ファイル・ビルドなし）。広い画面（900px〜）は左＝描きかけ・右＝資料のタブグループを常に並べる（`PANES`・`isSplit()`、仕切りの割合は localStorage `atari3d-split`）、狭い画面は上のタブで切り替え。下のトレイ＝パーツのアイコン。資料でペン（囲むとパーツ化。`st.magnet` でふちに吸いつく＝`snapPt` と輪郭沿いの最短路 `liveWire`、Alt で一時オフ）／投げ縄（囲んだパーツを消す）→ トレイから絵へドラッグ → まとめて操作（Q。TransformControls の移動 `tc`＋回転 `tcR`＋拡大の角 `#knob`。W/E/R は単独）→ 透過 PNG。立体化は `GEN`：既定は **depth**＝AI 奥行き（Depth Anything V2 を transformers.js でブラウザ内推論。資料全体 `analyzeRef` と囲みのまわり `analyzePart` の 2 回、最小二乗で合わせ、裏は厚みぶん下げる）。ほかにメカ／ふくらませる／押し出す／回転体／レリーフ／箱・円柱・球。`st.lowpoly` で単純化、線画は法線＋深度の後処理（`linePass`）。テストは `window.__depthOverride` で作りものの奥行きに差し替える。日本語のみ（ZH 辞書の対象外） |
 | `tests/atari3d.js` | 上の一通りの動作確認（期待：errors [] で終了コード 0） |
 
 ## 開発の流れ
@@ -42,7 +42,7 @@ git add -A && git commit -m "…" && git push   # Pages は数十秒で更新
 
 ## 守ること（作者との約束）
 
-- **読み込んだ画像は端末の外に出さない**。メモリ上だけで扱い、保存も送信もしない。残してよいのは、なぞった座標、160px のサムネイル（任意）、22×22 マスの統計、学習した重みだけ（localStorage / IndexedDB）。
+- **読み込んだ画像は端末の外に出さない**。（パーツ立体アタリの AI 奥行きも推論はブラウザ内。外から来るのは transformers.js と Depth Anything のモデルの重みだけ。）メモリ上だけで扱い、保存も送信もしない。残してよいのは、なぞった座標、160px のサムネイル（任意）、22×22 マスの統計、学習した重みだけ（localStorage / IndexedDB）。
 - X や Pinterest のスクレイピングはしない。
 - GitHub のトークンをチャットやコードに書かない。
 
