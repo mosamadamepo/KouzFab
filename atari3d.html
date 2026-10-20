@@ -50,6 +50,10 @@ body.split #tabs{display:none}
 .wrap.hand canvas{cursor:grab}
 #bboxFrame{position:absolute;border:1px dashed var(--acc);pointer-events:none;z-index:1}
 #knob{position:absolute;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:4px;background:#fff;border:2px solid var(--acc);cursor:nesw-resize;z-index:5;touch-action:none;box-shadow:0 1px 4px #0004}
+#penAsk{display:flex;gap:4px;padding:4px;z-index:6}
+#penAsk button{width:34px;height:30px;padding:0;font-size:17px;font-weight:700;line-height:1}
+#bAskOk{background:#2e8b57;color:#fff;border-color:#2e8b57}
+#bAskNo{background:var(--panel);color:#c0392b;border-color:#c0392b}
 #depthMsg{right:10px;bottom:10px;padding:5px 10px;font-size:11px;color:var(--sub)}
 .empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:var(--sub);padding:20px}
 .empty b{display:block;color:var(--ink);font-size:15px;margin-bottom:10px}
@@ -114,6 +118,8 @@ label.ck{display:flex;gap:6px;align-items:center;margin:3px 0;font-size:12px}
     <span class="logo">パーツ立体アタリ</span>
     <nav id="tabs" class="tabs"></nav>
     <div id="hint"></div>
+    <button id="bUndo" class="ib" title="元に戻す（Ctrl+Z）"><svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg></button>
+    <button id="bRedo" class="ib" title="やり直す（Ctrl+Shift+Z／Ctrl+Y）"><svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></svg></button>
     <button id="bExportMenu" class="pri">書き出し</button>
   </header>
 
@@ -206,6 +212,7 @@ label.ck{display:flex;gap:6px;align-items:center;margin:3px 0;font-size:12px}
 
     </div>
     <div id="depthMsg" class="float" hidden></div>
+    <div id="penAsk" class="float" hidden><button id="bAskOk" title="決定（Enter）">✓</button><button id="bAskNo" title="取り消し（Esc）">✕</button></div>
     <div id="zoomRef" class="float zoombox" hidden>
       <button data-z="out" title="縮小">－</button><span>100%</span><button data-z="in" title="拡大">＋</button><button data-z="fit" title="全体を表示">全体</button>
     </div>
@@ -286,6 +293,7 @@ const tcR = new TransformControls(camera, c3d);
 tcR.setMode('rotate'); tcR.setSize(1.2); tcR.setSpace('local'); scene.add(tcR);
 tcR.addEventListener('change', () => requestRender());
 tcR.addEventListener('objectChange', () => syncSoon());
+tc.addEventListener('mouseDown', () => pushUndo()); tcR.addEventListener('mouseDown', () => pushUndo());
 // 矢印と輪が重なったところを押したら矢印を優先
 PANES.art.wrap.addEventListener('pointerdown', e => {
   if (st.gmode !== 'all' || !tc.object || e.target !== c3d) return;
@@ -410,7 +418,7 @@ function placeKnob() {
   k.addEventListener('pointerdown', e => {
     const p = st.cur; if (!p) return;
     e.preventDefault(); e.stopPropagation(); k.setPointerCapture(e.pointerId);
-    const c = center(p); drag = {p, c, d0: Math.hypot(e.clientX - c[0], e.clientY - c[1]) || 1, s0: p.scl};
+    pushUndo(); const c = center(p); drag = {p, c, d0: Math.hypot(e.clientX - c[0], e.clientY - c[1]) || 1, s0: p.scl};
   });
   k.addEventListener('pointermove', e => {
     if (!drag) return;
@@ -552,10 +560,10 @@ function select(p) {
 }
 function delPart(p, quiet) {
   if (!p) return;
+  if (!quiet) pushUndo();
   if (tc.object === p.group) tc.detach();
   if (tcR.object === p.group) tcR.detach();
-  disposePart(p); p.nmat.dispose(); if (p.tex) Object.values(p.tex).forEach(t => t.dispose());
-  scene.remove(p.group);
+  scene.remove(p.group); // 元に戻せるよう、メッシュやテクスチャは捨てない
   st.parts = st.parts.filter(q => q !== p);
   if (st.cur === p) st.cur = st.parts[st.parts.length - 1] || null;
   if (!quiet) { refresh(); requestRender(); }
@@ -565,6 +573,7 @@ function disposePart(p) {
 }
 function dupPart(src) {
   if (!src) return;
+  pushUndo();
   const p = newPart();
   for (const k of ['target', 'refId', 'refPoly', 'crop', 'method', 'invert', 'mirror', 'scl', 'sx', 'sy', 'sz', 'placed', 'th', 'dstate', 'localDepth', 'gDepth'])
     p[k] = Array.isArray(src[k]) ? src[k].map(v => v.slice()) : src[k];
@@ -1037,6 +1046,52 @@ function placeAt(p, x, y) {
   applyScale(p); p.placed = true; requestRender();
 }
 
+// ---------- undo（Ctrl+Z／Ctrl+Shift+Z・Ctrl+Y） ----------
+// パーツの有無と、位置・向き・大きさ・方式などの値を丸ごと覚える（画像やメッシュは参照のまま）
+const undoS = [], redoS = [];
+const geoKey = p => p.method + JSON.stringify(p.prm) + p.invert;
+function snap() {
+  return {parts: st.parts.slice(), cur: st.cur, data: new Map(st.parts.map(p => [p, {
+    placed: p.placed, visible: p.visible, target: p.target && p.target.map(q => q.slice()), method: p.method, prm: {...p.prm}, invert: p.invert,
+    mirror: p.mirror, scl: p.scl, sx: p.sx, sy: p.sy, sz: p.sz, name: p.name, pos: p.group.position.clone(), quat: p.group.quaternion.clone(),
+  }]))};
+}
+function pushUndo(sn) { undoS.push(sn || snap()); if (undoS.length > 100) undoS.shift(); redoS.length = 0; }
+function restoreSnap(sn) {
+  for (const p of st.parts) if (!sn.data.has(p)) { if (tc.object === p.group) tc.detach(); if (tcR.object === p.group) tcR.detach(); scene.remove(p.group); }
+  for (const p of sn.parts) {
+    if (!st.parts.includes(p)) scene.add(p.group);
+    const d = sn.data.get(p), key = geoKey(p);
+    Object.assign(p, {placed: d.placed, visible: d.visible, target: d.target, method: d.method, prm: {...d.prm}, invert: d.invert, mirror: d.mirror, scl: d.scl, sx: d.sx, sy: d.sy, sz: d.sz, name: d.name});
+    p.group.position.copy(d.pos); p.group.quaternion.copy(d.quat); applyScale(p);
+    if (p.crop && (key !== geoKey(p) || !p.mesh)) build(p);
+  }
+  st.parts = sn.parts.slice();
+  st.cur = sn.cur && st.parts.includes(sn.cur) ? sn.cur : st.parts[st.parts.length - 1] || null;
+  refresh(); requestRender();
+}
+function sameSnap(a, b) {
+  if (a.parts.length !== b.parts.length || a.parts.some((p, i) => p !== b.parts[i])) return false;
+  for (const p of a.parts) {
+    const x = a.data.get(p), y = b.data.get(p);
+    for (const k of ['placed', 'visible', 'method', 'invert', 'mirror', 'scl', 'sx', 'sy', 'sz', 'name']) if (x[k] !== y[k]) return false;
+    if (JSON.stringify(x.prm) !== JSON.stringify(y.prm) || JSON.stringify(x.target) !== JSON.stringify(y.target) || !x.pos.equals(y.pos) || !x.quat.equals(y.quat)) return false;
+  }
+  return true;
+}
+function undo() {
+  if (pending) { cancelPending(); return; }
+  if (pen && pen.pts.length) { pen.pts.pop(); pen.preview = null; if (!pen.pts.length) pen = null; drawOverlays(); refresh(); return; }
+  const now = snap();
+  while (undoS.length && sameSnap(undoS[undoS.length - 1], now)) undoS.pop(); // 何も変わらなかった操作はとばす
+  if (!undoS.length) { toast('これ以上は戻せません'); refresh(); return; }
+  redoS.push(now); restoreSnap(undoS.pop());
+}
+function redo() {
+  if (!redoS.length) return;
+  undoS.push(snap()); restoreSnap(redoS.pop());
+}
+
 // ---------- views ----------
 // st.view：狭い画面では見せるペイン、広い画面では操作中のペイン（キー操作と案内の対象）
 function showView(v) {
@@ -1067,6 +1122,10 @@ function drawOverlays() {
       for (const p of st.parts) if (p.refPoly && p.refId === im.id)
         a += `<polygon points="${ptsAttr(p.refPoly)}" fill="${p === st.cur ? '#2f6fd033' : '#2f6fd012'}" stroke="#2f6fd0" stroke-width="${p === st.cur ? 2.5 : 1.4}" ${ln}/>`;
     }
+    if (pending && pending.pane === pn.key) {
+      const c = pending.kind === 'target' ? '#d2553a' : '#2f6fd0';
+      a += `<polygon points="${ptsAttr(pending.pts)}" fill="${c}30" stroke="${c}" stroke-width="2.5" stroke-dasharray="7 4" ${ln}/>`;
+    }
     if (pen && pen.pane === pn.key && pen.pts.length) {
       const c = pen.kind === 'erase' ? '#c0392b' : pen.kind === 'target' ? '#d2553a' : '#2f6fd0';
       const tail = pen.kind === 'erase' || pen.down ? [] : pen.preview || (pen.hover ? [pen.hover] : []);
@@ -1075,6 +1134,7 @@ function drawOverlays() {
     }
     pn.ov.innerHTML = a;
   }
+  placeAsk();
 }
 
 // ---------- pen / lasso ----------
@@ -1151,6 +1211,7 @@ function liveWire(im, a, b) { // a → b の輪郭沿いの道（a は含まな�
   return simplify(path, 0.6 / k);
 }
 function penDown(e, kind, pn) {
+  if (pending) acceptPending(); // ✓／✕ を押さずに次を囲み始めたら ✓ 扱い（Ctrl+Z で戻せる）
   const im = pn.img(), mag = kind !== 'erase' && magnetOn(e);
   let q = toImg(e, pn);
   if (kind === 'erase') { pen = {kind, pane: pn.key, pts: [q], down: true}; drawOverlays(); return; }
@@ -1208,35 +1269,55 @@ function commitPen() {
   if (st.magnet && kind !== 'erase' && im && pts.length >= 2) pts = [...pts, ...liveWire(im, pts[pts.length - 1], pts[0])];
   pts = pts.filter((q, i) => i === 0 || Math.hypot(q[0] - pts[i - 1][0], q[1] - pts[i - 1][1]) > 0.5);
   while (pts.length > 3 && Math.hypot(pts[pts.length - 1][0] - pts[0][0], pts[pts.length - 1][1] - pts[0][1]) <= 0.5) pts.pop(); // 始点と重なる終点
+  const pane = pen.pane;
   pen = null;
   if (pts.length < 3) { drawOverlays(); return; }
-  if (kind === 'make') makePartFromRef(pts);
-  else if (kind === 'target') setTarget(pts);
-  drawOverlays();
+  // すぐには作らず、✓（決定）／✕（取り消し）を出して待つ
+  pending = {kind, pane, pts, refId: st.ref?.id};
+  drawOverlays(); refresh();
 }
-function makePartFromRef(poly) {
-  const R = st.ref, p = newPart();
-  if (!makeCrop(p, poly, R)) { delPart(p); return; }
+let pending = null; // {kind:'make'|'target', pane, pts, refId}
+function acceptPending() {
+  const pd = pending; if (!pd) return;
+  pending = null; drawOverlays();
+  if (pd.kind === 'make') { const R = st.refs.find(r => r.id === pd.refId); if (R) makePartFromRef(pd.pts, R); else refresh(); }
+  else setTarget(pd.pts);
+}
+function cancelPending() { if (!pending) return; pending = null; drawOverlays(); refresh(); }
+function placeAsk() {
+  const el = $('#penAsk');
+  if (!pending) { el.hidden = true; return; }
+  const pn = PANES[pending.pane];
+  if (!pn.img() || !shown(pn.key)) { el.hidden = true; return; }
+  if (el.parentNode !== pn.wrap) pn.wrap.appendChild(el);
+  const xs = pending.pts.map(q => toScreen(q, pn)[0]), ys = pending.pts.map(q => toScreen(q, pn)[1]);
+  el.hidden = false;
+  el.style.left = clamp(Math.max(...xs) + 8, 4, pn.W - 84) + 'px'; el.style.top = clamp(Math.min(...ys) - 18, 4, pn.H - 40) + 'px';
+}
+function makePartFromRef(poly, R = st.ref) {
+  const before = snap(), p = newPart();
+  if (!makeCrop(p, poly, R)) { delPart(p, true); refresh(); return; }
   R.n++; p.name = `${R.name}-${R.n}`;
   p.gDepth = R.depth || null; analyzePart(p, R);
-  build(p); st.cur = p;
+  build(p); st.cur = p; pushUndo(before);
   toast(st.art ? `「${p.name}」をパーツにしました。下のアイコンを絵へドラッグすると置けます` : `「${p.name}」をパーツにしました`);
   refresh();
 }
 function eraseIn(lasso) {
-  const R = st.ref; let n = 0;
+  const R = st.ref, before = snap(); let n = 0;
   for (const p of st.parts.slice()) {
     if (!p.refPoly || p.refId !== R.id) continue;
     const inside = p.refPoly.filter(q => inPoly(q, lasso)).length;
     if (inside >= p.refPoly.length * 0.5) { delPart(p, true); n++; }
   }
-  toast(n ? `${n} 個のパーツを消しました` : '囲みの中にパーツはありませんでした');
+  if (n) pushUndo(before);
+  toast(n ? `${n} 個のパーツを消しました（Ctrl+Z で戻せます）` : '囲みの中にパーツはありませんでした');
   refresh(); requestRender();
 }
 function setTarget(pts) {
   const p = st.cur;
   if (!p || !p.crop) { toast('先に下のパーツを選んでください'); return; }
-  p.target = pts; fit(p, false);
+  pushUndo(); p.target = pts; fit(p, false);
   setGmode('all');
 }
 
@@ -1278,6 +1359,7 @@ function bindPane(pn) {
       const hit = pick(e);
       if (hit) {
         if (hit !== st.cur) select(hit);
+        pushUndo();
         act = {kind: e.button === 2 ? 'rot' : {all: 'move', translate: 'move', rotate: 'rot', scale: 'scale'}[st.gmode] || 'move', pn, x: e.clientX, y: e.clientY};
         return;
       }
@@ -1346,7 +1428,7 @@ function renderTray() {
     el.insertAdjacentHTML('beforeend', `${p.method === 'depth' && p.dstate === 'run' ? '<span class="badge">解析中</span>' : p.placed ? '' : '<span class="badge">未配置</span>'}<button class="eye" title="表示">${p.visible ? '👁' : '－'}</button><span class="nm"></span>`);
     el.querySelector('.nm').textContent = p.name;
     el.querySelector('.eye').addEventListener('pointerdown', ev => ev.stopPropagation());
-    el.querySelector('.eye').addEventListener('click', ev => { ev.stopPropagation(); p.visible = !p.visible; refresh(); requestRender(); });
+    el.querySelector('.eye').addEventListener('click', ev => { ev.stopPropagation(); pushUndo(); p.visible = !p.visible; refresh(); requestRender(); });
     el.addEventListener('pointerdown', ev => {
       if (ev.button !== 0) return;
       ev.preventDefault();
@@ -1372,14 +1454,14 @@ const trayEnd = ev => {
     d.ghost.remove();
     const r = PANES.art.wrap.getBoundingClientRect();
     if (ev.type === 'pointerup' && st.art && shown('art') && ev.clientX > r.left && ev.clientX < r.right && ev.clientY > r.top && ev.clientY < r.bottom) {
-      const v = st.art.v; placeAt(p, (ev.clientX - r.left - v.ox) / v.s, (ev.clientY - r.top - v.oy) / v.s);
+      pushUndo(); const v = st.art.v; placeAt(p, (ev.clientX - r.left - v.ox) / v.s, (ev.clientY - r.top - v.oy) / v.s);
       p.visible = true; st.cur = p; setGmode(st.gmode === 'pen' ? 'all' : st.gmode);
     }
     return;
   }
   if (ev.type !== 'pointerup') return;
   // クリック：選ぶ。絵を見ていて未配置なら真ん中に置く
-  if (shown('art') && st.art && !p.placed) { st.cur = p; fit(p, false); refresh(); }
+  if (shown('art') && st.art && !p.placed) { pushUndo(); st.cur = p; fit(p, false); refresh(); }
   else select(p);
 };
 addEventListener('pointerup', trayEnd); addEventListener('pointercancel', trayEnd);
@@ -1399,7 +1481,7 @@ function renderTabs() {
   if (st.art) tab(ta, '絵', split || st.view === 'art', st.art.th, () => showView('art'), Object.assign(() => $('#fArt').click(), {icon: '↻', title: '別の絵を開く'}), '描きかけの絵');
   else tab(ta, '絵を開く', !split && st.view === 'art', null, () => { showView('art'); $('#fArt').click(); });
   const ds = r => r.dstate === 'run' ? '（立体を解析中…）' : r.dstate === 'fail' ? '（立体の解析不可）' : '';
-  for (const r of st.refs) tab(tr, r.name + ds(r), st.ref === r && (split || st.view === 'ref'), r.th, () => { st.ref = r; showView('ref'); }, () => closeRef(r), '資料');
+  for (const r of st.refs) tab(tr, r.name + ds(r), st.ref === r && (split || st.view === 'ref'), r.th, () => { if (pending && pending.refId !== r.id) cancelPending(); st.ref = r; showView('ref'); }, () => closeRef(r), '資料');
   tab(tr, '＋ 資料', false, null, () => $('#fRef').click(), null, '資料を足す（いくつでも。まとめて選べます）').classList.add('add');
 }
 
@@ -1411,6 +1493,7 @@ function slider(parent, o) {
   const [lab, inp, out] = el.children;
   const show = v => { out.textContent = o.fmt ? o.fmt(v) : Math.round(v); };
   inp.addEventListener('input', () => { o.set(+inp.value); show(+inp.value); requestRender(); });
+  if (o.undo) { inp.addEventListener('pointerdown', () => pushUndo()); inp.addEventListener('keydown', e => { if (/^Arrow|^Page|Home|End/.test(e.key)) pushUndo(); }); }
   if (o.def != null) inp.addEventListener('dblclick', () => { o.set(typeof o.def === 'function' ? o.def() : o.def); syncUI(); requestRender(); });
   parent.appendChild(el);
   UI.push({sync() {
@@ -1428,15 +1511,15 @@ const MP = k => METHODS[P()?.method || 'mech'].prm[k];
 
 for (const k of PRM_KEYS) slider($('#slModel'), {
   label: () => MP(k)?.[3] || '', min: () => MP(k)?.[0] ?? 0, max: () => MP(k)?.[1] ?? 1, show: () => !!MP(k),
-  get: () => P()?.crop ? P().prm[k] : null, set: v => { P().prm[k] = v; rebuildSoon(P()); },
+  get: () => P()?.crop ? P().prm[k] : null, set: v => { P().prm[k] = v; rebuildSoon(P()); }, undo: true,
   fmt: v => (k === 'levels' || k === 'smooth') ? String(v) : v + '%', def: () => MP(k)?.[2],
 });
-const posS = (key, label) => slider($('#slPos'), {label, min: () => -span(), max: () => span(), get: () => has() ? P().group.position[key] : null, set: v => { P().group.position[key] = v; }, def: 0});
+const posS = (key, label) => slider($('#slPos'), {undo: true, label, min: () => -span(), max: () => span(), get: () => has() ? P().group.position[key] : null, set: v => { P().group.position[key] = v; }, def: 0});
 posS('x', '横'); posS('y', '縦'); posS('z', '手前・奥');
-const rotS = (key, label) => slider($('#slPos'), {label, min: -180, max: 180, get: () => has() ? P().group.rotation[key] / D2R : null, set: v => { P().group.rotation[key] = v * D2R; }, fmt: v => Math.round(v) + '°', def: 0});
+const rotS = (key, label) => slider($('#slPos'), {undo: true, label, min: -180, max: 180, get: () => has() ? P().group.rotation[key] / D2R : null, set: v => { P().group.rotation[key] = v * D2R; }, fmt: v => Math.round(v) + '°', def: 0});
 rotS('x', '上下に傾け'); rotS('y', '左右に振る'); rotS('z', 'ひねる');
-slider($('#slPos'), {label: '大きさ', min: -400, max: 300, get: () => has() ? Math.log2(P().scl) * 100 : null, set: v => { P().scl = 2 ** (v / 100); applyScale(P()); }, fmt: v => Math.round(2 ** (v / 100) * 100) + '%'});
-const sclS = (key, label) => slider($('#slPos'), {label, min: 10, max: 400, get: () => has() ? P()[key] * 100 : null, set: v => { P()[key] = v / 100; applyScale(P()); }, fmt: v => Math.round(v) + '%', def: 100});
+slider($('#slPos'), {undo: true, label: '大きさ', min: -400, max: 300, get: () => has() ? Math.log2(P().scl) * 100 : null, set: v => { P().scl = 2 ** (v / 100); applyScale(P()); }, fmt: v => Math.round(2 ** (v / 100) * 100) + '%'});
+const sclS = (key, label) => slider($('#slPos'), {undo: true, label, min: 10, max: 400, get: () => has() ? P()[key] * 100 : null, set: v => { P()[key] = v / 100; applyScale(P()); }, fmt: v => Math.round(v) + '%', def: 100});
 sclS('sx', '幅'); sclS('sy', '高さ'); sclS('sz', '奥行き');
 
 slider($('#slView'), {label: '立体の濃さ', min: 10, max: 100, get: () => st.opacity * 100, set: v => { st.opacity = v / 100; setOpacity(st.opacity); }, fmt: v => v + '%', def: 92});
@@ -1452,7 +1535,7 @@ const selM = $('#selMethod');
 for (const [k, m] of Object.entries(METHODS)) selM.add(new Option(m.label, k));
 selM.addEventListener('change', () => {
   const p = P(); if (!p) return;
-  p.method = selM.value; p.prm = defaults(p.method);
+  pushUndo(); p.method = selM.value; p.prm = defaults(p.method);
   if (p.crop) build(p);
   refresh();
 });
@@ -1491,10 +1574,12 @@ function refresh() {
     $('#ckInvWrap').hidden = !METHODS[p.method].inv;
     $('#bFitStretch').disabled = !p.target; $('#bUnplace').disabled = !p.placed;
   }
+  $('#bUndo').disabled = !undoS.length && !pen && !pending; $('#bRedo').disabled = !redoS.length;
   $('#bExportMenu').disabled = !st.art || !st.parts.some(q => q.mesh && q.placed);
   // 次にやること
   let h;
-  if (!st.art) h = 'まず描きかけの絵を開いてください';
+  if (pending) h = '囲みはこれでいいですか？ <b>✓</b>（Enter）で決定、<b>✕</b>（Esc）で取り消し';
+  else if (!st.art) h = 'まず描きかけの絵を開いてください';
   else if (!art && st.rtool === 'pen') h = pen ? 'クリックで点・ドラッグで線。<b>始点をクリック／ダブルクリック／Enter</b> で閉じるとパーツになります（Esc でやめる）' : `<b>ペン</b>で、立体にしたいパーツを囲んでください。${st.magnet ? 'ふちに吸いつきます（Alt を押しているあいだは吸いつかない）' : 'いくつでも作れます'}`;
   else if (!art && st.rtool === 'erase') h = '<b>投げ縄</b>：いらないパーツの囲みをぐるっと囲むと消えます';
   else if (!art) h = 'ドラッグで表示を移動、ホイールで拡大縮小。囲みの中をクリックするとそのパーツを選びます';
@@ -1568,14 +1653,16 @@ $('#bViewPop').onclick = () => togglePop('#popView');
 $('#bExportMenu').onclick = () => { if (!shown('art')) showView('art'); togglePop('#popExport'); };
 $('#bProps').onclick = () => { st.propsOpen = !st.propsOpen; refresh(); };
 $('#bPropsMin').onclick = () => { st.propsOpen = false; refresh(); };
-$('#bFit').onclick = () => { fit(st.cur, false); refresh(); };
-$('#bFitStretch').onclick = () => { fit(st.cur, true); refresh(); };
-$('#bRotReset').onclick = () => { st.cur.group.quaternion.identity(); syncUI(); requestRender(); };
+$('#bFit').onclick = () => { pushUndo(); fit(st.cur, false); refresh(); };
+$('#bFitStretch').onclick = () => { pushUndo(); fit(st.cur, true); refresh(); };
+$('#bRotReset').onclick = () => { pushUndo(); st.cur.group.quaternion.identity(); syncUI(); requestRender(); };
 $('#bDup').onclick = () => dupPart(st.cur);
-$('#bUnplace').onclick = () => { const p = st.cur; if (p) { p.placed = false; p.target = null; refresh(); } };
-$('#bDel').onclick = () => { if (st.cur && confirm(`「${st.cur.name}」を消しますか？`)) delPart(st.cur); };
-$('#ckMirror').onchange = e => { if (st.cur) { st.cur.mirror = e.target.checked; applyScale(st.cur); requestRender(); } };
-$('#ckInv').onchange = e => { if (st.cur) { st.cur.invert = e.target.checked; rebuildSoon(st.cur); } };
+$('#bUnplace').onclick = () => { const p = st.cur; if (p) { pushUndo(); p.placed = false; p.target = null; refresh(); } };
+$('#bDel').onclick = () => { if (st.cur) { delPart(st.cur); toast('消しました（Ctrl+Z で戻せます）'); } };
+$('#bAskOk').onclick = () => acceptPending(); $('#bAskNo').onclick = () => cancelPending();
+$('#bUndo').onclick = () => undo(); $('#bRedo').onclick = () => redo();
+$('#ckMirror').onchange = e => { if (st.cur) { pushUndo(); st.cur.mirror = e.target.checked; applyScale(st.cur); requestRender(); } };
+$('#ckInv').onchange = e => { if (st.cur) { pushUndo(); st.cur.invert = e.target.checked; rebuildSoon(st.cur); } };
 $('#ckTargets').onchange = e => { st.showTargets = e.target.checked; drawOverlays(); };
 $('#selDepth').onchange = e => { st.depthModel = e.target.value; };
 $('#bReanalyze').onclick = () => {
@@ -1590,7 +1677,13 @@ $('#ckWithArt').onchange = e => { st.withArt = e.target.checked; };
 $('#bExport').onclick = () => { closePops(); exportPNG(); };
 
 addEventListener('keydown', e => {
+  const z = e.key.toLowerCase();
+  if ((e.ctrlKey || e.metaKey) && !e.altKey && (z === 'z' || z === 'y') && !e.target.closest('textarea,input[type=text]')) {
+    e.preventDefault(); (z === 'y' || e.shiftKey) ? redo() : undo(); return;
+  }
   if (e.target.closest('input,select,textarea')) return;
+  if (pending && e.key === 'Enter') { acceptPending(); return; }
+  if (pending && e.key === 'Escape') { cancelPending(); return; }
   if (e.key === ' ') { spaceDown = true; e.preventDefault(); return; }
   if (e.key === 'Escape') { if (pen) { pen = null; drawOverlays(); refresh(); } closePops(); return; }
   if (e.key === 'Enter' && pen) { commitPen(); return; }
@@ -1630,7 +1723,7 @@ addEventListener('paste', e => {
 });
 
 resize(); refresh();
-window.__atari = {st, THREE, tc, tcR};
+window.__atari = {st, THREE, tc, tcR, get pending() { return pending; }};
 </script>
 </body>
 </html>

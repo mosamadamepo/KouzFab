@@ -42,19 +42,28 @@ const { chromium } = require(require.resolve('playwright', {paths: [__dirname + 
   const ring = (cx, cy, rx, ry, n = 36) => Array.from({length: n + 1}, (_, i) => [cx + rx * Math.cos(i / n * 6.283), cy + ry * Math.sin(i / n * 6.283)]);
   // 2 枚目（drop）：楕円の少し外をひと筆 → ふちに吸いつく
   await stroke(ring(300, 400, 200, 320), 'ref');
+  console.log('confirm marks shown:', await p.evaluate(() => !!__atari.pending && !document.querySelector('#penAsk').hidden), 'parts:', (await S()).parts);
+  await p.keyboard.press('Enter'); await p.waitForTimeout(200);
   const fitE = await p.evaluate(() => { const q = __atari.st.cur.refPoly; let e = 0; for (const [x, y] of q) e += Math.abs(Math.hypot((x - 300) / 180, (y - 400) / 300) - 1); return e / q.length; });
   console.log('magnet: mean distance from the ellipse edge (relative):', fitE.toFixed(3)); if (fitE > 0.06) errs.push('magnet did not snap');
   // 1 枚目（mecha）：板の角の少し内側をクリック → 始点クリックで閉じる（角に吸いつく）
   await p.click('#tabsRef .tab:nth-child(1)'); await p.waitForTimeout(200);
   for (const q of [[156, 106], [644, 106], [644, 494], [156, 494], [156, 106]]) { await p.mouse.click(...await scr(q, 'ref')); await p.waitForTimeout(80); }
-  await p.waitForTimeout(400);
+  await p.click('#bAskOk'); await p.waitForTimeout(400);
   const bb = await p.evaluate(() => { const q = __atari.st.cur.refPoly, xs = q.map(v => v[0]), ys = q.map(v => v[1]); return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)].map(Math.round); });
   console.log('mecha outline bbox (want ≈150,100,650,500):', bb.join(','));
   // 余分にもう 1 つ作って、投げ縄で消す
-  await p.keyboard.press('Alt'); await stroke(ring(80, 560, 50, 30), 'ref');
+  await stroke(ring(80, 560, 50, 30), 'ref'); await p.click('#bAskNo'); await p.waitForTimeout(150);
+  const afterNo = (await S()).parts;
+  await stroke(ring(80, 560, 50, 30), 'ref'); await p.keyboard.press('Enter'); await p.waitForTimeout(150);
   const before = (await S()).parts;
+  console.log('✕ keeps', afterNo, '/ ✓ makes', before); if (before !== afterNo + 1) errs.push('confirm marks');
   await p.keyboard.press('l'); await stroke(ring(80, 560, 75, 40), 'ref');
-  console.log('parts before/after erase:', before, (await S()).parts);
+  const afterErase = (await S()).parts;
+  await p.keyboard.press('Control+z'); await p.waitForTimeout(150); const undone = (await S()).parts;
+  await p.keyboard.press('Control+Shift+z'); await p.waitForTimeout(150); const redone = (await S()).parts;
+  console.log('parts before/after erase / undo / redo:', before, afterErase, undone, redone);
+  if (afterErase !== before - 1 || undone !== before || redone !== afterErase) errs.push('undo/redo erase');
   await p.keyboard.press('p');
   await p.waitForTimeout(800); // 作りものの奥行きの解析を待つ
   // トレイの 1 つ目（drop）を絵へドラッグ、2 つ目（mecha）はクリックで真ん中に
@@ -76,6 +85,10 @@ const { chromium } = require(require.resolve('playwright', {paths: [__dirname + 
   const cc = await scr([600, 800], 'art');
   await p.mouse.move(cc[0] + 50, cc[1] + 50); await p.mouse.down(); await p.mouse.move(cc[0] + 130, cc[1] + 50, {steps: 5}); await p.mouse.up();
   console.log('moved by:', Math.round(await p.evaluate(() => __atari.st.cur.group.position.x) - c0));
+  await p.keyboard.press('Control+z'); await p.waitForTimeout(150);
+  const back = Math.round(await p.evaluate(() => __atari.st.cur.group.position.x) - c0);
+  console.log('after Ctrl+Z moved by:', back); if (back !== 0) errs.push('undo move');
+  await p.keyboard.press('Control+y'); await p.waitForTimeout(150);
   await p.waitForTimeout(100);
   const s0 = await p.evaluate(() => __atari.st.cur.scl), kb = await (await p.$('#knob')).boundingBox();
   await p.mouse.move(kb.x + 8, kb.y + 8); await p.mouse.down(); await p.mouse.move(kb.x + 60, kb.y - 40, {steps: 5}); await p.mouse.up();
@@ -93,7 +106,7 @@ const { chromium } = require(require.resolve('playwright', {paths: [__dirname + 
   for (const k of ['e', 'r', 'w', 'q']) await p.keyboard.press(k);
   console.log('gizmo mode:', await p.evaluate(() => __atari.st.gmode));
   // ペンでアタリ（Alt で吸いつかない）
-  await p.keyboard.press('p'); await p.keyboard.down('Alt'); await stroke(ring(600, 1150, 280, 230), 'art'); await p.keyboard.up('Alt');
+  await p.keyboard.press('p'); await p.keyboard.down('Alt'); await stroke(ring(600, 1150, 280, 230), 'art'); await p.keyboard.up('Alt'); await p.click('#bAskOk'); await p.waitForTimeout(150);
   console.log('target fit:', await p.evaluate(() => { const c = __atari.st.cur; return [!!c.target, Math.round(c.group.position.y)]; }));
   const z0 = await p.evaluate(() => __atari.st.art.v.s);
   const wc = await scr([600, 800], 'art'); await p.mouse.move(...wc); await p.mouse.wheel(0, -400); await p.waitForTimeout(200);
