@@ -15,6 +15,8 @@
 | `mediapipe/pose/` | MediaPipe Pose 0.5（旧版）を自前ホスト。骨格検出はブラウザ内で推論 |
 | `models/moo.vrm` | 同梱の 3D 素体（VRoid 製、作者が同梱を許可済み） |
 | `tests/smoke.js` / `tests/zh.js` | Playwright の動作確認／繁體中文の訳抜けチェック |
+| `atari3d.html` | **パーツ立体アタリ**（別ツール・単一ファイル・ビルドなし）。描きかけの絵でアタリを囲む → 資料のパーツを囲む → 立体化（ふくらませる／押し出す／回転体／明暗の凹凸／箱・円柱・球）→ 位置合わせ → 絵と同じ大きさの透過 PNG。three は `./vendor/kouzu3d.js`、無ければ CDN。日本語のみ（ZH 辞書の対象外） |
+| `tests/atari3d.js` | 上の一通りの動作確認（期待：errors [] で終了コード 0） |
 
 ## 開発の流れ
 
@@ -27,6 +29,7 @@ python3 -m http.server 8765            # リポジトリ直下で
 cd tools && npm i && npx playwright install chromium   # 初回のみ
 node ../tests/smoke.js                 # 期待：errors [] / face off-canvas: 0
 node ../tests/zh.js                    # 期待：leftover JP in zh mode: 0
+node ../tests/atari3d.js               # パーツ立体アタリ。期待：errors []
 # 反映
 git add -A && git commit -m "…" && git push   # Pages は数十秒で更新
 ```
