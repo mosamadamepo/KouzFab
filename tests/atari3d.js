@@ -26,7 +26,7 @@ const { chromium } = require(require.resolve('playwright', {paths: [__dirname + 
   const file = (name, b64) => ({name, mimeType: 'image/png', buffer: Buffer.from(b64, 'base64')});
   const art = await png(1200, 1600, "x.fillStyle='#fafafa';x.fillRect(0,0,w,h);x.strokeStyle='#333';x.lineWidth=6;x.beginPath();x.arc(600,500,220,0,7);x.stroke();x.strokeRect(300,900,600,500);");
   const ref1 = await png(800, 600, "x.fillStyle='#eee';x.fillRect(0,0,w,h);x.fillStyle='#777';x.fillRect(150,100,500,400);x.fillStyle='#bbb';x.fillRect(200,150,180,300);x.fillStyle='#c33';x.beginPath();x.arc(520,220,60,0,7);x.fill();x.strokeStyle='#111';x.lineWidth=4;x.beginPath();x.moveTo(420,300);x.lineTo(620,300);x.moveTo(420,380);x.lineTo(620,380);x.stroke();");
-  const ref2 = await png(600, 800, "x.fillStyle='#fff';x.fillRect(0,0,w,h);const g=x.createLinearGradient(100,100,500,700);g.addColorStop(0,'#c33');g.addColorStop(1,'#36c');x.fillStyle=g;x.beginPath();x.ellipse(300,400,180,300,0,0,7);x.fill();");
+  const ref2 = await png(600, 800, "x.fillStyle='#fff';x.fillRect(0,0,w,h);const g=x.createLinearGradient(100,100,500,700);g.addColorStop(0,'#c33');g.addColorStop(1,'#36c');x.fillStyle=g;x.beginPath();x.ellipse(300,400,180,300,0,0,7);x.fill();x.save();x.clip();x.strokeStyle='#111';x.lineWidth=3;for(let i=0;i<14;i++){x.beginPath();x.moveTo(100,150+i*40);x.lineTo(500,120+i*40);x.stroke();}x.restore();let r=7;for(let i=0;i<1500;i++){r=(r*16807)%2147483647;const px=r%600;r=(r*16807)%2147483647;const py=r%800;x.fillStyle=i%2?'#ddd':'#999';x.fillRect(px,py,3,3);}");
   await p.setInputFiles('#fArt', file('art.png', art)); await p.waitForTimeout(300);
   await p.setInputFiles('#fRef', [file('mecha.png', ref1), file('drop.png', ref2)]); await p.waitForTimeout(600);
   const split = await p.evaluate(() => document.body.classList.contains('split') && !!document.querySelector('#artPane').offsetWidth && !!document.querySelector('#refPane').offsetWidth);
@@ -45,13 +45,16 @@ const { chromium } = require(require.resolve('playwright', {paths: [__dirname + 
   console.log('confirm marks shown:', await p.evaluate(() => !!__atari.pending && !document.querySelector('#penAsk').hidden), 'parts:', (await S()).parts);
   await p.keyboard.press('Enter'); await p.waitForTimeout(200);
   const fitE = await p.evaluate(() => { const q = __atari.st.cur.refPoly; let e = 0; for (const [x, y] of q) e += Math.abs(Math.hypot((x - 300) / 180, (y - 400) / 300) - 1); return e / q.length; });
-  console.log('magnet: mean distance from the ellipse edge (relative):', fitE.toFixed(3)); if (fitE > 0.06) errs.push('magnet did not snap');
+  const per = await p.evaluate(() => { const q = __atari.st.cur.refPoly; let L = 0; for (let i = 0; i < q.length; i++) { const a = q[i], b = q[(i + 1) % q.length]; L += Math.hypot(b[0] - a[0], b[1] - a[1]); } const A = 180, B = 300, h = ((A - B) / (A + B)) ** 2; return L / (Math.PI * (A + B) * (1 + 3 * h / (10 + Math.sqrt(4 - 3 * h)))); });
+  console.log('magnet (striped + speckled): mean distance from the ellipse edge', fitE.toFixed(3), '/ outline length vs ellipse', per.toFixed(3));
+  if (fitE > 0.02 || per > 1.04) errs.push('magnet outline not smooth / not on the edge');
   // 1 枚目（mecha）：板の角の少し内側をクリック → 始点クリックで閉じる（角に吸いつく）
   await p.click('#tabsRef .tab:nth-child(1)'); await p.waitForTimeout(200);
   for (const q of [[156, 106], [644, 106], [644, 494], [156, 494], [156, 106]]) { await p.mouse.click(...await scr(q, 'ref')); await p.waitForTimeout(80); }
   await p.click('#bAskOk'); await p.waitForTimeout(400);
   const bb = await p.evaluate(() => { const q = __atari.st.cur.refPoly, xs = q.map(v => v[0]), ys = q.map(v => v[1]); return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)].map(Math.round); });
   console.log('mecha outline bbox (want ≈150,100,650,500):', bb.join(','));
+  if (Math.abs(bb[0] - 150) > 4 || Math.abs(bb[1] - 100) > 4 || Math.abs(bb[2] - 650) > 4 || Math.abs(bb[3] - 500) > 4) errs.push('clicked outline not on the plate edge');
   // 余分にもう 1 つ作って、投げ縄で消す
   await stroke(ring(80, 560, 50, 30), 'ref'); await p.click('#bAskNo'); await p.waitForTimeout(150);
   const afterNo = (await S()).parts;
