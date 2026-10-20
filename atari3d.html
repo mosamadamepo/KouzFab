@@ -5,193 +5,322 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>パーツ立体アタリ</title>
 <link rel="icon" href="data:,">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js"}}</script>
 <style>
-:root{--bg:#f4f2ee;--panel:#fff;--ink:#222;--sub:#6b6b6b;--line:#dedad3;--acc:#d2553a;--acc-ink:#fff;--stage:#e6e2db;--soft:#f0ede8}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1b1b1d;--panel:#232326;--ink:#ececec;--sub:#a5a5a5;--line:#3a3a3f;--acc:#e8714f;--stage:#121214;--soft:#2c2c30}}
-:root[data-theme="dark"]{--bg:#1b1b1d;--panel:#232326;--ink:#ececec;--sub:#a5a5a5;--line:#3a3a3f;--acc:#e8714f;--stage:#121214;--soft:#2c2c30}
+:root{--bg:#f4f2ee;--panel:#fff;--ink:#222;--sub:#6b6b6b;--line:#dedad3;--acc:#d2553a;--acc-ink:#fff;--stage:#e6e2db;--soft:#f0ede8;--float:rgba(255,255,255,.95)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1b1b1d;--panel:#232326;--ink:#ececec;--sub:#a5a5a5;--line:#3a3a3f;--acc:#e8714f;--stage:#121214;--soft:#2c2c30;--float:rgba(35,35,38,.95)}}
+:root[data-theme="dark"]{--bg:#1b1b1d;--panel:#232326;--ink:#ececec;--sub:#a5a5a5;--line:#3a3a3f;--acc:#e8714f;--stage:#121214;--soft:#2c2c30;--float:rgba(35,35,38,.95)}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:13px/1.5 system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif}
-#app{display:grid;grid-template-columns:320px 1fr;height:100dvh}
-aside{overflow:auto;background:var(--panel);border-right:1px solid var(--line);padding:12px 14px 40px}
-h1{font-size:16px;margin:0 0 2px}
-.note{color:var(--sub);font-size:11px;margin:0 0 10px}
-section{border-top:1px solid var(--line);padding:10px 0 6px}
-h2{font-size:13px;margin:0 0 6px;display:flex;align-items:center;gap:6px}
-h2 .n{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;background:var(--acc);color:var(--acc-ink);font-size:11px}
-h3{font-size:12px;margin:10px 0 4px;color:var(--sub);font-weight:600}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font:13px/1.5 system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif}
 button{font:inherit;color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:6px;padding:5px 9px;cursor:pointer}
 button:hover{border-color:var(--sub)}
 button.pri{background:var(--acc);color:var(--acc-ink);border-color:var(--acc)}
-button.on{outline:2px solid var(--acc);outline-offset:-2px}
-button:disabled{opacity:.45;cursor:default}
-.row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 0}
-.st{color:var(--sub);font-size:11px}
-.st.ok{color:#2e8b57}
-select{font:inherit;color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:6px;padding:4px;width:100%}
-label.sl{display:grid;grid-template-columns:62px 1fr 42px;gap:6px;align-items:center;margin:2px 0}
+button:disabled{opacity:.4;cursor:default}
+select{font:inherit;color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:6px;padding:4px}
+#app{display:flex;flex-direction:column;height:100dvh}
+
+/* 上：タブ */
+#top{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--panel);border-bottom:1px solid var(--line);min-height:46px}
+.logo{font-weight:700;white-space:nowrap}
+#tabs{display:flex;gap:4px;overflow-x:auto;min-width:0;flex:0 1 auto;scrollbar-width:thin;padding-bottom:1px}
+.tab{display:flex;align-items:center;gap:6px;padding:3px 8px 3px 4px;border:1px solid var(--line);border-radius:7px;background:var(--soft);cursor:pointer;white-space:nowrap;flex:none;height:34px}
+.tab.on{border-color:var(--acc);background:var(--panel);box-shadow:inset 0 -2px 0 var(--acc)}
+.tab canvas{width:26px;height:26px;border-radius:4px;background:#fff}
+.tab .x{border:0;background:none;padding:0 2px;color:var(--sub);font-size:14px;line-height:1}
+.tab.add{color:var(--acc);font-weight:600;padding:3px 10px}
+#hint{flex:1;min-width:0;color:var(--sub);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#hint b{color:var(--acc)}
+
+/* まん中：キャンバス */
+#wrap{flex:1;position:relative;overflow:hidden;background:var(--stage);touch-action:none;min-height:0}
+#wrap>canvas,#ov{position:absolute;inset:0;width:100%;height:100%;display:block}
+#ov{pointer-events:none}
+#wrap.pen canvas{cursor:crosshair}
+#wrap.hand canvas{cursor:grab}
+.empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:var(--sub);padding:20px}
+.empty b{display:block;color:var(--ink);font-size:15px;margin-bottom:10px}
+.empty button.big{font-size:15px;padding:10px 22px;margin-bottom:10px}
+.float{position:absolute;background:var(--float);border:1px solid var(--line);border-radius:10px;box-shadow:0 2px 12px #0002;z-index:3}
+#tbar{top:10px;right:10px;display:flex;gap:3px;padding:4px;align-items:center;flex-wrap:wrap;justify-content:flex-end;max-width:calc(100% - 20px)}
+.ib{width:34px;height:34px;padding:0;display:grid;place-items:center;border-radius:7px;background:transparent;border:1px solid transparent;position:relative}
+.ib:hover{border-color:var(--line)}
+.ib svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ib.on{background:var(--acc);color:var(--acc-ink)}
+.ib.tog.on{background:var(--soft);color:var(--acc);border-color:var(--acc)}
+.ib kbd{position:absolute;right:2px;bottom:0;font-size:8px;opacity:.6;font-family:inherit}
+.sep{width:1px;height:24px;background:var(--line);margin:0 3px}
+#selMode{height:34px}
+#props{top:60px;right:10px;width:272px;max-height:calc(100% - 120px);overflow:auto;padding:10px 12px}
+#props .ph{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+#props .ph b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#props select{width:100%}
+.lbl{font-size:11px;color:var(--sub);font-weight:600;margin:8px 0 3px}
+details summary{cursor:pointer;font-size:11px;color:var(--sub);font-weight:600;margin:8px 0 3px}
+.pop{top:60px;right:10px;width:270px;padding:10px 12px;z-index:4}
+#zoomBox{left:10px;bottom:10px;display:flex;gap:2px;align-items:center;padding:3px}
+#zoomBox button{padding:3px 8px}
+#zoomBox span{min-width:48px;text-align:center;font-size:12px;font-variant-numeric:tabular-nums}
+.row{display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin:5px 0}
+label.sl{display:grid;grid-template-columns:66px 1fr 42px;gap:6px;align-items:center;margin:2px 0}
 label.sl span{color:var(--sub);font-size:11px}
 label.sl output{font-size:11px;text-align:right;font-variant-numeric:tabular-nums}
 label.sl.dis{opacity:.4;pointer-events:none}
 input[type=range]{width:100%;accent-color:var(--acc)}
 label.ck{display:flex;gap:6px;align-items:center;margin:3px 0;font-size:12px}
-#parts{display:flex;flex-direction:column;gap:4px;margin-bottom:6px}
-.part{display:flex;align-items:center;gap:6px;padding:4px 6px;border:1px solid var(--line);border-radius:6px;cursor:pointer}
-.part.cur{border-color:var(--acc);background:var(--soft)}
-.part .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.part .ic{border:0;background:none;padding:0 4px;font-size:13px}
-.part .stt{font-size:10px;color:var(--sub)}
-main{display:flex;flex-direction:column;min-width:0;min-height:0}
-#bar{display:flex;gap:6px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--line);background:var(--panel)}
-#hint{flex:1;color:var(--sub);font-size:12px;min-width:0}
-#hint b{color:var(--acc)}
-#wrap{flex:1;position:relative;background:var(--stage);overflow:hidden;min-height:0}
-.stage{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);box-shadow:0 2px 14px #0003;touch-action:none;background:#fff}
-.stage canvas,.stage svg{position:absolute;inset:0;width:100%;height:100%;display:block}
-.stage svg{pointer-events:none;overflow:visible}
-.stage.lasso{cursor:crosshair}
-.empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:var(--sub);padding:20px}
-.empty b{display:block;color:var(--ink);font-size:15px;margin-bottom:10px}
-.empty button.big{font-size:15px;padding:10px 22px;margin-bottom:10px}
-#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#222;color:#fff;padding:7px 14px;border-radius:20px;font-size:12px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}
+.st{color:var(--sub);font-size:11px}
+
+/* 下：パーツのトレイ */
+#tray{display:flex;gap:6px;align-items:center;padding:6px 10px;background:var(--panel);border-top:1px solid var(--line);overflow-x:auto;min-height:78px;flex:none}
+#tray .none{color:var(--sub);font-size:12px}
+.chip{position:relative;flex:none;width:64px;height:64px;border:2px solid var(--line);border-radius:9px;cursor:pointer;touch-action:pan-x;user-select:none;-webkit-user-select:none;
+  background:conic-gradient(#ddd 25%,#fff 0 50%,#ddd 0 75%,#fff 0) 0 0/12px 12px}
+.chip.cur{border-color:var(--acc);box-shadow:0 0 0 2px var(--acc)}
+.chip canvas{width:100%;height:100%;display:block;border-radius:7px}
+.chip .nm{position:absolute;left:0;right:0;bottom:0;font-size:9px;background:#000a;color:#fff;text-align:center;border-radius:0 0 7px 7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 2px}
+.chip .badge{position:absolute;left:3px;top:3px;font-size:9px;background:var(--acc);color:#fff;border-radius:4px;padding:0 3px}
+.chip .eye{position:absolute;right:2px;top:2px;width:18px;height:18px;padding:0;border-radius:50%;font-size:10px;line-height:1;background:var(--float)}
+.chip.off canvas{opacity:.3}
+.ghost{position:fixed;width:56px;height:56px;pointer-events:none;z-index:20;opacity:.85;transform:translate(-50%,-50%);border-radius:8px;box-shadow:0 4px 14px #0004}
+#toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:#222;color:#fff;padding:7px 14px;border-radius:20px;font-size:12px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:30}
 #toast.show{opacity:.92}
 .drop #wrap{outline:3px dashed var(--acc);outline-offset:-8px}
 @media (max-width:760px){
-  #app{grid-template-columns:1fr;grid-template-rows:62dvh auto;height:auto}
-  main{order:-1;height:62dvh;position:sticky;top:0;z-index:2}
-  aside{border-right:0;padding:12px 16px 60px}
+  .logo{display:none}
+  #top{flex-wrap:wrap}
+  #hint{order:3;flex-basis:100%;white-space:normal}
+  #props{left:10px;right:10px;width:auto;top:auto;bottom:10px;max-height:46%}
+  .pop{left:10px;right:10px;width:auto}
+  #zoomBox{display:none}
 }
 </style>
 </head>
 <body>
 <div id="app">
-<aside>
-  <h1>パーツ立体アタリ</h1>
-  <p class="note">描きかけの絵に、資料のパーツを立体にして合わせ、透過 PNG で書き出します。<br>読み込んだ画像は端末の外に出しません（送信も保存もしません）。</p>
-
-  <section>
-    <h2><span class="n">1</span>描きかけの絵</h2>
-    <div class="row"><button id="bArt" class="pri">絵を開く</button><span id="sArt" class="st">まだありません</span></div>
-    <input type="file" id="fArt" accept="image/*" hidden>
-  </section>
-
-  <section>
-    <h2><span class="n">2</span>資料</h2>
-    <div class="row"><button id="bRef" class="pri">資料を開く</button><span id="sRefImg" class="st">まだありません</span></div>
-    <input type="file" id="fRef" accept="image/*" hidden>
-  </section>
-
-  <section>
-    <h2>パーツ</h2>
-    <div id="parts"></div>
-    <div class="row"><button id="bAdd">＋ パーツを足す</button><button id="bDup">複製</button><button id="bDel">消す</button></div>
-  </section>
-
-  <section id="secPart">
-    <h2><span class="n">3</span>囲む</h2>
-    <div class="row"><button id="bTarget">絵の上でアタリを囲む</button><span id="sTarget" class="st"></span></div>
-    <div class="row"><button id="bRefLasso">資料のパーツを囲む</button><button id="bRef2">別の資料を開く</button></div>
-    <div class="row"><span id="sRef" class="st"></span></div>
-
-    <h2 style="margin-top:12px"><span class="n">4</span>立体にする</h2>
-    <select id="selMethod"></select>
-    <div id="slModel"></div>
-    <label class="ck" id="ckInvWrap"><input type="checkbox" id="ckInv">明るいところをへこませる</label>
-
-    <h2 style="margin-top:12px"><span class="n">5</span>位置を合わせる</h2>
-    <div class="row" id="tools">
-      <button data-tool="move" class="on">移動</button><button data-tool="rot">回転</button><button data-tool="roll">ひねる</button><button data-tool="scale">拡大</button>
-    </div>
-    <p class="st" style="margin:2px 0 4px">ドラッグ＝選んだ操作／右ドラッグ＝回転／ホイール＝拡大縮小（Shift＋ホイールでひねる）／2 本指＝拡大とひねり</p>
-    <div id="slPos"></div>
-    <label class="ck"><input type="checkbox" id="ckMirror">左右反転</label>
-    <div class="row"><button id="bFit">アタリに合わせる</button><button id="bFitStretch">縦横もアタリに</button><button id="bRotReset">回転をもどす</button></div>
-  </section>
-
-  <section>
-    <h2>見え方</h2>
-    <select id="selMode">
-      <option value="tex">資料の色</option>
-      <option value="gray">グレーの陰影</option>
-      <option value="flat">面で見る（フラット）</option>
-      <option value="wire">ワイヤー</option>
-    </select>
-    <label class="ck"><input type="checkbox" id="ckEdges">稜線（輪郭）を描く</label>
-    <label class="ck"><input type="checkbox" id="ckTargets" checked>アタリの囲みを表示</label>
-    <div id="slView"></div>
-  </section>
-
-  <section>
-    <h2><span class="n">6</span>書き出し</h2>
-    <label class="ck"><input type="radio" name="scope" value="all" checked>表示中のパーツをすべて</label>
-    <label class="ck"><input type="radio" name="scope" value="cur">選んでいるパーツだけ</label>
-    <label class="ck"><input type="checkbox" id="ckClip">アタリの囲みの外を消す</label>
-    <label class="ck"><input type="checkbox" id="ckWithArt">絵も重ねる（確認用。透過にならない）</label>
-    <div class="row"><button id="bExport" class="pri">透過 PNG で書き出す</button></div>
-    <p class="st">絵と同じ大きさで書き出します。クリスタなどで絵の上のレイヤーにそのまま重なります。</p>
-  </section>
-</aside>
-
-<main>
-  <div id="bar">
-    <button data-view="art" class="on">絵</button><button data-view="ref">資料</button>
+  <header id="top">
+    <span class="logo">パーツ立体アタリ</span>
+    <nav id="tabs"></nav>
     <div id="hint"></div>
-    <button id="bOpenBar">開く</button>
-  </div>
-  <div id="wrap">
-    <div id="stArt" class="stage" hidden><canvas id="cArt"></canvas><canvas id="c3d"></canvas><svg id="ovArt"></svg></div>
-    <div id="stRef" class="stage" hidden><canvas id="cRef"></canvas><svg id="ovRef"></svg></div>
+    <button id="bExportMenu" class="pri">書き出し</button>
+  </header>
+
+  <main id="wrap">
+    <canvas id="cView"></canvas>
+    <canvas id="c3d"></canvas>
+    <svg id="ov" preserveAspectRatio="none"></svg>
     <div id="empty" class="empty"></div>
-  </div>
-</main>
+
+    <div id="tbar" class="float" hidden>
+      <!-- 資料のとき -->
+      <span class="tg-ref" style="display:contents">
+        <button class="ib" data-rtool="pen" title="ペン：囲むとパーツになる（クリックで点・ドラッグで線。始点クリック／ダブルクリック／Enter で閉じる）"><svg viewBox="0 0 24 24"><path d="M4 20l3.5-1 11-11-2.5-2.5-11 11z"/><path d="M14.5 6.5l3 3"/></svg><kbd>P</kbd></button>
+        <button class="ib" data-rtool="erase" title="投げ縄：囲んだパーツを消す"><svg viewBox="0 0 24 24"><path d="M12 4c5 0 8 2.5 8 5.5S17 15 12 15s-8-2.5-8-5.5S7 4 12 4z" stroke-dasharray="3 2.5"/><path d="M7 14c-1 2 0 4 2 4s2-2 1-3"/><path d="M15 17l4 4M19 17l-4 4"/></svg><kbd>L</kbd></button>
+        <button class="ib" data-rtool="hand" title="手：表示を動かす・パーツの囲みをクリックで選ぶ"><svg viewBox="0 0 24 24"><path d="M8 12V5.5a1.5 1.5 0 0 1 3 0V11M11 10V4.5a1.5 1.5 0 0 1 3 0V11M14 10.5V6a1.5 1.5 0 0 1 3 0v7c0 4-2.5 7-6 7-2.5 0-4-1.5-5.5-4L4 13a1.5 1.5 0 0 1 2.5-1.5L8 13"/></svg><kbd>H</kbd></button>
+      </span>
+      <!-- 絵のとき -->
+      <span class="tg-art" style="display:contents">
+        <button class="ib" data-gmode="translate" title="移動（W）"><svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/></svg><kbd>W</kbd></button>
+        <button class="ib" data-gmode="rotate" title="回転（E）"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v5h-5"/></svg><kbd>E</kbd></button>
+        <button class="ib" data-gmode="scale" title="拡大縮小（R）"><svg viewBox="0 0 24 24"><path d="M4 14v6h6M4 20l7-7M20 10V4h-6M20 4l-7 7"/></svg><kbd>R</kbd></button>
+        <button class="ib" data-gmode="pen" title="ペン：選んでいるパーツのアタリを囲む（囲んだ範囲に合わせて置く）"><svg viewBox="0 0 24 24"><path d="M4 20l3.5-1 11-11-2.5-2.5-11 11z"/><path d="M14.5 6.5l3 3"/></svg><kbd>P</kbd></button>
+        <span class="sep"></span>
+        <button class="ib tog" id="bSpace" title="軸：ローカル（パーツの向き）／ワールド（画面の向き）"><svg viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z M12 12l8-4.5M12 12v9M12 12L4 7.5"/></svg></button>
+        <span class="sep"></span>
+        <select id="selMode" title="パーツの見え方">
+          <option value="tex">資料の色</option>
+          <option value="gray">グレー</option>
+          <option value="flat">面</option>
+          <option value="line">線画</option>
+          <option value="wire">ワイヤー</option>
+        </select>
+        <button class="ib tog" id="bLine" title="線画を重ねる"><svg viewBox="0 0 24 24"><path d="M4 18c3-6 6-9 9-9s3 4 7 1"/><path d="M4 21h16"/></svg></button>
+        <button class="ib tog" id="bLow" title="単純化ポリゴン（ローポリ）"><svg viewBox="0 0 24 24"><path d="M12 3l8 6-3 11H7L4 9z M12 3L7 20M12 3l5 17M4 9h16"/></svg></button>
+        <span class="sep"></span>
+        <button class="ib" id="bViewPop" title="見え方の設定（濃さ・パース・光・線の太さ）"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg></button>
+        <button class="ib tog on" id="bProps" title="パーツの設定パネル"><svg viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg></button>
+      </span>
+    </div>
+
+    <div id="props" class="float" hidden>
+      <div class="ph"><b id="pName"></b><button id="bPropsMin" title="たたむ">－</button></div>
+      <div class="lbl">立体にする</div>
+      <select id="selMethod"></select>
+      <div id="slModel"></div>
+      <label class="ck" id="ckInvWrap"><input type="checkbox" id="ckInv">暗いところを高くする</label>
+      <div class="row"><button id="bFit">アタリに合わせる</button><button id="bFitStretch">縦横もアタリに</button></div>
+      <details><summary>数値で位置を合わせる</summary>
+        <div id="slPos"></div>
+        <label class="ck"><input type="checkbox" id="ckMirror">左右反転</label>
+        <div class="row"><button id="bRotReset">回転をもどす</button></div>
+      </details>
+      <div class="row" style="margin-top:8px"><button id="bDup">複製</button><button id="bUnplace">絵から外す</button><button id="bDel">消す</button></div>
+    </div>
+
+    <div id="popView" class="float pop" hidden>
+      <div id="slView"></div>
+      <label class="ck"><input type="checkbox" id="ckTargets" checked>アタリの囲みを表示</label>
+    </div>
+
+    <div id="popExport" class="float pop" hidden>
+      <div class="lbl" style="margin-top:0">透過 PNG で書き出す</div>
+      <label class="ck"><input type="radio" name="scope" value="all" checked>絵に置いたパーツをすべて</label>
+      <label class="ck"><input type="radio" name="scope" value="cur">選んでいるパーツだけ</label>
+      <label class="ck"><input type="checkbox" id="ckClip">アタリの囲みの外を消す</label>
+      <label class="ck"><input type="checkbox" id="ckWithArt">絵も重ねる（確認用。透過にならない）</label>
+      <div class="row"><button id="bExport" class="pri">書き出す</button></div>
+      <p class="st" style="margin:0">絵と同じ大きさです。ペイントソフトで絵の上のレイヤーにそのまま重なります。</p>
+    </div>
+
+    <div id="zoomBox" class="float" hidden>
+      <button id="bZoomOut" title="縮小">－</button><span id="zoomVal">100%</span><button id="bZoomIn" title="拡大">＋</button><button id="bZoomFit" title="全体を表示">全体</button>
+    </div>
+  </main>
+
+  <footer id="tray"></footer>
 </div>
+<input type="file" id="fArt" accept="image/*" hidden>
+<input type="file" id="fRef" accept="image/*" multiple hidden>
 <div id="toast"></div>
 
 <script type="module">
 // ---------- three.js（配布版は同梱バンドル、アーティファクト版は CDN） ----------
-let THREE;
-try { ({THREE} = await import('./vendor/kouzu3d.js')); }
-catch (e) { THREE = await import('https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js'); }
+let THREE, TransformControls;
+try { ({THREE, TransformControls} = await import('./vendor/kouzu3d.js')); if (!TransformControls) throw new Error('old bundle'); }
+catch (e) {
+  THREE = await import('three');
+  ({TransformControls} = await import('https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/controls/TransformControls.js'));
+}
 
 const $ = s => document.querySelector(s);
 const D2R = Math.PI / 180;
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
 // ---------- state ----------
 // 画像はメモリ上だけ。localStorage にも IndexedDB にも残さない。
 const st = {
-  art: null, ref: null, refSeq: 0, parts: [], cur: null, pid: 0,
-  view: 'art', armed: null, tool: 'move',
-  mode: 'tex', edges: false, showTargets: true, opacity: 0.9, artFade: 1,
-  fov: 30, lightAz: -35, lightEl: 40, scope: 'all', clip: false, withArt: false,
+  art: null, refs: [], ref: null, seq: 0, parts: [], cur: null, pid: 0,
+  view: 'art', rtool: 'pen', gmode: 'translate', space: 'local',
+  mode: 'tex', lineOver: false, lowpoly: false, lowRes: 28, lineW: 3,
+  showTargets: true, opacity: 0.92, artFade: 1, fov: 30, lightAz: -35, lightEl: 40,
+  scope: 'all', clip: false, withArt: false, propsOpen: true,
 };
+let passSet = null; // 書き出しでパーツごとに描くとき
 
 const METHODS = {
-  inflate: {label: 'ふくらませる（髪・手・布・顔のパーツ）', depth: [0, 200, 60, 'ふくらみ'], smooth: [0, 8, 3, 'なめらか'], alpha: true},
-  extrude: {label: '押し出す（板・刃物・アクセサリー）', depth: [1, 200, 15, '厚み'], smooth: [0, 8, 1, '角の丸み'], alpha: false},
-  lathe:   {label: '回転体（ビン・カップ・柱・脚）', depth: [10, 200, 100, '奥行き'], smooth: [0, 8, 2, 'なめらか'], alpha: false},
-  relief:  {label: '明暗の凹凸（レリーフ・模様）', depth: [0, 200, 25, '凹凸'], smooth: [0, 8, 2, 'なめらか'], alpha: true},
-  box:     {label: '箱', depth: [1, 300, 60, '奥行き'], alpha: false},
-  cyl:     {label: '円柱', depth: [10, 300, 100, '奥行き'], alpha: false},
-  sphere:  {label: '球', depth: [10, 300, 100, '奥行き'], alpha: false},
+  mech:    {label: 'メカ・小物（色の区切り・線・丸を読む）', alpha: true, inv: true, prm: {depth: [5, 200, 40, '厚み'], smooth: [0, 8, 2, '面取り'], levels: [2, 8, 4, '色の段数'], step: [0, 150, 50, '段の高さ'], groove: [0, 100, 50, '線の彫り']}},
+  inflate: {label: 'ふくらませる（髪・手・布）', alpha: true, prm: {depth: [0, 200, 60, 'ふくらみ'], smooth: [0, 8, 3, 'なめらか']}},
+  extrude: {label: '押し出す（板・刃物・アクセサリー）', alpha: false, prm: {depth: [1, 200, 15, '厚み'], smooth: [0, 8, 1, '角の丸み']}},
+  lathe:   {label: '回転体（ビン・カップ・柱）', alpha: false, prm: {depth: [10, 200, 100, '奥行き'], smooth: [0, 8, 2, 'なめらか']}},
+  relief:  {label: '明暗の凹凸（レリーフ）', alpha: true, inv: true, prm: {depth: [0, 200, 25, '凹凸'], smooth: [0, 8, 2, 'なめらか']}},
+  box:     {label: '箱', alpha: false, prm: {depth: [1, 300, 60, '奥行き']}},
+  cyl:     {label: '円柱', alpha: false, prm: {depth: [10, 300, 100, '奥行き']}},
+  sphere:  {label: '球', alpha: false, prm: {depth: [10, 300, 100, '奥行き']}},
 };
+const PRM_KEYS = ['depth', 'smooth', 'levels', 'step', 'groove'];
+function defaults(m) { const o = {}; for (const [k, v] of Object.entries(METHODS[m].prm)) o[k] = v[2]; return o; }
 
 // ---------- three ----------
-const c3d = $('#c3d');
+const wrap = $('#wrap'), cView = $('#cView'), c3d = $('#c3d');
 const renderer = new THREE.WebGLRenderer({canvas: c3d, alpha: true, antialias: true, preserveDrawingBuffer: true});
-renderer.setClearColor(0x000000, 0);
+renderer.autoClear = false; renderer.setClearColor(0x000000, 0);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(30, 1, 1, 10000);
 const hemi = new THREE.HemisphereLight(0xffffff, 0x8a8580, 1.25);
 const sun = new THREE.DirectionalLight(0xffffff, 2.2);
 scene.add(hemi, sun, sun.target);
 
+// 3D ソフトでおなじみの移動・回転・拡大のハンドル
+const tc = new TransformControls(camera, c3d);
+tc.setSize(0.9); tc.setSpace('local'); scene.add(tc);
+tc.addEventListener('change', () => requestRender());
+tc.addEventListener('objectChange', () => { const p = st.cur; if (p && tc.mode === 'scale') normScale(p); syncSoon(); });
+
+// 線画：法線と深度を描いて、そのつなぎ目に線を引く
+const rt = new THREE.WebGLRenderTarget(1, 1, {minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter});
+rt.depthTexture = new THREE.DepthTexture(1, 1);
+const postMat = new THREE.ShaderMaterial({
+  uniforms: {tN: {value: rt.texture}, tD: {value: rt.depthTexture}, texel: {value: new THREE.Vector2(1, 1)}, thick: {value: 1},
+    cn: {value: 1}, cf: {value: 100}, dthr: {value: 10}, nthr: {value: 0.82}, col: {value: new THREE.Color(0x18181a)}, op: {value: 1}},
+  vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+  fragmentShader: `
+    uniform sampler2D tN; uniform sampler2D tD; uniform vec2 texel; uniform float thick, cn, cf, dthr, nthr, op; uniform vec3 col;
+    varying vec2 vUv;
+    float lin(float d){ float z = d * 2.0 - 1.0; return 2.0 * cn * cf / (cf + cn - z * (cf - cn)); }
+    void main(){
+      vec4 c = texture2D(tN, vUv); float dc = lin(texture2D(tD, vUv).x); float e = 0.0;
+      for (int i = 0; i < 8; i++) {
+        float a = float(i) * 0.785398;
+        vec2 uv = vUv + vec2(cos(a), sin(a)) * texel * thick;
+        vec4 o = texture2D(tN, uv);
+        if (abs(o.a - c.a) > 0.5) { e = 1.0; break; }
+        if (c.a > 0.5) {
+          float k = dot(normalize(c.rgb * 2.0 - 1.0), normalize(o.rgb * 2.0 - 1.0));
+          e = max(e, smoothstep(nthr + 0.06, nthr - 0.06, k));
+          float d = lin(texture2D(tD, uv).x);
+          e = max(e, smoothstep(dthr * 0.6, dthr * 1.4, abs(d - dc)));
+        }
+      }
+      gl_FragColor = vec4(col, e * op);
+    }`,
+  transparent: true, depthTest: false, depthWrite: false,
+});
+const postScene = new THREE.Scene(), postCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+{ const q = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), postMat); q.frustumCulled = false; postScene.add(q); }
+function makeNMat() {
+  return new THREE.ShaderMaterial({
+    side: THREE.DoubleSide,
+    uniforms: {map: {value: null}, useMap: {value: 0}, uFlat: {value: 0}},
+    vertexShader: 'varying vec3 vN; varying vec3 vV; varying vec2 vUv; void main(){ vUv = uv; vN = normalize(normalMatrix * normal); vec4 mv = modelViewMatrix * vec4(position, 1.0); vV = mv.xyz; gl_Position = projectionMatrix * mv; }',
+    fragmentShader: `uniform sampler2D map; uniform float useMap; uniform float uFlat; varying vec3 vN; varying vec3 vV; varying vec2 vUv;
+      void main(){
+        if (useMap > 0.5 && texture2D(map, vUv).a < 0.5) discard;
+        vec3 n = uFlat > 0.5 ? normalize(cross(dFdx(vV), dFdy(vV))) : normalize(vN) * (gl_FrontFacing ? 1.0 : -1.0);
+        gl_FragColor = vec4(n * 0.5 + 0.5, 1.0);
+      }`,
+  });
+}
+
+let WW = 1, WH = 1, DPR = 1;
 let needRender = false;
 function requestRender() {
   if (needRender) return; needRender = true;
-  requestAnimationFrame(() => { needRender = false; renderer.render(scene, camera); });
+  requestAnimationFrame(() => { needRender = false; draw2D(); if (st.view === 'art' && st.art) renderAll(Math.max(1, st.lineW * st.art.v.s * DPR)); });
+}
+function isShown(p) { return !!p.mesh && p.visible && p.placed && (!passSet || passSet.has(p)); }
+const tmpV = new THREE.Vector2();
+function renderAll(thick) {
+  for (const p of st.parts) p.group.visible = isShown(p);
+  renderer.setRenderTarget(null); renderer.clear();
+  if (st.mode === 'line') {
+    const vis = st.parts.map(p => p.group.visible);
+    st.parts.forEach(p => { p.group.visible = false; });
+    renderer.render(scene, camera);
+    st.parts.forEach((p, i) => { p.group.visible = vis[i]; });
+  } else renderer.render(scene, camera);
+  if ((st.mode === 'line' || st.lineOver) && st.parts.some(p => p.group.visible)) linePass(thick);
+}
+function linePass(thick) {
+  renderer.getDrawingBufferSize(tmpV);
+  if (rt.width !== tmpV.x || rt.height !== tmpV.y) rt.setSize(tmpV.x, tmpV.y);
+  const tv = tc.visible; tc.visible = false;
+  const sw = [];
+  for (const p of st.parts) if (p.mesh && p.group.visible) {
+    sw.push([p.mesh, p.mesh.material]);
+    const u = p.nmat.uniforms, a = alphaCut(p);
+    u.useMap.value = a ? 1 : 0; u.map.value = a ? p.tex.mask : null; u.uFlat.value = st.lowpoly ? 1 : 0;
+    p.mesh.material = p.nmat;
+  }
+  renderer.setRenderTarget(rt); renderer.clear(); renderer.render(scene, camera); renderer.setRenderTarget(null);
+  sw.forEach(([m, mat]) => { m.material = mat; });
+  tc.visible = tv;
+  const u = postMat.uniforms;
+  u.texel.value.set(1 / tmpV.x, 1 / tmpV.y); u.thick.value = thick; u.cn.value = camera.near; u.cf.value = camera.far;
+  u.dthr.value = st.art ? Math.max(st.art.w, st.art.h) * 0.012 : 10;
+  u.op.value = st.mode === 'line' ? st.opacity : 1;
+  renderer.render(postScene, postCam);
 }
 
-// 短辺ではなく絵のピクセルをそのまま世界座標にする：z=0 の面が絵と 1:1 で重なるようにカメラを置く
+// 絵のピクセルをそのまま世界座標にする：z=0 の面が絵と 1:1 で重なるようにカメラを置き、表示の拡大・移動は setViewOffset で
 function setupCamera() {
   if (!st.art) return;
   const {w, h} = st.art;
@@ -200,7 +329,7 @@ function setupCamera() {
   camera.position.set(0, 0, dist); camera.lookAt(0, 0, 0);
   camera.near = dist / 50; camera.far = dist * 20;
   camera.updateProjectionMatrix();
-  placeLight();
+  placeLight(); applyView();
 }
 function placeLight() {
   const r = st.art ? Math.max(st.art.w, st.art.h) * 3 : 3000;
@@ -208,6 +337,48 @@ function placeLight() {
   sun.position.set(Math.sin(az) * Math.cos(el) * r, Math.sin(el) * r, Math.cos(az) * Math.cos(el) * r);
   requestRender();
 }
+
+// ---------- view（ホイールで拡大縮小、空いたところのドラッグ・中ボタン・スペースで移動） ----------
+const curImg = () => st.view === 'art' ? st.art : st.ref;
+function fitView(im) {
+  const pad = 24, s = Math.max(0.01, Math.min((WW - pad * 2) / im.w, (WH - pad * 2) / im.h));
+  im.v = {s, ox: (WW - im.w * s) / 2, oy: (WH - im.h * s) / 2, fit: true};
+}
+function resize() {
+  WW = Math.max(1, wrap.clientWidth); WH = Math.max(1, wrap.clientHeight); DPR = Math.min(devicePixelRatio || 1, 2);
+  cView.width = Math.round(WW * DPR); cView.height = Math.round(WH * DPR);
+  renderer.setPixelRatio(DPR); renderer.setSize(WW, WH, false);
+  for (const im of [st.art, ...st.refs]) if (im && im.v.fit) fitView(im);
+  applyView();
+}
+new ResizeObserver(resize).observe(wrap);
+function applyView() {
+  if (st.art) { const v = st.art.v; camera.setViewOffset(st.art.w * v.s, st.art.h * v.s, -v.ox, -v.oy, WW, WH); }
+  const im = curImg();
+  if (im) {
+    $('#ov').setAttribute('viewBox', `${-im.v.ox / im.v.s} ${-im.v.oy / im.v.s} ${WW / im.v.s} ${WH / im.v.s}`);
+    $('#zoomVal').textContent = Math.round(im.v.s * 100) + '%';
+  }
+  drawOverlays(); requestRender();
+}
+function zoomAt(im, mx, my, f) {
+  const v = im.v, base = Math.min(WW / im.w, WH / im.h);
+  const s2 = clamp(v.s * f, base * 0.1, 32);
+  v.ox = mx - (mx - v.ox) * s2 / v.s; v.oy = my - (my - v.oy) * s2 / v.s; v.s = s2; v.fit = false;
+  applyView();
+}
+function draw2D() {
+  const x = cView.getContext('2d');
+  x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, cView.width, cView.height);
+  const im = curImg(); if (!im) return;
+  const v = im.v;
+  x.setTransform(DPR * v.s, 0, 0, DPR * v.s, DPR * v.ox, DPR * v.oy);
+  x.shadowColor = 'rgba(0,0,0,.28)'; x.shadowBlur = 14 * DPR; x.fillStyle = '#fff'; x.fillRect(0, 0, im.w, im.h); x.shadowColor = 'transparent';
+  x.globalAlpha = st.view === 'art' ? st.artFade : 1; x.imageSmoothingQuality = 'high';
+  x.drawImage(im.img, 0, 0); x.globalAlpha = 1;
+}
+function toImg(e) { const im = curImg(), r = wrap.getBoundingClientRect(); return [(e.clientX - r.left - im.v.ox) / im.v.s, (e.clientY - r.top - im.v.oy) / im.v.s]; }
+function toScreen(q) { const im = curImg(); return [q[0] * im.v.s + im.v.ox, q[1] * im.v.s + im.v.oy]; }
 
 // ---------- images ----------
 function loadImage(file) {
@@ -219,68 +390,76 @@ function loadImage(file) {
   });
 }
 function canvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
-
+function thumb(src, n = 52) {
+  const c = canvas(n, n), x = c.getContext('2d'), sw = src.width || src.naturalWidth, sh = src.height || src.naturalHeight;
+  const k = Math.min(n / sw, n / sh); x.drawImage(src, (n - sw * k) / 2, (n - sh * k) / 2, sw * k, sh * k); return c;
+}
 function setArt(img) {
-  const w = img.naturalWidth, h = img.naturalHeight;
-  st.art = {img, w, h};
-  const c = $('#cArt'); c.width = w; c.height = h; c.getContext('2d').drawImage(img, 0, 0);
-  $('#sArt').textContent = `${w}×${h}`; $('#sArt').className = 'st ok';
-  setupCamera();
-  if (!st.parts.length) addPart();
-  showView('art');
-  if (st.cur && !st.cur.target) arm('target');
+  st.art = {img, w: img.naturalWidth, h: img.naturalHeight, v: {s: 1, ox: 0, oy: 0, fit: true}, th: thumb(img, 26)};
+  fitView(st.art); showView('art'); setupCamera();
   refresh();
 }
-function setRef(img) {
-  st.ref = {img, w: img.naturalWidth, h: img.naturalHeight, id: ++st.refSeq};
-  const c = $('#cRef'); c.width = st.ref.w; c.height = st.ref.h; c.getContext('2d').drawImage(img, 0, 0);
-  if (!st.cur) addPart();
-  showView('ref'); arm('ref');
+function addRef(img, name) {
+  const id = ++st.seq;
+  const r = {img, w: img.naturalWidth, h: img.naturalHeight, id, name: (name || '').replace(/\.[^.]+$/, '').slice(0, 10) || '資料' + id, v: {s: 1, ox: 0, oy: 0, fit: true}, th: thumb(img, 26), n: 0};
+  fitView(r); st.refs.push(r); st.ref = r;
+  showView('ref'); setRtool('pen');
   refresh();
 }
-async function openFile(file, kind) {
-  if (!file || !/^image\//.test(file.type)) { toast('画像ファイルを選んでください'); return; }
-  try { const img = await loadImage(file); kind === 'art' ? setArt(img) : setRef(img); }
-  catch (e) { toast(e.message); }
+function closeRef(r) {
+  st.refs = st.refs.filter(q => q !== r);
+  if (st.ref === r) st.ref = st.refs[st.refs.length - 1] || null;
+  if (st.view === 'ref' && !st.ref) showView('art'); else refresh();
+  applyView();
+}
+async function openFiles(files, kind) {
+  const list = [...files].filter(f => /^image\//.test(f.type));
+  if (!list.length) { toast('画像ファイルを選んでください'); return; }
+  for (const f of list) {
+    try {
+      const img = await loadImage(f);
+      if (kind === 'art' || (kind === 'auto' && !st.art)) { setArt(img); kind = 'ref'; } else addRef(img, f.name);
+    } catch (e) { toast(e.message); }
+  }
 }
 
 // ---------- parts ----------
 function newPart() {
   const p = {
-    id: ++st.pid, name: 'パーツ' + st.pid, visible: true,
+    id: ++st.pid, name: 'パーツ' + st.pid, visible: true, placed: false,
     target: null, refId: 0, refPoly: null, crop: null,
-    method: 'inflate', depth: METHODS.inflate.depth[2], smooth: METHODS.inflate.smooth[2], invert: false,
+    method: 'mech', prm: defaults('mech'), invert: false,
     mirror: false, scl: 1, sx: 1, sy: 1, sz: 1,
-    group: new THREE.Group(), mesh: null, edges: null, tex: null, placed: false,
+    group: new THREE.Group(), mesh: null, tex: null, nmat: makeNMat(), th: null,
   };
-  p.group.rotation.order = 'YXZ';
-  scene.add(p.group);
-  st.parts.push(p);
+  p.group.rotation.order = 'YXZ'; p.group.visible = false;
+  scene.add(p.group); st.parts.push(p);
   return p;
 }
-function addPart() {
-  const p = newPart(); select(p);
-  if (st.art) { showView('art'); arm('target'); }
-  return p;
+function select(p) {
+  st.cur = p;
+  // 資料を見ているときは、そのパーツの資料のタブへ
+  if (p && st.view === 'ref' && p.refId && st.ref?.id !== p.refId) { const r = st.refs.find(r => r.id === p.refId); if (r) { st.ref = r; applyView(); } }
+  refresh();
 }
-function select(p) { st.cur = p; refresh(); }
-function delPart(p) {
+function delPart(p, quiet) {
   if (!p) return;
-  disposePart(p); scene.remove(p.group);
+  if (tc.object === p.group) tc.detach();
+  disposePart(p); p.nmat.dispose(); if (p.tex) Object.values(p.tex).forEach(t => t.dispose());
+  scene.remove(p.group);
   st.parts = st.parts.filter(q => q !== p);
-  st.cur = st.parts[st.parts.length - 1] || null;
-  disarm(); refresh(); requestRender();
+  if (st.cur === p) st.cur = st.parts[st.parts.length - 1] || null;
+  if (!quiet) { refresh(); requestRender(); }
 }
 function disposePart(p) {
   if (p.mesh) { p.mesh.geometry.dispose(); p.mesh.material.dispose(); p.group.remove(p.mesh); p.mesh = null; }
-  if (p.edges) { p.edges.geometry.dispose(); p.edges.material.dispose(); p.group.remove(p.edges); p.edges = null; }
 }
 function dupPart(src) {
   if (!src) return;
   const p = newPart();
-  for (const k of ['target', 'refId', 'refPoly', 'crop', 'method', 'depth', 'smooth', 'invert', 'mirror', 'scl', 'sx', 'sy', 'sz', 'placed'])
+  for (const k of ['target', 'refId', 'refPoly', 'crop', 'method', 'invert', 'mirror', 'scl', 'sx', 'sy', 'sz', 'placed', 'th'])
     p[k] = Array.isArray(src[k]) ? src[k].map(v => v.slice()) : src[k];
-  p.name = src.name + 'の複製';
+  p.prm = {...src.prm}; p.name = src.name + 'の複製';
   p.group.position.copy(src.group.position);
   if (st.art) p.group.position.x += st.art.w * 0.05;
   p.group.quaternion.copy(src.group.quaternion);
@@ -289,8 +468,7 @@ function dupPart(src) {
 }
 
 // 資料の囲みから、切り抜き（矩形・囲みで透過・白いマスク）をつくる。長辺 1024px まで
-function makeCrop(p, poly) {
-  const R = st.ref;
+function makeCrop(p, poly, R) {
   const xs = poly.map(q => q[0]), ys = poly.map(q => q[1]);
   const x0 = Math.max(0, Math.floor(Math.min(...xs))), y0 = Math.max(0, Math.floor(Math.min(...ys)));
   const x1 = Math.min(R.w, Math.ceil(Math.max(...xs))), y1 = Math.min(R.h, Math.ceil(Math.max(...ys)));
@@ -305,7 +483,7 @@ function makeCrop(p, poly) {
   const mask = canvas(W, H), kc = mask.getContext('2d');
   kc.drawImage(masked, 0, 0); kc.globalCompositeOperation = 'source-in'; kc.fillStyle = '#fff'; kc.fillRect(0, 0, W, H);
   p.crop = {W, H, full, masked, mask, poly: lp};
-  p.refId = R.id; p.refPoly = poly;
+  p.refId = R.id; p.refPoly = poly; p.th = thumb(masked, 120);
   makeTextures(p);
   return true;
 }
@@ -315,6 +493,14 @@ function makeTextures(p) {
   p.tex = {full: mk(p.crop.full, true), masked: mk(p.crop.masked, true), mask: mk(p.crop.mask, false)};
 }
 function tracePath(ctx, pts) { ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath(); }
+function inPoly(q, poly) {
+  let c = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i], [xj, yj] = poly[j];
+    if ((yi > q[1]) !== (yj > q[1]) && q[0] < (xj - xi) * (q[1] - yi) / (yj - yi) + xi) c = !c;
+  }
+  return c;
+}
 
 // ---------- modeling ----------
 // どの方式も、切り抜きのピクセル単位・中心が原点・y 上向きでつくる。テクスチャは正面からの投影（planarUV）
@@ -339,69 +525,176 @@ function blur(a, gw, gh, passes, keep) {
   }
   return a;
 }
+// 下側の包絡（h = min(h, 隣 + 傾き×距離)）。初期値 0/大 なら距離変換、段の高さなら面取りした段になる。外は oob
+function chamfer(init, gw, gh, slope, oob = 0) {
+  const h = Float32Array.from(init), S = slope * Math.SQRT2;
+  const g = (x, y) => (x < 0 || y < 0 || x >= gw || y >= gh) ? oob : h[y * gw + x];
+  for (let y = 0; y < gh; y++) for (let x = 0; x < gw; x++) {
+    const k = y * gw + x;
+    h[k] = Math.min(h[k], g(x - 1, y) + slope, g(x, y - 1) + slope, g(x - 1, y - 1) + S, g(x + 1, y - 1) + S);
+  }
+  for (let y = gh - 1; y >= 0; y--) for (let x = gw - 1; x >= 0; x--) {
+    const k = y * gw + x;
+    h[k] = Math.min(h[k], g(x + 1, y) + slope, g(x, y + 1) + slope, g(x + 1, y + 1) + S, g(x - 1, y + 1) + S);
+  }
+  return h;
+}
 function planarUV(g, W, H) {
   const pos = g.attributes.position, uv = new Float32Array(pos.count * 2);
   for (let i = 0; i < pos.count; i++) { uv[i * 2] = pos.getX(i) / W + 0.5; uv[i * 2 + 1] = pos.getY(i) / H + 0.5; }
   g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
   return g;
 }
-// 高さの格子 → 面。囲みに 1 点でもかかるマスは張る（外側は高さ 0、輪郭はテクスチャの透過で切る）
-function heightMesh(hf, inside, gw, gh, W, H, back) {
-  const n = gw * gh, layers = back ? 2 : 1;
+// 高さの格子 → 面（表 F・裏 B）。ふつうは囲みに 1 点でもかかるマスを張り、輪郭はテクスチャの透過で切る。
+// ローポリ（tri）は、3 点とも内側の三角だけ張る（輪郭も角ばる）
+function heightMesh(F, B, m, gw, gh, W, H, tri) {
+  const n = gw * gh, layers = B ? 2 : 1;
   const pos = new Float32Array(n * 3 * layers), idx = [];
   for (let L = 0; L < layers; L++) for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) {
     const k = j * gw + i, o = (L * n + k) * 3;
-    pos[o] = (i + 0.5) / gw * W - W / 2; pos[o + 1] = H / 2 - (j + 0.5) / gh * H; pos[o + 2] = L ? -hf[k] : hf[k];
+    pos[o] = (i + 0.5) / gw * W - W / 2; pos[o + 1] = H / 2 - (j + 0.5) / gh * H; pos[o + 2] = L ? -B[k] : F[k];
   }
+  const t3 = (a, b, c) => { idx.push(a, b, c); if (B) idx.push(n + a, n + c, n + b); };
   for (let j = 0; j < gh - 1; j++) for (let i = 0; i < gw - 1; i++) {
     const a = j * gw + i, b = a + 1, c = a + gw, d = c + 1;
-    if (!(inside[a] || inside[b] || inside[c] || inside[d])) continue;
-    idx.push(a, c, d, a, d, b);
-    if (back) idx.push(n + a, n + d, n + c, n + a, n + b, n + d);
+    if (!tri) { if (m[a] || m[b] || m[c] || m[d]) { t3(a, c, d); t3(a, d, b); } continue; }
+    if (m[a] && m[d]) { if (m[c]) t3(a, c, d); if (m[b]) t3(a, d, b); }
+    else if (m[b] && m[c]) { if (m[a]) t3(a, c, b); if (m[d]) t3(b, c, d); }
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setIndex(idx);
   planarUV(g, W, H); g.computeVertexNormals();
   return g;
 }
+function closeEdge(F, B, m, gw, gh) { // ローポリ：輪郭の点は表裏とも 0 にして閉じる
+  for (let y = 0; y < gh; y++) for (let x = 0; x < gw; x++) {
+    const k = y * gw + x; if (!m[k]) continue;
+    if (x === 0 || y === 0 || x === gw - 1 || y === gh - 1 || !m[k - 1] || !m[k + 1] || !m[k - gw] || !m[k + gw]) { F[k] = 0; if (B) B[k] = 0; }
+  }
+}
 function maskGrid(p, res) {
   const {W, H} = p.crop, [gw, gh] = gridDims(W, H, res), d = sampleRGBA(p.crop.masked, gw, gh);
   const m = new Uint8Array(gw * gh); for (let i = 0; i < m.length; i++) m[i] = d[i * 4 + 3] > 127 ? 1 : 0;
   return {gw, gh, m};
 }
+const res = n => st.lowpoly ? st.lowRes : n;
+function lumGrid(p, gw, gh) {
+  const d = sampleRGBA(p.crop.full, gw, gh), L = new Float32Array(gw * gh);
+  for (let i = 0; i < L.length; i++) L[i] = (0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2]) / 255;
+  return {d, L};
+}
+// 色で k 個にわける（明るさの分位で初期化）
+function kmeans(d, m, K) {
+  const idx = []; for (let i = 0; i < m.length; i++) if (m[i]) idx.push(i);
+  const lab = new Int16Array(m.length).fill(-1);
+  if (!idx.length) return {lab, C: []};
+  const lum = i => 0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2];
+  const sorted = idx.slice().sort((a, b) => lum(a) - lum(b));
+  let C = []; for (let k = 0; k < K; k++) { const i = sorted[Math.floor((k + 0.5) / K * sorted.length)]; C.push([d[i * 4], d[i * 4 + 1], d[i * 4 + 2]]); }
+  for (let it = 0; it < 8; it++) {
+    const sum = C.map(() => [0, 0, 0, 0]);
+    for (const i of idx) {
+      let best = 0, bd = 1e18;
+      for (let k = 0; k < K; k++) { const dr = d[i * 4] - C[k][0], dg = d[i * 4 + 1] - C[k][1], db = d[i * 4 + 2] - C[k][2], dd = dr * dr + dg * dg + db * db; if (dd < bd) { bd = dd; best = k; } }
+      lab[i] = best; const s = sum[best]; s[0] += d[i * 4]; s[1] += d[i * 4 + 1]; s[2] += d[i * 4 + 2]; s[3]++;
+    }
+    C = C.map((c, k) => sum[k][3] ? [sum[k][0] / sum[k][3], sum[k][1] / sum[k][3], sum[k][2] / sum[k][3]] : c);
+  }
+  return {lab, C};
+}
+function modeFilter(lab, m, gw, gh, K) {
+  const out = Int16Array.from(lab), cnt = new Int32Array(K);
+  for (let y = 0; y < gh; y++) for (let x = 0; x < gw; x++) {
+    const k = y * gw + x; if (!m[k]) continue; cnt.fill(0);
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= gw || yy >= gh) continue;
+      const l = lab[yy * gw + xx]; if (l >= 0) cnt[l]++;
+    }
+    let b = lab[k]; for (let i = 0; i < K; i++) if (cnt[i] > cnt[b]) b = i; out[k] = b;
+  }
+  return out;
+}
 const GEN = {
+  // メカ：色の区切りごとに段（面取り付き）、丸い区切りはドーム（ボタン・レンズ）、暗い細い線は溝（パネルライン）
+  mech(p) {
+    const {W, H} = p.crop, R = res(200), {gw, gh, m} = maskGrid(p, R), {d, L} = lumGrid(p, gw, gh), N = gw * gh, P = p.prm;
+    const K = P.levels;
+    let {lab, C} = kmeans(d, m, K);
+    lab = modeFilter(modeFilter(lab, m, gw, gh, K), m, gw, gh, K);
+    const order = C.map((c, k) => [0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2], k]).sort((a, b) => a[0] - b[0]);
+    const lev = new Float32Array(K); order.forEach(([, k], r) => { lev[k] = K > 1 ? r / (K - 1) : 0; });
+    if (p.invert) for (let k = 0; k < K; k++) lev[k] = 1 - lev[k];
+    const T = P.depth / 100 * Math.min(W, H) / 2, step = P.step / 100 * T;
+    const bev = Math.max(1, P.smooth * R / 100), slope = Math.max(T, step) / bev;
+    const P0 = new Float32Array(N); for (let i = 0; i < N; i++) P0[i] = m[i] ? T + step * lev[lab[i]] : 0;
+    const F = chamfer(P0, gw, gh, slope, 0);
+    // 区切りの境目からの距離 → 丸い区切りを探してドームにする
+    const di = new Float32Array(N);
+    for (let y = 0; y < gh; y++) for (let x = 0; x < gw; x++) {
+      const k = y * gw + x; if (!m[k]) continue;
+      const edge = x === 0 || y === 0 || x === gw - 1 || y === gh - 1 || lab[k - 1] !== lab[k] || lab[k + 1] !== lab[k] || lab[k - gw] !== lab[k] || lab[k + gw] !== lab[k];
+      di[k] = edge ? 0 : 1e9;
+    }
+    const dR = chamfer(di, gw, gh, 1, 0);
+    const comp = new Int32Array(N).fill(-1), comps = [];
+    let mArea = 0; for (let i = 0; i < N; i++) mArea += m[i];
+    for (let s = 0; s < N; s++) {
+      if (!m[s] || comp[s] >= 0) continue;
+      const id = comps.length, c = {area: 0, x0: 1e9, y0: 1e9, x1: -1, y1: -1, dmax: 0, cells: []}, q = [s]; comp[s] = id;
+      while (q.length) {
+        const k = q.pop(), x = k % gw, y = (k - x) / gw;
+        c.area++; c.cells.push(k); c.x0 = Math.min(c.x0, x); c.x1 = Math.max(c.x1, x); c.y0 = Math.min(c.y0, y); c.y1 = Math.max(c.y1, y); c.dmax = Math.max(c.dmax, dR[k]);
+        for (const n of [x > 0 ? k - 1 : -1, x < gw - 1 ? k + 1 : -1, y > 0 ? k - gw : -1, y < gh - 1 ? k + gw : -1])
+          if (n >= 0 && m[n] && comp[n] < 0 && lab[n] === lab[k]) { comp[n] = id; q.push(n); }
+      }
+      comps.push(c);
+    }
+    for (const c of comps) {
+      const bw = c.x1 - c.x0 + 1, bh = c.y1 - c.y0 + 1, fill = c.area / (bw * bh), asp = bw / bh;
+      if (c.area < Math.max(10, mArea * 0.002) || c.area > mArea * 0.6) continue;
+      if (fill < 0.66 || fill > 0.88 || asp < 0.6 || asp > 1.67 || c.dmax < 1.5) continue;
+      for (const k of c.cells) { const t = Math.min(1, dR[k] / c.dmax); F[k] += step * 0.9 * Math.sqrt(t * (2 - t)); }
+    }
+    // 暗い細い線は溝に
+    const Lb = blur(L, gw, gh, Math.max(1, Math.round(R / 100)), null), gd = P.groove / 100 * T * 0.4;
+    for (let i = 0; i < N; i++) if (m[i]) {
+      const line = clamp((Lb[i] - L[i] - 0.05) * 5, 0, 1);
+      F[i] = Math.max(T * 0.05, F[i] - gd * line + (L[i] - 0.5) * T * 0.04);
+    }
+    const B0 = new Float32Array(N); for (let i = 0; i < N; i++) B0[i] = m[i] ? T * 0.7 : 0;
+    const B = chamfer(B0, gw, gh, slope * 0.7, 0);
+    if (st.lowpoly) closeEdge(F, B, m, gw, gh);
+    return heightMesh(F, B, m, gw, gh, W, H, st.lowpoly);
+  },
   inflate(p) {
-    const {W, H} = p.crop, {gw, gh, m} = maskGrid(p, 140);
-    // 輪郭からの距離（2 パスのチャムファー）→ 丸い断面
-    const dt = new Float32Array(gw * gh), S = Math.SQRT2;
-    for (let i = 0; i < dt.length; i++) dt[i] = m[i] ? 1e9 : 0;
-    const at = (x, y) => (x < 0 || y < 0 || x >= gw || y >= gh) ? 0 : dt[y * gw + x];
-    for (let y = 0; y < gh; y++) for (let x = 0; x < gw; x++) { const k = y * gw + x; if (dt[k]) dt[k] = Math.min(dt[k], at(x - 1, y) + 1, at(x, y - 1) + 1, at(x - 1, y - 1) + S, at(x + 1, y - 1) + S); }
-    for (let y = gh - 1; y >= 0; y--) for (let x = gw - 1; x >= 0; x--) { const k = y * gw + x; if (dt[k]) dt[k] = Math.min(dt[k], at(x + 1, y) + 1, at(x, y + 1) + 1, at(x + 1, y + 1) + S, at(x - 1, y + 1) + S); }
+    const {W, H} = p.crop, {gw, gh, m} = maskGrid(p, res(140));
+    const dt = chamfer(Float32Array.from(m, v => v ? 1e9 : 0), gw, gh, 1, 0);
     let dmax = 1; for (const v of dt) if (v > dmax) dmax = v;
     let hf = new Float32Array(gw * gh);
     for (let i = 0; i < hf.length; i++) { if (!m[i]) continue; const t = Math.min(1, dt[i] / dmax); hf[i] = Math.sqrt(t * (2 - t)); }
-    hf = blur(hf, gw, gh, p.smooth, m);
-    const amp = p.depth / 100 * Math.min(W, H) / 2;
+    hf = blur(hf, gw, gh, st.lowpoly ? 0 : p.prm.smooth, m);
+    const amp = p.prm.depth / 100 * Math.min(W, H) / 2;
     for (let i = 0; i < hf.length; i++) hf[i] *= amp;
-    return heightMesh(hf, m, gw, gh, W, H, true);
+    const B = Float32Array.from(hf);
+    if (st.lowpoly) closeEdge(hf, B, m, gw, gh);
+    return heightMesh(hf, B, m, gw, gh, W, H, st.lowpoly);
   },
   relief(p) {
-    const {W, H} = p.crop, {gw, gh, m} = maskGrid(p, 160), d = sampleRGBA(p.crop.full, gw, gh);
+    const {W, H} = p.crop, {gw, gh, m} = maskGrid(p, res(160)), {L} = lumGrid(p, gw, gh);
     let hf = new Float32Array(gw * gh);
-    for (let i = 0; i < hf.length; i++) { const l = (0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2]) / 255; hf[i] = (p.invert ? 1 - l : l) - 0.5; }
-    hf = blur(hf, gw, gh, p.smooth, null);
-    const amp = p.depth / 100 * Math.min(W, H) / 2;
+    for (let i = 0; i < hf.length; i++) hf[i] = (p.invert ? 1 - L[i] : L[i]) - 0.5;
+    hf = blur(hf, gw, gh, p.prm.smooth, null);
+    const amp = p.prm.depth / 100 * Math.min(W, H) / 2;
     for (let i = 0; i < hf.length; i++) hf[i] *= amp;
-    return heightMesh(hf, m, gw, gh, W, H, false);
+    return heightMesh(hf, null, m, gw, gh, W, H, st.lowpoly);
   },
   extrude(p) {
     const {W, H} = p.crop;
-    let pts = simplify(p.crop.poly, Math.max(W, H) / 400);
+    let pts = simplify(p.crop.poly, Math.max(W, H) / (st.lowpoly ? st.lowRes * 1.5 : 400));
     if (pts.length > 400) pts = pts.filter((_, i) => i % Math.ceil(pts.length / 400) === 0);
     const shape = new THREE.Shape(pts.map(([x, y]) => new THREE.Vector2(x - W / 2, H / 2 - y)));
-    const depth = p.depth / 100 * Math.min(W, H);
-    const bev = Math.min(depth * 0.45, Math.min(W, H) * 0.025 * p.smooth);
+    const depth = p.prm.depth / 100 * Math.min(W, H);
+    const bev = st.lowpoly ? 0 : Math.min(depth * 0.45, Math.min(W, H) * 0.025 * p.prm.smooth);
     const g = new THREE.ExtrudeGeometry(shape, {depth: Math.max(0.5, depth - bev * 2), bevelEnabled: bev > 0, bevelThickness: bev, bevelSize: bev * 0.7, bevelSegments: 4, curveSegments: 1, steps: 1});
     g.computeBoundingBox(); g.translate(0, 0, -(g.boundingBox.min.z + g.boundingBox.max.z) / 2);
     planarUV(g, W, H); g.computeVertexNormals();
@@ -409,7 +702,8 @@ const GEN = {
   },
   lathe(p) {
     // 行ごとの幅と中心で回す（曲がったツノや脚も、そのシルエットのまま回転体になる）
-    const {W, H} = p.crop, rows = Math.min(120, Math.max(8, Math.round(H / 3))), cols = Math.min(256, W);
+    const {W, H} = p.crop;
+    const rows = st.lowpoly ? Math.max(4, Math.round(st.lowRes / 2.5)) : Math.min(120, Math.max(8, Math.round(H / 3))), cols = Math.min(256, W);
     const d = sampleRGBA(p.crop.masked, cols, rows);
     let rad = new Float32Array(rows), cen = new Float32Array(rows);
     for (let r = 0; r < rows; r++) {
@@ -417,17 +711,16 @@ const GEN = {
       for (let x = 0; x < cols; x++) if (d[(r * cols + x) * 4 + 3] > 127) { if (l < 0) l = x; rr = x; }
       if (l < 0) { rad[r] = 0; cen[r] = NaN; } else { rad[r] = (rr - l + 1) / 2 * W / cols; cen[r] = (l + rr + 1) / 2 * W / cols; }
     }
-    // 空の行の中心は近い行から借りる
     let last = W / 2; for (let r = 0; r < rows; r++) { if (isNaN(cen[r])) cen[r] = last; else last = cen[r]; }
-    rad = blur(rad, 1, rows, p.smooth, null); cen = blur(cen, 1, rows, p.smooth, null);
-    const prof = [];
+    const sm = st.lowpoly ? 0 : p.prm.smooth;
+    rad = blur(rad, 1, rows, sm, null); cen = blur(cen, 1, rows, sm, null);
     const first = rad.findIndex(v => v > 0.5), lastR = rows - 1 - [...rad].reverse().findIndex(v => v > 0.5);
     if (first < 0) return GEN.box(p);
-    const yOf = r => H / 2 - (r + 0.5) / rows * H;
+    const yOf = r => H / 2 - (r + 0.5) / rows * H, prof = [];
     prof.push([0, H / 2 - first / rows * H, cen[first]]);
     for (let r = first; r <= lastR; r++) prof.push([rad[r], yOf(r), cen[r]]);
     prof.push([0, H / 2 - (lastR + 1) / rows * H, cen[lastR]]);
-    const S = 48, zs = p.depth / 100, pos = [], uv = [], idx = [];
+    const S = st.lowpoly ? 8 : 48, zs = p.prm.depth / 100, pos = [], uv = [], idx = [];
     for (const [r, y, c] of prof) for (let j = 0; j <= S; j++) {
       const ph = j / S * Math.PI * 2, x = r * Math.sin(ph);
       pos.push(c + x - W / 2, y, r * Math.cos(ph) * zs);
@@ -443,9 +736,9 @@ const GEN = {
     g.setIndex(idx); g.computeVertexNormals();
     return g;
   },
-  box(p) { const {W, H} = p.crop; return planarUV(new THREE.BoxGeometry(W, H, p.depth / 100 * Math.min(W, H)), W, H); },
-  cyl(p) { const {W, H} = p.crop, g = new THREE.CylinderGeometry(W / 2, W / 2, H, 48, 1); g.scale(1, 1, p.depth / 100); return planarUV(g, W, H); },
-  sphere(p) { const {W, H} = p.crop, g = new THREE.SphereGeometry(0.5, 48, 32); g.scale(W, H, p.depth / 100 * Math.min(W, H)); return planarUV(g, W, H); },
+  box(p) { const {W, H} = p.crop; return planarUV(new THREE.BoxGeometry(W, H, p.prm.depth / 100 * Math.min(W, H)), W, H); },
+  cyl(p) { const {W, H} = p.crop, g = new THREE.CylinderGeometry(W / 2, W / 2, H, st.lowpoly ? 8 : 48, 1); g.scale(1, 1, p.prm.depth / 100); return planarUV(g, W, H); },
+  sphere(p) { const {W, H} = p.crop, g = st.lowpoly ? new THREE.SphereGeometry(0.5, 8, 6) : new THREE.SphereGeometry(0.5, 48, 32); g.scale(W, H, p.prm.depth / 100 * Math.min(W, H)); return planarUV(g, W, H); },
 };
 function simplify(pts, tol) {
   if (pts.length < 5) return pts;
@@ -461,39 +754,40 @@ function simplify(pts, tol) {
   return pts.filter((_, i) => keep[i]);
 }
 
+const alphaCut = p => METHODS[p.method].alpha && !st.lowpoly;
 function makeMat(p) {
-  const alpha = METHODS[p.method].alpha, o = st.opacity;
-  const common = {side: THREE.DoubleSide, transparent: o < 1, opacity: o, alphaTest: alpha ? 0.5 : 0};
+  const a = alphaCut(p), o = st.opacity, fs = st.lowpoly;
+  const common = {side: THREE.DoubleSide, transparent: o < 1, opacity: o, alphaTest: a ? 0.5 : 0, flatShading: fs};
   switch (st.mode) {
-    case 'tex': return new THREE.MeshStandardMaterial({...common, map: alpha ? p.tex.masked : p.tex.full, roughness: 0.85, metalness: 0});
-    case 'gray': return new THREE.MeshStandardMaterial({...common, color: 0xc9c6c1, map: alpha ? p.tex.mask : null, roughness: 0.9, metalness: 0});
-    case 'flat': return new THREE.MeshStandardMaterial({...common, color: 0xd8d4ce, map: alpha ? p.tex.mask : null, roughness: 1, metalness: 0, flatShading: true});
-    default: return new THREE.MeshBasicMaterial({...common, alphaTest: 0, color: 0xd2553a, wireframe: true});
+    case 'gray': return new THREE.MeshStandardMaterial({...common, color: 0xc9c6c1, map: a ? p.tex.mask : null, roughness: 0.9, metalness: 0});
+    case 'flat': return new THREE.MeshStandardMaterial({...common, color: 0xd8d4ce, map: a ? p.tex.mask : null, roughness: 1, metalness: 0, flatShading: true});
+    case 'wire': return new THREE.MeshBasicMaterial({...common, alphaTest: 0, color: 0xd2553a, wireframe: true});
+    default: return new THREE.MeshStandardMaterial({...common, map: a ? p.tex.masked : p.tex.full, roughness: 0.85, metalness: 0});
   }
 }
 function build(p) {
   if (!p.crop) return;
   disposePart(p);
-  const g = GEN[p.method](p);
-  p.mesh = new THREE.Mesh(g, makeMat(p));
+  p.mesh = new THREE.Mesh(GEN[p.method](p), makeMat(p));
   p.group.add(p.mesh);
-  if (st.edges) {
-    p.edges = new THREE.LineSegments(new THREE.EdgesGeometry(g, 35), new THREE.LineBasicMaterial({color: 0x2a2a2a, transparent: st.opacity < 1, opacity: st.opacity}));
-    p.group.add(p.edges);
-  }
-  p.group.visible = p.visible;
   requestRender();
 }
-let rebuildQ = new Set(), rebuildRaf = 0;
+const rebuildQ = new Set(); let rebuildRaf = 0;
 function rebuildSoon(p) {
   rebuildQ.add(p);
   if (!rebuildRaf) rebuildRaf = requestAnimationFrame(() => { rebuildRaf = 0; rebuildQ.forEach(build); rebuildQ.clear(); });
 }
 function rebuildAll() { st.parts.forEach(p => p.crop && build(p)); }
-function setOpacity(o) {
-  for (const p of st.parts) for (const m of [p.mesh, p.edges]) if (m) { m.material.opacity = o; m.material.transparent = o < 1; m.material.needsUpdate = true; }
-}
+function remat() { for (const p of st.parts) if (p.mesh) { p.mesh.material.dispose(); p.mesh.material = makeMat(p); } requestRender(); }
+function setOpacity(o) { for (const p of st.parts) if (p.mesh) { p.mesh.material.opacity = o; p.mesh.material.transparent = o < 1; p.mesh.material.needsUpdate = true; } }
 function applyScale(p) { p.group.scale.set(p.scl * p.sx * (p.mirror ? -1 : 1), p.scl * p.sy, p.scl * p.sz); }
+// ハンドルの拡大縮小を、大きさ（全体）と幅・高さ・奥行きに分けて覚える
+function normScale(p) {
+  const s = p.group.scale, fx = Math.abs(s.x) / (p.scl * p.sx), fy = Math.abs(s.y) / (p.scl * p.sy), fz = Math.abs(s.z) / (p.scl * p.sz);
+  if (!(fx > 0 && fy > 0 && fz > 0)) return;
+  if (Math.max(fx, fy, fz) / Math.min(fx, fy, fz) < 1.0005) p.scl *= fy; else { p.sx *= fx; p.sy *= fy; p.sz *= fz; }
+  applyScale(p);
+}
 
 function bbox(pts) {
   const xs = pts.map(q => q[0]), ys = pts.map(q => q[1]);
@@ -509,171 +803,275 @@ function fit(p, stretch) {
   else { p.scl = Math.min(b.w / p.crop.W, b.h / p.crop.H); p.sx = p.sy = p.sz = 1; }
   applyScale(p); p.placed = true; requestRender();
 }
+// トレイから絵へ：落とした所に、絵の短辺の 1/4 くらいで置く
+function placeAt(p, x, y) {
+  const A = st.art; if (!A || !p.crop) return;
+  p.group.position.set(x - A.w / 2, A.h / 2 - y, 0);
+  p.scl = Math.min(A.w, A.h) / 4 / Math.max(p.crop.W, p.crop.H); p.sx = p.sy = p.sz = 1;
+  applyScale(p); p.placed = true; requestRender();
+}
 
-// ---------- views / layout ----------
+// ---------- views ----------
 function showView(v) {
-  st.view = v;
-  document.querySelectorAll('#bar [data-view]').forEach(b => b.classList.toggle('on', b.dataset.view === v));
-  if (st.armed && (st.armed === 'target') !== (v === 'art')) disarm();
-  layout(); refresh();
+  st.view = v; pen = null;
+  if (st.art) setupCamera();
+  applyView(); refresh();
 }
-function fitStage(el, w, h) {
-  const wrap = $('#wrap'), aw = wrap.clientWidth - 24, ah = wrap.clientHeight - 24;
-  const k = Math.min(aw / w, ah / h);
-  const cw = Math.max(1, Math.floor(w * k)), ch = Math.max(1, Math.floor(h * k));
-  el.style.width = cw + 'px'; el.style.height = ch + 'px';
-  return [cw, ch];
+function setRtool(t) { st.rtool = t; pen = null; refresh(); }
+function setGmode(m) {
+  st.gmode = m; pen = null;
+  if (m !== 'pen') tc.setMode(m);
+  refresh();
 }
-function layout() {
-  const showArt = st.view === 'art' && st.art, showRef = st.view === 'ref' && st.ref;
-  $('#stArt').hidden = !showArt; $('#stRef').hidden = !showRef;
-  if (st.art) {
-    const [cw, ch] = fitStage($('#stArt'), st.art.w, st.art.h);
-    renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2)); renderer.setSize(cw, ch, false);
-    $('#ovArt').setAttribute('viewBox', `0 0 ${st.art.w} ${st.art.h}`);
-  }
-  if (st.ref) { fitStage($('#stRef'), st.ref.w, st.ref.h); $('#ovRef').setAttribute('viewBox', `0 0 ${st.ref.w} ${st.ref.h}`); }
-  const em = $('#empty');
-  em.hidden = showArt || showRef;
-  em.innerHTML = st.view === 'art'
-    ? '<div><b>描きかけの絵を開いてください</b><button class="pri big" data-open="art">絵を開く</button><br>ここへドラッグ＆ドロップ／Ctrl+V で貼り付けもできます</div>'
-    : '<div><b>資料を開いてください</b><button class="pri big" data-open="ref">資料を開く</button><br>ここへドラッグ＆ドロップ／Ctrl+V で貼り付けもできます</div>';
-  $('#bOpenBar').textContent = st.view === 'art' ? (st.art ? '別の絵を開く' : '絵を開く') : (st.ref ? '別の資料を開く' : '資料を開く');
-  requestRender(); drawOverlays();
-}
-new ResizeObserver(layout).observe($('#wrap'));
 
 // ---------- overlays ----------
-const SVGNS = 'http://www.w3.org/2000/svg';
-let lasso = null; // {kind, pts}
-function poly(pts, cls) { return `<polygon points="${pts.map(q => q.join(',')).join(' ')}" ${cls}/>`; }
+let pen = null; // {kind:'make'|'target'|'erase', pts, hover, down, fresh, moved, sx, sy}
+const ptsAttr = pts => pts.map(q => q.map(v => v.toFixed(1)).join(',')).join(' ');
 function drawOverlays() {
-  const ln = 'vector-effect="non-scaling-stroke" stroke-linejoin="round"';
+  const im = curImg(); if (!im) { $('#ov').innerHTML = ''; return; }
+  const ln = 'vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"', r = 6 / im.v.s;
   let a = '';
-  if (st.showTargets || st.armed === 'target') for (const p of st.parts) if (p.target)
-    a += poly(p.target, `fill="${p === st.cur ? '#d2553a18' : 'none'}" stroke="${p === st.cur ? '#d2553a' : '#8888'}" stroke-width="${p === st.cur ? 2 : 1.2}" stroke-dasharray="6 4" ${ln}`);
-  if (lasso && lasso.kind === 'target') a += `<polyline points="${lasso.pts.map(q => q.join(',')).join(' ')}" fill="#d2553a22" stroke="#d2553a" stroke-width="2" ${ln}/>`;
-  $('#ovArt').innerHTML = a;
-  let r = '';
-  if (st.ref) for (const p of st.parts) if (p.refPoly && p.refId === st.ref.id)
-    r += poly(p.refPoly, `fill="${p === st.cur ? '#2f6fd022' : 'none'}" stroke="${p === st.cur ? '#2f6fd0' : '#8888'}" stroke-width="${p === st.cur ? 2 : 1.2}" ${ln}`);
-  if (lasso && lasso.kind === 'ref') r += `<polyline points="${lasso.pts.map(q => q.join(',')).join(' ')}" fill="#2f6fd022" stroke="#2f6fd0" stroke-width="2" ${ln}/>`;
-  $('#ovRef').innerHTML = r;
+  if (st.view === 'art') {
+    if (st.showTargets || st.gmode === 'pen') for (const p of st.parts) if (p.target)
+      a += `<polygon points="${ptsAttr(p.target)}" fill="${p === st.cur ? '#d2553a14' : 'none'}" stroke="${p === st.cur ? '#d2553a' : '#8888'}" stroke-width="${p === st.cur ? 2 : 1.2}" stroke-dasharray="6 4" ${ln}/>`;
+  } else {
+    for (const p of st.parts) if (p.refPoly && p.refId === im.id)
+      a += `<polygon points="${ptsAttr(p.refPoly)}" fill="${p === st.cur ? '#2f6fd033' : '#2f6fd012'}" stroke="#2f6fd0" stroke-width="${p === st.cur ? 2.5 : 1.4}" ${ln}/>`;
+  }
+  if (pen && pen.pts.length) {
+    const c = pen.kind === 'erase' ? '#c0392b' : pen.kind === 'target' ? '#d2553a' : '#2f6fd0';
+    const pts = pen.hover && !pen.down && pen.kind !== 'erase' ? [...pen.pts, pen.hover] : pen.pts;
+    a += `<polyline points="${ptsAttr(pts)}" fill="${c}22" stroke="${c}" stroke-width="2" ${pen.kind === 'erase' ? 'stroke-dasharray="5 4"' : ''} ${ln}/>`;
+    if (pen.kind !== 'erase') a += `<circle cx="${pen.pts[0][0]}" cy="${pen.pts[0][1]}" r="${r}" fill="#fff" stroke="${c}" stroke-width="2" ${ln}/>`;
+  }
+  $('#ov').innerHTML = a;
 }
 
-// ---------- lasso ----------
-function arm(kind) {
-  if (kind === 'target' && !st.art) { toast('先に絵を開いてください'); return; }
-  if (kind === 'ref' && !st.ref) { $('#fRef').click(); return; }
-  if (!st.cur) addPart();
-  if ((kind === 'target') !== (st.view === 'art')) showView(kind === 'target' ? 'art' : 'ref');
-  st.armed = kind;
+// ---------- pen / lasso ----------
+function penKind() {
+  if (st.view === 'ref') return st.rtool === 'pen' ? 'make' : st.rtool === 'erase' ? 'erase' : null;
+  return st.gmode === 'pen' ? 'target' : null;
+}
+function penDown(e, kind) {
+  const q = toImg(e);
+  if (kind === 'erase') { pen = {kind, pts: [q], down: true}; drawOverlays(); return; }
+  if (pen && pen.kind === kind && pen.pts.length) {
+    const s0 = toScreen(pen.pts[0]), r = wrap.getBoundingClientRect();
+    if (pen.pts.length >= 3 && Math.hypot(e.clientX - r.left - s0[0], e.clientY - r.top - s0[1]) < 10) { commitPen(); return; }
+    pen.pts.push(q); Object.assign(pen, {down: true, fresh: false, moved: false, sx: e.clientX, sy: e.clientY});
+  } else pen = {kind, pts: [q], down: true, fresh: true, moved: false, sx: e.clientX, sy: e.clientY};
+  drawOverlays();
+}
+function penMove(e) {
+  if (!pen) return;
+  const q = toImg(e); pen.hover = q;
+  if (pen.down) {
+    if (Math.hypot(e.clientX - (pen.sx ?? e.clientX), e.clientY - (pen.sy ?? e.clientY)) > 4) pen.moved = true;
+    const l = pen.pts[pen.pts.length - 1], im = curImg();
+    if ((pen.moved || pen.kind === 'erase') && Math.hypot(q[0] - l[0], q[1] - l[1]) * im.v.s >= 2) pen.pts.push(q);
+  }
+  drawOverlays();
+}
+function penUp() {
+  if (!pen) return;
+  pen.down = false;
+  if (pen.kind === 'erase') { const pts = pen.pts; pen = null; if (pts.length >= 3) eraseIn(pts); drawOverlays(); return; }
+  // ひと筆でぐるっと描いたら、そのまま閉じる
+  if (pen.fresh && pen.moved && pen.pts.length >= 8) commitPen();
+  else drawOverlays();
+}
+function commitPen() {
+  if (!pen) return;
+  const {kind} = pen; let pts = pen.pts;
+  // 末尾が始点のすぐそばなら重複を落とす
+  pts = pts.filter((q, i) => i === 0 || Math.hypot(q[0] - pts[i - 1][0], q[1] - pts[i - 1][1]) > 0.5);
+  pen = null;
+  if (pts.length < 3) { drawOverlays(); return; }
+  if (kind === 'make') makePartFromRef(pts);
+  else if (kind === 'target') setTarget(pts);
+  drawOverlays();
+}
+function makePartFromRef(poly) {
+  const R = st.ref, p = newPart();
+  if (!makeCrop(p, poly, R)) { delPart(p); return; }
+  R.n++; p.name = `${R.name}-${R.n}`;
+  build(p); st.cur = p;
+  toast(st.art ? `「${p.name}」をパーツにしました。下のアイコンを絵へドラッグすると置けます` : `「${p.name}」をパーツにしました`);
   refresh();
 }
-function disarm() { st.armed = null; lasso = null; refresh(); }
-function toImg(e, el, w, h) { const r = el.getBoundingClientRect(); return [(e.clientX - r.left) / r.width * w, (e.clientY - r.top) / r.height * h]; }
-
-function lassoHandlers(el, kind, dims) {
-  el.addEventListener('pointerdown', e => {
-    if (st.armed !== kind || e.button !== 0) return;
-    e.preventDefault(); el.setPointerCapture(e.pointerId);
-    lasso = {kind, pts: [toImg(e, el, ...dims())], pid: e.pointerId};
-    drawOverlays();
-  });
-  el.addEventListener('pointermove', e => {
-    if (!lasso || lasso.kind !== kind || e.pointerId !== lasso.pid) return;
-    const q = toImg(e, el, ...dims()), l = lasso.pts[lasso.pts.length - 1];
-    const minD = dims()[0] / el.getBoundingClientRect().width * 2;
-    if (Math.hypot(q[0] - l[0], q[1] - l[1]) >= minD) { lasso.pts.push(q); drawOverlays(); }
-  });
-  const end = e => {
-    if (!lasso || lasso.kind !== kind || e.pointerId !== lasso.pid) return;
-    const pts = lasso.pts; lasso = null;
-    if (pts.length < 3) { drawOverlays(); return; }
-    st.armed = null;
-    kind === 'target' ? commitTarget(pts) : commitRef(pts);
-  };
-  el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
+function eraseIn(lasso) {
+  const R = st.ref; let n = 0;
+  for (const p of st.parts.slice()) {
+    if (!p.refPoly || p.refId !== R.id) continue;
+    const inside = p.refPoly.filter(q => inPoly(q, lasso)).length;
+    if (inside >= p.refPoly.length * 0.5) { delPart(p, true); n++; }
+  }
+  toast(n ? `${n} 個のパーツを消しました` : '囲みの中にパーツはありませんでした');
+  refresh(); requestRender();
 }
-function commitTarget(pts) {
-  const p = st.cur; p.target = pts;
-  if (p.crop) fit(p, false);
-  else if (st.ref) { showView('ref'); arm('ref'); }
-  refresh();
-}
-function commitRef(pts) {
+function setTarget(pts) {
   const p = st.cur;
-  if (!makeCrop(p, pts)) { refresh(); return; }
-  build(p);
-  if (!p.placed) fit(p, false);
-  if (st.art) showView('art');
-  refresh();
+  if (!p || !p.crop) { toast('先に下のパーツを選んでください'); return; }
+  p.target = pts; fit(p, false);
+  setGmode('translate');
 }
 
-// ---------- transform (drag on the art) ----------
+// ---------- pointer（キャンバス） ----------
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
 function pick(e) {
   const r = c3d.getBoundingClientRect();
   ndc.set((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
   ray.setFromCamera(ndc, camera);
-  const ms = st.parts.filter(p => p.mesh && p.visible).map(p => p.mesh);
+  const ms = st.parts.filter(isShown).map(p => p.mesh);
   const hit = ray.intersectObjects(ms, false)[0];
   return hit ? st.parts.find(p => p.mesh === hit.object) : null;
 }
-const ptrs = new Map(); let drag = null, pinch = null;
-const stArt = $('#stArt');
-function artPx() { return st.art.w / stArt.getBoundingClientRect().width; }
 function rotateView(p, ax, ay, az, ang) {
-  const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(ax, ay, az).normalize(), ang);
-  p.group.quaternion.premultiply(q);
+  p.group.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(ax, ay, az).normalize(), ang));
 }
-stArt.addEventListener('contextmenu', e => e.preventDefault());
-stArt.addEventListener('pointerdown', e => {
-  if (st.armed) return;
-  const hit = pick(e); if (hit && hit !== st.cur) select(hit);
-  const p = st.cur; if (!p || !p.mesh) return;
-  e.preventDefault(); stArt.setPointerCapture(e.pointerId);
+const ptrs = new Map(); let act = null, spaceDown = false;
+const onCanvas = e => e.target === c3d || e.target === cView;
+wrap.addEventListener('contextmenu', e => { if (onCanvas(e)) e.preventDefault(); });
+wrap.addEventListener('pointerdown', e => {
+  if (!onCanvas(e) || !curImg()) return;
+  closePops();
   ptrs.set(e.pointerId, [e.clientX, e.clientY]);
-  if (ptrs.size === 2) {
-    const [a, b] = [...ptrs.values()];
-    pinch = {d: Math.hypot(a[0] - b[0], a[1] - b[1]), ang: Math.atan2(b[1] - a[1], b[0] - a[0]), scl: p.scl, q: p.group.quaternion.clone()};
-    drag = null;
-  } else {
-    drag = {x: e.clientX, y: e.clientY, tool: e.button === 2 ? 'rot' : e.shiftKey ? 'rot' : e.altKey ? 'roll' : st.tool};
+  if (ptrs.size === 2) { // 2 本指：表示の拡大・移動
+    if (pen?.down) pen = null;
+    const [a, b] = [...ptrs.values()], im = curImg(), r = wrap.getBoundingClientRect();
+    act = {kind: 'pinch', d: Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, c: [(a[0] + b[0]) / 2 - r.left, (a[1] + b[1]) / 2 - r.top], v: {...im.v}};
+    drawOverlays(); return;
   }
+  if (ptrs.size > 2) return;
+  if (tc.dragging) { ptrs.delete(e.pointerId); return; }
+  e.target.setPointerCapture(e.pointerId);
+  if (e.button === 1 || spaceDown) { act = {kind: 'pan', x: e.clientX, y: e.clientY}; return; }
+  const kind = e.button === 0 && penKind();
+  if (kind) { act = {kind: 'pen'}; penDown(e, kind); return; }
+  if (st.view === 'art') {
+    const hit = pick(e);
+    if (hit) {
+      if (hit !== st.cur) select(hit);
+      act = {kind: e.button === 2 ? 'rot' : {translate: 'move', rotate: 'rot', scale: 'scale'}[st.gmode] || 'move', x: e.clientX, y: e.clientY};
+      return;
+    }
+  } else if (e.button === 0) { // 手：囲みの中をクリックでそのパーツを選ぶ
+    const q = toImg(e), hit = st.parts.slice().reverse().find(p => p.refPoly && p.refId === st.ref.id && inPoly(q, p.refPoly));
+    if (hit) select(hit);
+  }
+  act = {kind: 'pan', x: e.clientX, y: e.clientY};
 });
-stArt.addEventListener('pointermove', e => {
+wrap.addEventListener('pointermove', e => {
+  if (pen && !act) penMove(e);
   if (!ptrs.has(e.pointerId)) return;
   ptrs.set(e.pointerId, [e.clientX, e.clientY]);
-  const p = st.cur; if (!p) return;
-  if (pinch && ptrs.size >= 2) {
-    const [a, b] = [...ptrs.values()];
-    p.scl = Math.max(0.005, pinch.scl * Math.hypot(a[0] - b[0], a[1] - b[1]) / pinch.d);
-    p.group.quaternion.copy(pinch.q); rotateView(p, 0, 0, 1, -(Math.atan2(b[1] - a[1], b[0] - a[0]) - pinch.ang));
-    applyScale(p); syncUI(); requestRender(); return;
+  if (!act) return;
+  const im = curImg(); if (!im) return;
+  if (act.kind === 'pinch') {
+    if (ptrs.size < 2) return;
+    const [a, b] = [...ptrs.values()], r = wrap.getBoundingClientRect();
+    const d = Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, c = [(a[0] + b[0]) / 2 - r.left, (a[1] + b[1]) / 2 - r.top];
+    const base = Math.min(WW / im.w, WH / im.h), s = clamp(act.v.s * d / act.d, base * 0.1, 32);
+    const ix = (act.c[0] - act.v.ox) / act.v.s, iy = (act.c[1] - act.v.oy) / act.v.s;
+    im.v = {s, ox: c[0] - ix * s, oy: c[1] - iy * s, fit: false}; applyView(); return;
   }
-  if (!drag) return;
-  const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.x = e.clientX; drag.y = e.clientY;
-  if (drag.tool === 'move') { const k = artPx(); p.group.position.x += dx * k; p.group.position.y -= dy * k; }
-  else if (drag.tool === 'rot') { const L = Math.hypot(dx, dy); if (L) rotateView(p, dy, dx, 0, L * 0.01); }
-  else if (drag.tool === 'roll') rotateView(p, 0, 0, 1, -dx * 0.01);
-  else if (drag.tool === 'scale') { p.scl = Math.max(0.005, p.scl * Math.exp(-dy * 0.01)); applyScale(p); }
-  syncUI(); requestRender();
+  if (act.kind === 'pen') { penMove(e); return; }
+  const dx = e.clientX - act.x, dy = e.clientY - act.y; act.x = e.clientX; act.y = e.clientY;
+  if (act.kind === 'pan') { im.v.ox += dx; im.v.oy += dy; im.v.fit = false; applyView(); return; }
+  const p = st.cur; if (!p) return;
+  if (act.kind === 'move') { p.group.position.x += dx / st.art.v.s; p.group.position.y -= dy / st.art.v.s; }
+  else if (act.kind === 'rot') { const L = Math.hypot(dx, dy); if (L) rotateView(p, dy, dx, 0, L * 0.01); }
+  else if (act.kind === 'scale') { p.scl = Math.max(0.005, p.scl * Math.exp(-dy * 0.01)); applyScale(p); }
+  syncSoon(); requestRender();
 });
-const ptrUp = e => { ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = null; if (!ptrs.size) drag = null; };
-stArt.addEventListener('pointerup', ptrUp); stArt.addEventListener('pointercancel', ptrUp);
-stArt.addEventListener('wheel', e => {
-  const p = st.cur; if (!p || !p.mesh || st.armed) return;
+const ptrUp = e => {
+  if (!ptrs.has(e.pointerId)) return;
+  ptrs.delete(e.pointerId);
+  if (act?.kind === 'pen') { act = null; penUp(); return; }
+  if (act?.kind === 'pinch' && ptrs.size) { act = null; return; }
+  if (!ptrs.size) act = null;
+};
+wrap.addEventListener('pointerup', ptrUp); wrap.addEventListener('pointercancel', ptrUp);
+wrap.addEventListener('dblclick', e => { if (onCanvas(e) && pen && pen.kind !== 'erase' && pen.pts.length >= 3) commitPen(); });
+wrap.addEventListener('wheel', e => {
+  if (!onCanvas(e)) return;
+  const im = curImg(); if (!im) return;
   e.preventDefault();
-  const dv = e.deltaY || e.deltaX;
-  if (e.shiftKey) rotateView(p, 0, 0, 1, -dv * 0.002);
-  else { p.scl = Math.max(0.005, p.scl * Math.exp(-dv * 0.0015)); applyScale(p); }
-  syncUI(); requestRender();
+  const r = wrap.getBoundingClientRect(), dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+  zoomAt(im, e.clientX - r.left, e.clientY - r.top, Math.exp(-dy * 0.0015));
 }, {passive: false});
-lassoHandlers(stArt, 'target', () => [st.art.w, st.art.h]);
-lassoHandlers($('#stRef'), 'ref', () => [st.ref.w, st.ref.h]);
 
-// ---------- UI ----------
+// ---------- tray（下のパーツのアイコン） ----------
+let trayDrag = null;
+function renderTray() {
+  const t = $('#tray'); t.innerHTML = '';
+  const ps = st.parts.filter(p => p.crop);
+  if (!ps.length) { t.innerHTML = `<span class="none">${st.refs.length ? '資料の上でペンを使って囲むと、ここにパーツが並びます' : '上の「＋ 資料」で資料を開き、ペンで囲むと、ここにパーツが並びます'}</span>`; return; }
+  for (const p of ps) {
+    const el = document.createElement('div');
+    el.className = 'chip' + (p === st.cur ? ' cur' : '') + (p.visible ? '' : ' off');
+    el.title = p.name + (p.placed ? '' : '（まだ絵に置いていません。絵へドラッグ）');
+    const c = canvas(120, 120); c.getContext('2d').drawImage(p.th, 0, 0);
+    el.appendChild(c);
+    el.insertAdjacentHTML('beforeend', `${p.placed ? '' : '<span class="badge">未配置</span>'}<button class="eye" title="表示">${p.visible ? '👁' : '－'}</button><span class="nm"></span>`);
+    el.querySelector('.nm').textContent = p.name;
+    el.querySelector('.eye').addEventListener('pointerdown', ev => ev.stopPropagation());
+    el.querySelector('.eye').addEventListener('click', ev => { ev.stopPropagation(); p.visible = !p.visible; refresh(); requestRender(); });
+    el.addEventListener('pointerdown', ev => {
+      if (ev.button !== 0) return;
+      ev.preventDefault();
+      trayDrag = {p, x: ev.clientX, y: ev.clientY, ghost: null};
+    });
+    t.appendChild(el);
+  }
+}
+
+// トレイのドラッグはウィンドウで追う（途中でトレイを描き直してもとぎれない）
+addEventListener('pointermove', ev => {
+  const d = trayDrag; if (!d) return;
+  if (!d.ghost && Math.hypot(ev.clientX - d.x, ev.clientY - d.y) > 8) {
+    const g = canvas(120, 120); g.getContext('2d').drawImage(d.p.th, 0, 0); g.className = 'ghost'; document.body.appendChild(g); d.ghost = g;
+    if (st.view !== 'art' && st.art) showView('art');
+  }
+  if (d.ghost) { d.ghost.style.left = ev.clientX + 'px'; d.ghost.style.top = ev.clientY + 'px'; }
+});
+const trayEnd = ev => {
+  const d = trayDrag; if (!d) return;
+  trayDrag = null; const p = d.p;
+  if (d.ghost) {
+    d.ghost.remove();
+    const r = wrap.getBoundingClientRect();
+    if (ev.type === 'pointerup' && st.art && st.view === 'art' && ev.clientX > r.left && ev.clientX < r.right && ev.clientY > r.top && ev.clientY < r.bottom) {
+      const v = st.art.v; placeAt(p, (ev.clientX - r.left - v.ox) / v.s, (ev.clientY - r.top - v.oy) / v.s);
+      p.visible = true; st.cur = p; setGmode('translate');
+    }
+    return;
+  }
+  if (ev.type !== 'pointerup') return;
+  // クリック：選ぶ。絵を見ていて未配置なら真ん中に置く
+  if (st.view === 'art' && st.art && !p.placed) { st.cur = p; fit(p, false); refresh(); }
+  else select(p);
+};
+addEventListener('pointerup', trayEnd); addEventListener('pointercancel', trayEnd);
+
+// ---------- tabs ----------
+function renderTabs() {
+  const t = $('#tabs'); t.innerHTML = '';
+  const tab = (label, on, th, onclick, onclose, title) => {
+    const el = document.createElement('div'); el.className = 'tab' + (on ? ' on' : ''); el.title = title || '';
+    if (th) { const c = canvas(26, 26); c.getContext('2d').drawImage(th, 0, 0); el.appendChild(c); }
+    const s = document.createElement('span'); s.textContent = label; el.appendChild(s);
+    if (onclose) { const x = document.createElement('button'); x.className = 'x'; x.textContent = '×'; x.title = '閉じる'; x.onclick = ev => { ev.stopPropagation(); onclose(); }; el.appendChild(x); }
+    el.onclick = onclick; t.appendChild(el); return el;
+  };
+  if (st.art) tab('絵', st.view === 'art', st.art.th, () => showView('art'), null, '描きかけの絵');
+  else tab('絵を開く', st.view === 'art', null, () => { showView('art'); $('#fArt').click(); });
+  if (st.art) { const re = document.createElement('button'); re.className = 'x'; re.textContent = '↻'; re.title = '別の絵を開く'; re.onclick = ev => { ev.stopPropagation(); $('#fArt').click(); }; t.firstChild.appendChild(re); }
+  for (const r of st.refs) tab(r.name, st.view === 'ref' && st.ref === r, r.th, () => { st.ref = r; showView('ref'); }, () => closeRef(r), '資料');
+  const add = tab('＋ 資料', false, null, () => $('#fRef').click(), null, '資料を足す（いくつでも。まとめて選べます）'); add.classList.add('add');
+}
+
+// ---------- UI（パネルのスライダー） ----------
 const UI = [];
 function slider(parent, o) {
   const el = document.createElement('label'); el.className = 'sl';
@@ -683,124 +1081,129 @@ function slider(parent, o) {
   inp.addEventListener('input', () => { o.set(+inp.value); show(+inp.value); requestRender(); });
   if (o.def != null) inp.addEventListener('dblclick', () => { o.set(typeof o.def === 'function' ? o.def() : o.def); syncUI(); requestRender(); });
   parent.appendChild(el);
-  const ent = {sync() {
+  UI.push({sync() {
+    const vis = !o.show || o.show(); el.hidden = !vis; if (!vis) return;
     lab.textContent = typeof o.label === 'function' ? o.label() : o.label;
     inp.min = typeof o.min === 'function' ? o.min() : o.min; inp.max = typeof o.max === 'function' ? o.max() : o.max;
-    const v = o.get(); const off = v == null || (o.show && !o.show());
-    el.classList.toggle('dis', v == null); el.hidden = !!(o.show && !o.show());
-    if (!off) { inp.value = v; show(v); }
-  }};
-  UI.push(ent); return ent;
+    const v = o.get(); el.classList.toggle('dis', v == null);
+    if (v != null) { inp.value = v; show(v); }
+  }});
 }
 const P = () => st.cur;
 const has = () => st.cur && st.cur.mesh;
 const span = () => st.art ? Math.max(st.art.w, st.art.h) : 1000;
-const M = () => METHODS[P()?.method || 'inflate'];
+const MP = k => METHODS[P()?.method || 'mech'].prm[k];
 
-slider($('#slModel'), {label: () => M().depth[3], min: () => M().depth[0], max: () => M().depth[1], get: () => P()?.crop ? P().depth : null, set: v => { P().depth = v; rebuildSoon(P()); }, fmt: v => v + '%', def: () => M().depth[2]});
-slider($('#slModel'), {label: () => M().smooth?.[3] || '', min: 0, max: 8, get: () => P()?.crop ? P().smooth : null, set: v => { P().smooth = v; rebuildSoon(P()); }, show: () => !!M().smooth, def: () => M().smooth?.[2]});
-
+for (const k of PRM_KEYS) slider($('#slModel'), {
+  label: () => MP(k)?.[3] || '', min: () => MP(k)?.[0] ?? 0, max: () => MP(k)?.[1] ?? 1, show: () => !!MP(k),
+  get: () => P()?.crop ? P().prm[k] : null, set: v => { P().prm[k] = v; rebuildSoon(P()); },
+  fmt: v => (k === 'levels' || k === 'smooth') ? String(v) : v + '%', def: () => MP(k)?.[2],
+});
 const posS = (key, label) => slider($('#slPos'), {label, min: () => -span(), max: () => span(), get: () => has() ? P().group.position[key] : null, set: v => { P().group.position[key] = v; }, def: 0});
 posS('x', '横'); posS('y', '縦'); posS('z', '手前・奥');
 const rotS = (key, label) => slider($('#slPos'), {label, min: -180, max: 180, get: () => has() ? P().group.rotation[key] / D2R : null, set: v => { P().group.rotation[key] = v * D2R; }, fmt: v => Math.round(v) + '°', def: 0});
 rotS('x', '上下に傾け'); rotS('y', '左右に振る'); rotS('z', 'ひねる');
-slider($('#slPos'), {label: '大きさ', min: -300, max: 200, get: () => has() ? Math.log2(P().scl) * 100 : null, set: v => { P().scl = 2 ** (v / 100); applyScale(P()); }, fmt: v => Math.round(2 ** (v / 100) * 100) + '%'});
+slider($('#slPos'), {label: '大きさ', min: -400, max: 300, get: () => has() ? Math.log2(P().scl) * 100 : null, set: v => { P().scl = 2 ** (v / 100); applyScale(P()); }, fmt: v => Math.round(2 ** (v / 100) * 100) + '%'});
 const sclS = (key, label) => slider($('#slPos'), {label, min: 10, max: 400, get: () => has() ? P()[key] * 100 : null, set: v => { P()[key] = v / 100; applyScale(P()); }, fmt: v => Math.round(v) + '%', def: 100});
 sclS('sx', '幅'); sclS('sy', '高さ'); sclS('sz', '奥行き');
 
-slider($('#slView'), {label: '立体の濃さ', min: 10, max: 100, get: () => st.opacity * 100, set: v => { st.opacity = v / 100; setOpacity(st.opacity); }, fmt: v => v + '%', def: 90});
-slider($('#slView'), {label: '絵の濃さ', min: 0, max: 100, get: () => st.artFade * 100, set: v => { st.artFade = v / 100; $('#cArt').style.opacity = st.artFade; }, fmt: v => v + '%', def: 100});
+slider($('#slView'), {label: '立体の濃さ', min: 10, max: 100, get: () => st.opacity * 100, set: v => { st.opacity = v / 100; setOpacity(st.opacity); }, fmt: v => v + '%', def: 92});
+slider($('#slView'), {label: '絵の濃さ', min: 0, max: 100, get: () => st.artFade * 100, set: v => { st.artFade = v / 100; }, fmt: v => v + '%', def: 100});
 slider($('#slView'), {label: 'パース', min: 5, max: 90, get: () => st.fov, set: v => { st.fov = v; setupCamera(); }, fmt: v => v + '°', def: 30});
 slider($('#slView'), {label: '光の向き', min: -180, max: 180, get: () => st.lightAz, set: v => { st.lightAz = v; placeLight(); }, fmt: v => v + '°', def: -35});
 slider($('#slView'), {label: '光の高さ', min: -80, max: 90, get: () => st.lightEl, set: v => { st.lightEl = v; placeLight(); }, fmt: v => v + '°', def: 40});
+slider($('#slView'), {label: '線の太さ', min: 1, max: 16, get: () => st.lineW, set: v => { st.lineW = v; }, fmt: v => v + 'px', def: 3});
+let lowT = 0;
+slider($('#slView'), {label: 'ローポリの粗さ', min: 10, max: 80, get: () => 90 - st.lowRes, set: v => { st.lowRes = 90 - v; if (st.lowpoly) { clearTimeout(lowT); lowT = setTimeout(rebuildAll, 120); } }, def: 62});
 
 const selM = $('#selMethod');
 for (const [k, m] of Object.entries(METHODS)) selM.add(new Option(m.label, k));
 selM.addEventListener('change', () => {
   const p = P(); if (!p) return;
-  p.method = selM.value; p.depth = M().depth[2]; p.smooth = M().smooth?.[2] || 0;
+  p.method = selM.value; p.prm = defaults(p.method);
   if (p.crop) build(p);
   refresh();
 });
 
+let syncRaf = 0;
 function syncUI() { UI.forEach(u => u.sync()); }
+function syncSoon() { if (!syncRaf) syncRaf = requestAnimationFrame(() => { syncRaf = 0; syncUI(); }); }
 
 function refresh() {
-  const p = st.cur;
-  // パーツ一覧
-  const list = $('#parts'); list.innerHTML = '';
-  for (const q of st.parts) {
-    const el = document.createElement('div'); el.className = 'part' + (q === p ? ' cur' : '');
-    const stt = !q.target ? 'アタリ未' : !q.crop ? '資料未' : '';
-    el.innerHTML = `<button class="ic" title="表示">${q.visible ? '👁' : '－'}</button><span class="nm"></span><span class="stt">${stt}</span>`;
-    el.querySelector('.nm').textContent = q.name;
-    el.addEventListener('click', () => { if (st.cur !== q) { disarm(); select(q); } });
-    el.querySelector('.nm').addEventListener('dblclick', () => { const n = prompt('名前', q.name); if (n) { q.name = n.slice(0, 30); refresh(); } });
-    el.querySelector('.ic').addEventListener('click', ev => { ev.stopPropagation(); q.visible = !q.visible; q.group.visible = q.visible; refresh(); requestRender(); });
-    list.appendChild(el);
+  const p = st.cur, art = st.view === 'art';
+  renderTabs(); renderTray();
+  const im = curImg();
+  // 空の画面
+  const em = $('#empty'); em.hidden = !!im;
+  em.innerHTML = '<div><b>描きかけの絵を開いてください</b><button class="pri big" data-open="art">絵を開く</button><br>ここへドラッグ＆ドロップ／Ctrl+V で貼り付けもできます</div>';
+  c3d.hidden = !art || !st.art;
+  $('#tbar').hidden = !im; $('#zoomBox').hidden = !im;
+  document.querySelectorAll('.tg-ref').forEach(e => { e.hidden = art; }); document.querySelectorAll('.tg-art').forEach(e => { e.hidden = !art; });
+  document.querySelectorAll('[data-rtool]').forEach(b => b.classList.toggle('on', b.dataset.rtool === st.rtool));
+  document.querySelectorAll('[data-gmode]').forEach(b => b.classList.toggle('on', b.dataset.gmode === st.gmode));
+  $('#bSpace').classList.toggle('on', st.space === 'world'); $('#bSpace').title = st.space === 'world' ? '軸：ワールド（画面の向き）' : '軸：ローカル（パーツの向き）';
+  $('#bLine').classList.toggle('on', st.lineOver); $('#bLow').classList.toggle('on', st.lowpoly);
+  $('#bProps').classList.toggle('on', st.propsOpen);
+  $('#selMode').value = st.mode;
+  wrap.classList.toggle('pen', !!penKind()); wrap.classList.toggle('hand', !penKind() && st.view === 'ref');
+  // ハンドル
+  const want = art && st.gmode !== 'pen' && p && p.mesh && p.visible && p.placed ? p.group : null;
+  if (tc.object !== want) { if (want) tc.attach(want); else tc.detach(); }
+  tc.enabled = !!want; tc.setSpace(st.space);
+  // パーツの設定
+  $('#props').hidden = !(art && st.art && p && p.crop && st.propsOpen);
+  if (p) {
+    $('#pName').textContent = p.name; selM.value = p.method; $('#ckMirror').checked = p.mirror; $('#ckInv').checked = p.invert;
+    $('#ckInvWrap').hidden = !METHODS[p.method].inv;
+    $('#bFitStretch').disabled = !p.target; $('#bUnplace').disabled = !p.placed;
   }
-  if (!st.parts.length) list.innerHTML = '<span class="st">パーツはまだありません</span>';
-  $('#bDup').disabled = $('#bDel').disabled = !p;
-  $('#secPart').style.opacity = p ? 1 : 0.45;
-  $('#sTarget').textContent = p?.target ? '囲み済み' : '';
-  $('#sTarget').className = 'st ok';
-  $('#sRef').textContent = !st.ref ? '資料はまだありません' : p?.crop ? `切り抜き ${p.crop.W}×${p.crop.H}` + (p.refId !== st.ref.id ? '（前の資料から）' : '') : '資料のパーツをまだ囲んでいません';
-  $('#sRef').className = 'st' + (p?.crop ? ' ok' : '');
-  $('#bTarget').classList.toggle('on', st.armed === 'target');
-  $('#bRefLasso').classList.toggle('on', st.armed === 'ref');
-  $('#bRefLasso').disabled = !st.ref;
-  $('#sRefImg').textContent = st.ref ? `${st.ref.w}×${st.ref.h}` : 'まだありません'; $('#sRefImg').className = 'st' + (st.ref ? ' ok' : '');
-  if (p) { selM.value = p.method; $('#ckMirror').checked = p.mirror; $('#ckInv').checked = p.invert; }
-  $('#ckInvWrap').hidden = !p || p.method !== 'relief';
-  for (const b of ['#bFit', '#bFitStretch', '#bRotReset']) $(b).disabled = !has();
-  $('#bExport').disabled = !st.art || !st.parts.some(q => q.mesh);
-  stArt.classList.toggle('lasso', st.armed === 'target'); $('#stRef').classList.toggle('lasso', st.armed === 'ref');
+  $('#bExportMenu').disabled = !st.art || !st.parts.some(q => q.mesh && q.placed);
   // 次にやること
   let h;
-  if (st.armed === 'target') h = '<b>絵の上で</b>、パーツを入れたい範囲をぐるっと囲んでください（Esc でやめる）';
-  else if (st.armed === 'ref') h = '<b>資料の上で</b>、立体にしたいパーツを輪郭どおりに囲んでください（Esc でやめる）';
-  else if (!st.art) h = 'まず描きかけの絵を開いてください';
-  else if (!p) h = '「＋ パーツを足す」で始めます';
-  else if (!p.target) h = '「絵の上でアタリを囲む」で、パーツを入れる範囲を決めます';
-  else if (!st.ref) h = '「2 資料を開く」で、パーツの資料を読み込みます';
-  else if (!p.crop) h = '「資料のパーツを囲む」で、使う部分を囲みます';
-  else h = 'ドラッグで移動／右ドラッグで回転／ホイールで拡大縮小。合ったら「透過 PNG で書き出す」';
+  if (!st.art) h = 'まず描きかけの絵を開いてください';
+  else if (!art && st.rtool === 'pen') h = pen ? 'クリックで点・ドラッグで線。<b>始点をクリック／ダブルクリック／Enter</b> で閉じるとパーツになります（Esc でやめる）' : '<b>ペン</b>で、立体にしたいパーツを囲んでください。いくつでも作れます';
+  else if (!art && st.rtool === 'erase') h = '<b>投げ縄</b>：いらないパーツの囲みをぐるっと囲むと消えます';
+  else if (!art) h = 'ドラッグで表示を移動、ホイールで拡大縮小。囲みの中をクリックするとそのパーツを選びます';
+  else if (!st.refs.length && !st.parts.length) h = '上の「＋ 資料」で、パーツの資料を開いてください';
+  else if (!st.parts.some(q => q.crop)) h = '資料のタブで、ペンでパーツを囲んでください';
+  else if (st.gmode === 'pen') h = `<b>ペン</b>：${p ? `「${p.name}」` : 'パーツ'}を置きたい範囲（アタリ）を囲むと、そこに合わせて置きます`;
+  else if (!st.parts.some(q => q.placed)) h = '下のパーツのアイコンを、絵へドラッグして置きます（クリックで真ん中に置く）';
+  else h = 'パーツをクリックで選び、ハンドルで移動・回転・拡大。ホイールで絵の拡大縮小、空いたところをドラッグで移動';
   $('#hint').innerHTML = h;
-  syncUI(); drawOverlays();
+  syncUI(); drawOverlays(); requestRender();
 }
 
 // ---------- export ----------
 function exportPNG() {
   const A = st.art; if (!A) return;
-  const list = (st.scope === 'cur' ? [st.cur] : st.parts).filter(p => p && p.mesh && p.visible);
-  if (!list.length) { toast('書き出す立体がありません'); return; }
-  const gl = renderer.getContext();
-  const vp = gl.getParameter(gl.MAX_VIEWPORT_DIMS);
+  const list = (st.scope === 'cur' ? [st.cur] : st.parts).filter(p => p && p.mesh && p.visible && p.placed);
+  if (!list.length) { toast('絵に置いたパーツがありません'); return; }
+  const gl = renderer.getContext(), vp = gl.getParameter(gl.MAX_VIEWPORT_DIMS);
   const lim = Math.min(vp[0], vp[1], gl.getParameter(gl.MAX_RENDERBUFFER_SIZE), 8192);
-  const k = Math.min(1, lim / Math.max(A.w, A.h));
-  const rw = Math.round(A.w * k), rh = Math.round(A.h * k);
-  const prevPR = renderer.getPixelRatio(), prev = renderer.getSize(new THREE.Vector2());
+  const k = Math.min(1, lim / Math.max(A.w, A.h)), rw = Math.round(A.w * k), rh = Math.round(A.h * k);
   const out = canvas(A.w, A.h), ctx = out.getContext('2d');
   if (st.withArt) ctx.drawImage(A.img, 0, 0);
-  setOpacity(1);
+  tc.visible = false; setOpacity(1);
+  camera.clearViewOffset(); camera.aspect = A.w / A.h; camera.updateProjectionMatrix();
   renderer.setPixelRatio(1); renderer.setSize(rw, rh, false);
   // 囲みで切るときはパーツごとに描いて、それぞれのアタリで切る（奥から順に重ねる）
   const passes = st.clip ? list.slice().sort((a, b) => a.group.position.z - b.group.position.z).map(p => [p]) : [list];
+  const op = st.opacity; st.opacity = 1;
   for (const grp of passes) {
-    st.parts.forEach(p => { p.group.visible = grp.includes(p); });
-    renderer.render(scene, camera);
+    passSet = new Set(grp);
+    renderAll(Math.max(1, st.lineW * k));
     const p = grp[0];
     if (st.clip && p.target) {
-      const t = canvas(A.w, A.h), tc = t.getContext('2d');
-      tc.drawImage(c3d, 0, 0, A.w, A.h);
-      tc.globalCompositeOperation = 'destination-in'; tracePath(tc, p.target); tc.fill();
+      const t = canvas(A.w, A.h), tx = t.getContext('2d');
+      tx.drawImage(c3d, 0, 0, A.w, A.h);
+      tx.globalCompositeOperation = 'destination-in'; tracePath(tx, p.target); tx.fill();
       ctx.drawImage(t, 0, 0);
     } else ctx.drawImage(c3d, 0, 0, A.w, A.h);
   }
-  st.parts.forEach(p => { p.group.visible = p.visible; });
-  setOpacity(st.opacity);
-  renderer.setPixelRatio(prevPR); renderer.setSize(prev.x, prev.y, false);
-  renderer.render(scene, camera);
+  passSet = null; st.opacity = op;
+  tc.visible = true; setOpacity(st.opacity);
+  renderer.setPixelRatio(DPR); renderer.setSize(WW, WH, false);
+  applyView();
   out.toBlob(b => {
     const a = document.createElement('a'), d = new Date(), z = n => String(n).padStart(2, '0');
     a.href = URL.createObjectURL(b);
@@ -813,52 +1216,65 @@ function exportPNG() {
 
 // ---------- wiring ----------
 let toastT = 0;
-function toast(s) { const t = $('#toast'); t.textContent = s; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2400); }
+function toast(s) { const t = $('#toast'); t.textContent = s; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2800); }
+function closePops() { $('#popView').hidden = true; $('#popExport').hidden = true; }
+function togglePop(id) { const el = $(id), was = el.hidden; closePops(); el.hidden = !was; if (!el.hidden) syncUI(); }
 
-$('#bArt').onclick = () => $('#fArt').click();
-$('#fArt').onchange = e => { openFile(e.target.files[0], 'art'); e.target.value = ''; };
-$('#bRef').onclick = $('#bRef2').onclick = () => $('#fRef').click();
-$('#bOpenBar').onclick = () => $(st.view === 'art' ? '#fArt' : '#fRef').click();
-$('#empty').addEventListener('click', e => { const k = e.target.closest('[data-open]')?.dataset.open; if (k) $(k === 'art' ? '#fArt' : '#fRef').click(); });
-$('#fRef').onchange = e => { openFile(e.target.files[0], 'ref'); e.target.value = ''; };
-$('#bAdd').onclick = () => { disarm(); addPart(); };
-$('#bDup').onclick = () => dupPart(st.cur);
-$('#bDel').onclick = () => { if (st.cur && confirm(`「${st.cur.name}」を消しますか？`)) delPart(st.cur); };
-$('#bTarget').onclick = () => st.armed === 'target' ? disarm() : arm('target');
-$('#bRefLasso').onclick = () => st.armed === 'ref' ? disarm() : arm('ref');
-$('#bFit').onclick = () => { fit(st.cur, false); syncUI(); };
-$('#bFitStretch').onclick = () => { fit(st.cur, true); syncUI(); };
+$('#fArt').onchange = e => { openFiles(e.target.files, 'art'); e.target.value = ''; };
+$('#fRef').onchange = e => { openFiles(e.target.files, 'ref'); e.target.value = ''; };
+$('#empty').addEventListener('click', e => { if (e.target.closest('[data-open]')) $('#fArt').click(); });
+document.querySelectorAll('[data-rtool]').forEach(b => b.onclick = () => setRtool(b.dataset.rtool));
+document.querySelectorAll('[data-gmode]').forEach(b => b.onclick = () => setGmode(b.dataset.gmode));
+$('#bSpace').onclick = () => { st.space = st.space === 'local' ? 'world' : 'local'; refresh(); };
+$('#selMode').onchange = e => { st.mode = e.target.value; remat(); };
+$('#bLine').onclick = () => { st.lineOver = !st.lineOver; refresh(); };
+$('#bLow').onclick = () => { st.lowpoly = !st.lowpoly; rebuildAll(); remat(); refresh(); };
+$('#bViewPop').onclick = () => togglePop('#popView');
+$('#bExportMenu').onclick = () => { if (st.view !== 'art') showView('art'); togglePop('#popExport'); };
+$('#bProps').onclick = () => { st.propsOpen = !st.propsOpen; refresh(); };
+$('#bPropsMin').onclick = () => { st.propsOpen = false; refresh(); };
+$('#bFit').onclick = () => { fit(st.cur, false); refresh(); };
+$('#bFitStretch').onclick = () => { fit(st.cur, true); refresh(); };
 $('#bRotReset').onclick = () => { st.cur.group.quaternion.identity(); syncUI(); requestRender(); };
-$('#ckMirror').onchange = e => { st.cur && (st.cur.mirror = e.target.checked, applyScale(st.cur), requestRender()); };
+$('#bDup').onclick = () => dupPart(st.cur);
+$('#bUnplace').onclick = () => { const p = st.cur; if (p) { p.placed = false; p.target = null; refresh(); } };
+$('#bDel').onclick = () => { if (st.cur && confirm(`「${st.cur.name}」を消しますか？`)) delPart(st.cur); };
+$('#ckMirror').onchange = e => { if (st.cur) { st.cur.mirror = e.target.checked; applyScale(st.cur); requestRender(); } };
 $('#ckInv').onchange = e => { if (st.cur) { st.cur.invert = e.target.checked; rebuildSoon(st.cur); } };
-document.querySelectorAll('#tools [data-tool]').forEach(b => b.onclick = () => {
-  st.tool = b.dataset.tool; document.querySelectorAll('#tools [data-tool]').forEach(x => x.classList.toggle('on', x === b));
-});
-document.querySelectorAll('#bar [data-view]').forEach(b => b.onclick = () => showView(b.dataset.view));
-$('#selMode').onchange = e => { st.mode = e.target.value; rebuildAll(); };
-$('#ckEdges').onchange = e => { st.edges = e.target.checked; rebuildAll(); };
 $('#ckTargets').onchange = e => { st.showTargets = e.target.checked; drawOverlays(); };
 document.querySelectorAll('input[name=scope]').forEach(r => r.onchange = () => { st.scope = r.value; });
 $('#ckClip').onchange = e => { st.clip = e.target.checked; };
 $('#ckWithArt').onchange = e => { st.withArt = e.target.checked; };
-$('#bExport').onclick = exportPNG;
-addEventListener('keydown', e => { if (e.key === 'Escape' && st.armed) disarm(); });
+$('#bExport').onclick = () => { closePops(); exportPNG(); };
+$('#bZoomIn').onclick = () => { const im = curImg(); if (im) zoomAt(im, WW / 2, WH / 2, 1.25); };
+$('#bZoomOut').onclick = () => { const im = curImg(); if (im) zoomAt(im, WW / 2, WH / 2, 0.8); };
+$('#bZoomFit').onclick = () => { const im = curImg(); if (im) { fitView(im); applyView(); } };
 
-// ドロップ・貼り付け：絵がまだなら絵、あれば資料
-const kindFor = () => !st.art ? 'art' : 'ref';
-addEventListener('dragover', e => { e.preventDefault(); document.body.classList.add('drop'); });
+addEventListener('keydown', e => {
+  if (e.target.closest('input,select,textarea')) return;
+  if (e.key === ' ') { spaceDown = true; e.preventDefault(); return; }
+  if (e.key === 'Escape') { if (pen) { pen = null; drawOverlays(); refresh(); } closePops(); return; }
+  if (e.key === 'Enter' && pen) { commitPen(); return; }
+  if (e.key === 'Backspace' && pen && pen.pts.length) { pen.pts.pop(); if (!pen.pts.length) pen = null; drawOverlays(); e.preventDefault(); return; }
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const k = e.key.toLowerCase();
+  if (st.view === 'art') { const m = {w: 'translate', e: 'rotate', r: 'scale', p: 'pen'}[k]; if (m) setGmode(m); }
+  else { const t = {p: 'pen', l: 'erase', h: 'hand'}[k]; if (t) setRtool(t); }
+});
+addEventListener('keyup', e => { if (e.key === ' ') spaceDown = false; });
+addEventListener('pointerdown', e => { if (!e.target.closest('.pop,#bViewPop,#bExportMenu')) closePops(); });
+
+// ドロップ・貼り付け：絵がまだなら最初の 1 枚が絵、あとは資料のタブ
+addEventListener('dragover', e => { if (e.dataTransfer?.types?.includes('Files')) { e.preventDefault(); document.body.classList.add('drop'); } });
 addEventListener('dragleave', e => { if (!e.relatedTarget) document.body.classList.remove('drop'); });
-addEventListener('drop', e => {
-  e.preventDefault(); document.body.classList.remove('drop');
-  const f = [...(e.dataTransfer?.files || [])].find(f => /^image\//.test(f.type)); if (f) openFile(f, kindFor());
-});
+addEventListener('drop', e => { e.preventDefault(); document.body.classList.remove('drop'); if (e.dataTransfer?.files?.length) openFiles(e.dataTransfer.files, 'auto'); });
 addEventListener('paste', e => {
-  const it = [...(e.clipboardData?.items || [])].find(i => /^image\//.test(i.type));
-  if (it) { e.preventDefault(); openFile(it.getAsFile(), kindFor()); }
+  const fs = [...(e.clipboardData?.items || [])].filter(i => /^image\//.test(i.type)).map(i => i.getAsFile());
+  if (fs.length) { e.preventDefault(); openFiles(fs, 'auto'); }
 });
 
-setupCamera(); layout(); refresh();
-window.__atari = {st, THREE};
+resize(); refresh();
+window.__atari = {st, THREE, tc};
 </script>
 </body>
 </html>

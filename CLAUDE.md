@@ -10,12 +10,12 @@
 | `src/kouzu-fabrica.html` | **本体（ここを編集する）**。HTML・CSS・JS がすべて入った単一ファイル。約 4,500 行 |
 | `index.html` | 配布版。`python3 tools/build.py` で src から作る（**直接編集しない**） |
 | `tools/build.py` | src → index.html。`<head>` と MediaPipe Pose の `<script>` を足すだけ |
-| `vendor/kouzu3d.js` | three.js 0.160.1 + @pixiv/three-vrm 2.1.2 の ESM バンドル。`tools/` で `npm i && npm run build:3d` |
+| `vendor/kouzu3d.js` | three.js 0.160.1 + @pixiv/three-vrm 2.1.2（＋ TransformControls）の ESM バンドル。`tools/` で `npm i && npm run build:3d` |
 | `tools/k3d.entry.js` | 上のバンドルの入口 |
 | `mediapipe/pose/` | MediaPipe Pose 0.5（旧版）を自前ホスト。骨格検出はブラウザ内で推論 |
 | `models/moo.vrm` | 同梱の 3D 素体（VRoid 製、作者が同梱を許可済み） |
 | `tests/smoke.js` / `tests/zh.js` | Playwright の動作確認／繁體中文の訳抜けチェック |
-| `atari3d.html` | **パーツ立体アタリ**（別ツール・単一ファイル・ビルドなし）。描きかけの絵でアタリを囲む → 資料のパーツを囲む → 立体化（ふくらませる／押し出す／回転体／明暗の凹凸／箱・円柱・球）→ 位置合わせ → 絵と同じ大きさの透過 PNG。three は `./vendor/kouzu3d.js`、無ければ CDN。日本語のみ（ZH 辞書の対象外） |
+| `atari3d.html` | **パーツ立体アタリ**（別ツール・単一ファイル・ビルドなし）。上のタブ＝絵／資料（＋で何枚でも）、下のトレイ＝パーツのアイコン、キャンバス右上＝ツール、右＝選んだパーツの設定。資料でペン（囲むとパーツ化）／投げ縄（囲んだパーツを消す）→ トレイから絵へドラッグ → TransformControls のハンドル（W/E/R）で合わせる → 透過 PNG。立体化は `GEN`（メカ＝色の k-means で段＋面取り・丸い区画はドーム・暗い細線は溝／ふくらませる／押し出す／回転体／レリーフ／箱・円柱・球）、`st.lowpoly` で単純化、線画は法線＋深度の後処理（`linePass`）。表示の拡大・移動は `camera.setViewOffset`。three と TransformControls は `./vendor/kouzu3d.js`、無ければ CDN（importmap）。日本語のみ（ZH 辞書の対象外） |
 | `tests/atari3d.js` | 上の一通りの動作確認（期待：errors [] で終了コード 0） |
 
 ## 開発の流れ
