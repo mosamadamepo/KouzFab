@@ -61,6 +61,13 @@ const { chromium } = require(require.resolve('playwright', {paths: [__dirname + 
   await stroke(ring(80, 560, 50, 30), 'ref'); await p.keyboard.press('Enter'); await p.waitForTimeout(150);
   const before = (await S()).parts;
   console.log('✕ keeps', afterNo, '/ ✓ makes', before); if (before !== afterNo + 1) errs.push('confirm marks');
+  // ＋✎：囲みもれを足す（2 つの囲みで 1 つのパーツ）
+  await p.keyboard.down('Alt'); await stroke(ring(720, 80, 40, 30), 'ref'); await p.keyboard.up('Alt');
+  await p.click('#bAskAdd'); await p.keyboard.down('Alt'); await stroke(ring(740, 160, 30, 25), 'ref'); await p.keyboard.up('Alt');
+  await p.click('#bAskOk'); await p.waitForTimeout(200);
+  const multi = await p.evaluate(() => [__atari.st.cur.refPolys.length, __atari.st.parts.length]);
+  console.log('+pen: polygons in the new part / parts:', multi.join(' / ')); if (multi[0] !== 2) errs.push('+pen did not add');
+  await p.keyboard.press('Control+z'); await p.waitForTimeout(150);
   await p.keyboard.press('l'); await stroke(ring(80, 560, 75, 40), 'ref');
   const afterErase = (await S()).parts;
   await p.keyboard.press('Control+z'); await p.waitForTimeout(150); const undone = (await S()).parts;
@@ -108,9 +115,36 @@ const { chromium } = require(require.resolve('playwright', {paths: [__dirname + 
   await p.mouse.move(...await scr([100, 100], 'art'));
   for (const k of ['e', 'r', 'w', 'q']) await p.keyboard.press(k);
   console.log('gizmo mode:', await p.evaluate(() => __atari.st.gmode));
-  // ペンでアタリ（Alt で吸いつかない）
-  await p.keyboard.press('p'); await p.keyboard.down('Alt'); await stroke(ring(600, 1150, 280, 230), 'art'); await p.keyboard.up('Alt'); await p.click('#bAskOk'); await p.waitForTimeout(150);
-  console.log('target fit:', await p.evaluate(() => { const c = __atari.st.cur; return [!!c.target, Math.round(c.group.position.y)]; }));
+  // 十字のアタリ：わかっている向きに置いたパーツのアウトライン・たて・よこを絵の座標へ投影 → それをペンで描く → 向きが戻るか
+  await p.selectOption('#selMethod', 'depth'); await p.waitForTimeout(200);
+  const truth = {yaw: -25, pitch: 15, roll: 10};
+  const curves = await p.evaluate(t => {
+    const c = __atari.st.cur, D = Math.PI / 180, g = c.group;
+    g.rotation.set(t.pitch * D, t.yaw * D, t.roll * D); g.position.set(60, -150, 0); g.updateMatrixWorld(true);
+    const pr = __atari.artProjector(), v = new __atari.THREE.Vector3();
+    const P = pts => pts.map(q => { v.set(...q).applyMatrix4(g.matrixWorld); return pr(v.x, v.y, v.z); });
+    const O = P(c.cross.O), V = P(c.cross.V), H = P(c.cross.H);
+    g.rotation.set(0, 0, 0); g.position.set(-200, 200, 0);
+    return {O, V, H, n: [c.cross.O.length, c.cross.V.length, c.cross.H.length]};
+  }, truth);
+  console.log('cross curves (outline/v/h points):', curves.n.join('/'), 'cross shown:', await p.evaluate(() => !!__atari.st.cur.crossObj));
+  const order = pts => { // 外まわりの点を、重心まわりの角度で並べて 1 本の輪に
+    const cx = pts.reduce((a, q) => a + q[0], 0) / pts.length, cy = pts.reduce((a, q) => a + q[1], 0) / pts.length;
+    return pts.slice().sort((a, b) => Math.atan2(a[1] - cy, a[0] - cx) - Math.atan2(b[1] - cy, b[0] - cx));
+  };
+  const firstBtn = await p.$eval('#tbarArt .ib', b => b.dataset.gmode);
+  console.log('leftmost art tool:', firstBtn); if (firstBtn !== 'pen') errs.push('pen is not leftmost');
+  await p.keyboard.press('p'); await p.keyboard.down('Alt');
+  const O = order(curves.O); await stroke([...O, O[0]], 'art'); await p.keyboard.up('Alt'); await p.click('#bAskOk'); await p.waitForTimeout(150);
+  console.log('step after outline:', await p.evaluate(() => __atari.st.aStep));
+  await stroke(curves.V.filter((_, i) => i % 3 === 0), 'art'); await p.keyboard.press('Enter'); await p.waitForTimeout(150);
+  console.log('step after vertical:', await p.evaluate(() => __atari.st.aStep));
+  await stroke(curves.H.filter((_, i) => i % 3 === 0), 'art'); await p.keyboard.press('Enter'); await p.waitForTimeout(800);
+  const got = await p.evaluate(() => { const g = __atari.st.cur.group, D = 180 / Math.PI; return {yaw: g.rotation.y * D, pitch: g.rotation.x * D, roll: g.rotation.z * D, x: g.position.x, y: g.position.y, err: __atari.st.cur.fitErr, mode: __atari.st.gmode}; });
+  console.log('atari fit: yaw/pitch/roll', [got.yaw, got.pitch, got.roll].map(v => v.toFixed(1)).join('/'), 'pos', Math.round(got.x), Math.round(got.y), 'err', got.err?.toFixed(4), 'mode', got.mode);
+  if (Math.abs(got.yaw - truth.yaw) > 8 || Math.abs(got.pitch - truth.pitch) > 8 || Math.abs(got.roll - truth.roll) > 5 || Math.hypot(got.x - 60, got.y + 150) > 40) errs.push('atari cross fit off');
+  await p.keyboard.press('Control+z'); await p.waitForTimeout(150);
+  console.log('Ctrl+Z after cross fit: yaw', (await p.evaluate(() => __atari.st.cur.group.rotation.y * 180 / Math.PI)).toFixed(1));
   const z0 = await p.evaluate(() => __atari.st.art.v.s);
   const wc = await scr([600, 800], 'art'); await p.mouse.move(...wc); await p.mouse.wheel(0, -400); await p.waitForTimeout(200);
   console.log('zoom:', +(await p.evaluate(() => __atari.st.art.v.s) / z0).toFixed(2));

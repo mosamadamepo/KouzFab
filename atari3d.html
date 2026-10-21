@@ -50,9 +50,18 @@ body.split #tabs{display:none}
 .wrap.hand canvas{cursor:grab}
 #bboxFrame{position:absolute;border:1px dashed var(--acc);pointer-events:none;z-index:1}
 #knob{position:absolute;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:4px;background:#fff;border:2px solid var(--acc);cursor:nesw-resize;z-index:5;touch-action:none;box-shadow:0 1px 4px #0004}
+#aSteps{left:50%;transform:translateX(-50%);bottom:10px;display:flex;gap:6px;align-items:center;padding:5px 8px;font-size:12px;z-index:4}
+#aSteps span{padding:3px 8px;border-radius:12px;color:var(--sub);border:1px solid var(--line)}
+#aSteps span.on{color:#fff;font-weight:700}
+#aSteps span[data-s=outline].on{background:var(--acc);border-color:var(--acc)}
+#aSteps span[data-s=v].on{background:#e23b3b;border-color:#e23b3b}
+#aSteps span[data-s=h].on{background:#2f6fd0;border-color:#2f6fd0}
+#aSteps span.done{color:var(--ink);text-decoration:line-through}
 #penAsk{display:flex;gap:4px;padding:4px;z-index:6}
 #penAsk button{width:34px;height:30px;padding:0;font-size:17px;font-weight:700;line-height:1}
 #bAskOk{background:#2e8b57;color:#fff;border-color:#2e8b57}
+#bAskAdd svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#bAskAdd.on{background:#2f6fd0;color:#fff;border-color:#2f6fd0}
 #bAskNo{background:var(--panel);color:#c0392b;border-color:#c0392b}
 #depthMsg{right:10px;bottom:10px;padding:5px 10px;font-size:11px;color:var(--sub)}
 .empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:var(--sub);padding:20px}
@@ -130,15 +139,17 @@ label.ck{display:flex;gap:6px;align-items:center;margin:3px 0;font-size:12px}
     <canvas id="cArt"></canvas>
     <canvas id="c3d"></canvas>
     <svg id="ovArt" class="ov" preserveAspectRatio="none"></svg>
+    <div id="aSteps" class="float" hidden><span data-s="outline">① アウトライン</span><span data-s="v">② たて</span><span data-s="h">③ よこ</span><button id="bSkip">この線はとばす</button></div>
     <div id="bboxFrame" hidden></div><div id="knob" title="ドラッグで拡大縮小" hidden></div>
     <div id="emptyArt" class="empty"><div><b>描きかけの絵を開いてください</b><button class="pri big" data-open="art">絵を開く</button><br>ここへドラッグ＆ドロップ／Ctrl+V で貼り付けもできます</div></div>
 
     <div id="tbarArt" class="float tbar" hidden>
+        <button class="ib" data-gmode="pen" title="ペン：張り込む所に ①アウトライン ②たての線（赤）③よこの線（青）を描くと、そこへ合わせて置く"><svg viewBox="0 0 24 24"><path d="M4 20l3.5-1 11-11-2.5-2.5-11 11z"/><path d="M14.5 6.5l3 3"/></svg><kbd>P</kbd></button>
+        <span class="sep"></span>
         <button class="ib" data-gmode="all" title="まとめて操作（Q）：矢印で移動・輪で回転・右上の角で拡大縮小"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v10M7 12h10M12 7l-2 2M12 7l2 2M17 12l-2-2M17 12l-2 2"/><path d="M19 3h2v2"/></svg><kbd>Q</kbd></button>
         <button class="ib" data-gmode="translate" title="移動（W）"><svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/></svg><kbd>W</kbd></button>
         <button class="ib" data-gmode="rotate" title="回転（E）"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v5h-5"/></svg><kbd>E</kbd></button>
         <button class="ib" data-gmode="scale" title="拡大縮小（R）"><svg viewBox="0 0 24 24"><path d="M4 14v6h6M4 20l7-7M20 10V4h-6M20 4l-7 7"/></svg><kbd>R</kbd></button>
-        <button class="ib" data-gmode="pen" title="ペン：選んでいるパーツのアタリを囲む（囲んだ範囲に合わせて置く）"><svg viewBox="0 0 24 24"><path d="M4 20l3.5-1 11-11-2.5-2.5-11 11z"/><path d="M14.5 6.5l3 3"/></svg><kbd>P</kbd></button>
         <button class="ib tog bMagnet" title="ふちに吸いつく（マグネット）。Alt を押しているあいだは吸いつかない"><svg viewBox="0 0 24 24"><path d="M6 4v8a6 6 0 0 0 12 0V4h-4v8a2 2 0 0 1-4 0V4z"/><path d="M6 8h4M14 8h4"/></svg></button>
         <span class="sep"></span>
         <button class="ib tog" id="bSpace" title="軸：ローカル（パーツの向き）／ワールド（画面の向き）"><svg viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z M12 12l8-4.5M12 12v9M12 12L4 7.5"/></svg></button>
@@ -150,6 +161,7 @@ label.ck{display:flex;gap:6px;align-items:center;margin:3px 0;font-size:12px}
           <option value="line">線画</option>
           <option value="wire">ワイヤー</option>
         </select>
+        <button class="ib tog on" id="bCross" title="十字のアタリ（たて＝赤・よこ＝青）を表示"><svg viewBox="0 0 24 24"><path d="M12 3v18" stroke="#e23b3b"/><path d="M3 12h18" stroke="#2f6fd0"/><circle cx="12" cy="12" r="7"/></svg></button>
         <button class="ib tog" id="bLine" title="線画を重ねる"><svg viewBox="0 0 24 24"><path d="M4 18c3-6 6-9 9-9s3 4 7 1"/><path d="M4 21h16"/></svg></button>
         <button class="ib tog" id="bLow" title="単純化ポリゴン（ローポリ）"><svg viewBox="0 0 24 24"><path d="M12 3l8 6-3 11H7L4 9z M12 3L7 20M12 3l5 17M4 9h16"/></svg></button>
         <span class="sep"></span>
@@ -163,7 +175,8 @@ label.ck{display:flex;gap:6px;align-items:center;margin:3px 0;font-size:12px}
       <select id="selMethod"></select>
       <div id="slModel"></div>
       <label class="ck" id="ckInvWrap"><input type="checkbox" id="ckInv">暗いところを高くする</label>
-      <div class="row"><button id="bFit">アタリに合わせる</button><button id="bFitStretch">縦横もアタリに</button></div>
+      <div class="row"><button id="bFit">アタリに合わせる</button></div>
+      <label class="ck"><input type="checkbox" id="ckAspect">縦横比をアタリに合わせる</label>
       <details><summary>数値で位置を合わせる</summary>
         <div id="slPos"></div>
         <label class="ck"><input type="checkbox" id="ckMirror">左右反転</label>
@@ -186,6 +199,7 @@ label.ck{display:flex;gap:6px;align-items:center;margin:3px 0;font-size:12px}
       <label class="ck"><input type="radio" name="scope" value="all" checked>絵に置いたパーツをすべて</label>
       <label class="ck"><input type="radio" name="scope" value="cur">選んでいるパーツだけ</label>
       <label class="ck"><input type="checkbox" id="ckClip">アタリの囲みの外を消す</label>
+      <label class="ck"><input type="checkbox" id="ckCrossExp">十字のアタリも書き出す</label>
       <label class="ck"><input type="checkbox" id="ckWithArt">絵も重ねる（確認用。透過にならない）</label>
       <div class="row"><button id="bExport" class="pri">書き出す</button></div>
       <p class="st" style="margin:0">絵と同じ大きさです。ペイントソフトで絵の上のレイヤーにそのまま重なります。</p>
@@ -212,7 +226,7 @@ label.ck{display:flex;gap:6px;align-items:center;margin:3px 0;font-size:12px}
 
     </div>
     <div id="depthMsg" class="float" hidden></div>
-    <div id="penAsk" class="float" hidden><button id="bAskOk" title="決定（Enter）">✓</button><button id="bAskNo" title="取り消し（Esc）">✕</button></div>
+    <div id="penAsk" class="float" hidden><button id="bAskOk" title="決定（Enter）">✓</button><button id="bAskNo" title="取り消し（Esc）">✕</button><button id="bAskAdd" title="追加で囲む（細かいところの囲みもれを足す）"><svg viewBox="0 0 24 24"><path d="M5 3v6M2 6h6"/><path d="M8 21l3-1 9-9-2-2-9 9z"/></svg></button></div>
     <div id="zoomRef" class="float zoombox" hidden>
       <button data-z="out" title="縮小">－</button><span>100%</span><button data-z="in" title="拡大">＋</button><button data-z="fit" title="全体を表示">全体</button>
     </div>
@@ -247,6 +261,7 @@ const st = {
   mode: 'tex', lineOver: false, lowpoly: false, lowRes: 28, lineW: 3,
   showTargets: true, opacity: 0.92, artFade: 1, fov: 30, lightAz: -35, lightEl: 40,
   scope: 'all', clip: false, withArt: false, propsOpen: true, magnet: true, depthModel: 'small',
+  fitAspect: false, showCross: true, crossExport: false, aStep: 'outline', aDraft: null,
 };
 let passSet = null; // 書き出しでパーツごとに描くとき
 
@@ -361,7 +376,7 @@ function requestRender() {
 function isShown(p) { return !!p.mesh && p.visible && p.placed && (!passSet || passSet.has(p)); }
 const tmpV = new THREE.Vector2();
 function renderAll(thick) {
-  for (const p of st.parts) p.group.visible = isShown(p);
+  for (const p of st.parts) { p.group.visible = isShown(p); if (p.crossObj) p.crossObj.visible = passSet ? st.crossExport : st.showCross; }
   renderer.setRenderTarget(null); renderer.clear();
   if (st.mode === 'line') {
     const vis = st.parts.map(p => p.group.visible);
@@ -375,6 +390,7 @@ function linePass(thick) {
   renderer.getDrawingBufferSize(tmpV);
   if (rt.width !== tmpV.x || rt.height !== tmpV.y) rt.setSize(tmpV.x, tmpV.y);
   const tv = tc.visible, tvR = tcR.visible; tc.visible = tcR.visible = false;
+  const crossVis = st.parts.map(p => p.crossObj && p.crossObj.visible); st.parts.forEach(p => { if (p.crossObj) p.crossObj.visible = false; });
   const sw = [];
   for (const p of st.parts) if (p.mesh && p.group.visible) {
     sw.push([p.mesh, p.mesh.material]);
@@ -385,6 +401,7 @@ function linePass(thick) {
   renderer.setRenderTarget(rt); renderer.clear(); renderer.render(scene, camera); renderer.setRenderTarget(null);
   sw.forEach(([m, mat]) => { m.material = mat; });
   tc.visible = tv; tcR.visible = tvR;
+  st.parts.forEach((p, i) => { if (p.crossObj) p.crossObj.visible = crossVis[i]; });
   const u = postMat.uniforms;
   u.texel.value.set(1 / tmpV.x, 1 / tmpV.y); u.thick.value = thick; u.cn.value = camera.near; u.cf.value = camera.far;
   u.dthr.value = st.art ? Math.max(st.art.w, st.art.h) * 0.012 : 10;
@@ -575,7 +592,7 @@ function dupPart(src) {
   if (!src) return;
   pushUndo();
   const p = newPart();
-  for (const k of ['target', 'refId', 'refPoly', 'crop', 'method', 'invert', 'mirror', 'scl', 'sx', 'sy', 'sz', 'placed', 'th', 'dstate', 'localDepth', 'gDepth'])
+  for (const k of ['target', 'refId', 'refPoly', 'refPolys', 'crop', 'method', 'invert', 'mirror', 'scl', 'sx', 'sy', 'sz', 'placed', 'th', 'dstate', 'localDepth', 'gDepth'])
     p[k] = Array.isArray(src[k]) ? src[k].map(v => v.slice()) : src[k];
   p.prm = {...src.prm}; p.name = src.name + 'の複製';
   p.group.position.copy(src.group.position);
@@ -586,8 +603,13 @@ function dupPart(src) {
 }
 
 // 資料の囲みから、切り抜き（矩形・囲みで透過・白いマスク）をつくる。長辺 1024px まで
-function makeCrop(p, poly, R) {
-  const xs = poly.map(q => q[0]), ys = poly.map(q => q[1]);
+// 資料の囲み（いくつでも。＋✎ で足した分）から、切り抜き（矩形・囲みで透過・白いマスク）をつくる。長辺 1024px まで
+const polysOf = p => p.refPolys || (p.refPoly ? [p.refPoly] : []);
+const polyArea = P => { let a = 0; for (let i = 0; i < P.length; i++) { const [x0, y0] = P[i], [x1, y1] = P[(i + 1) % P.length]; a += x0 * y1 - x1 * y0; } return Math.abs(a) / 2; };
+function makeCrop(p, polys, R) {
+  if (!Array.isArray(polys[0][0])) polys = [polys];
+  polys = polys.slice().sort((a, b) => polyArea(b) - polyArea(a)); // いちばん大きい囲みを先頭（主）に
+  const all = polys.flat(), xs = all.map(q => q[0]), ys = all.map(q => q[1]);
   const x0 = Math.max(0, Math.floor(Math.min(...xs))), y0 = Math.max(0, Math.floor(Math.min(...ys)));
   const x1 = Math.min(R.w, Math.ceil(Math.max(...xs))), y1 = Math.min(R.h, Math.ceil(Math.max(...ys)));
   const bw = x1 - x0, bh = y1 - y0;
@@ -595,13 +617,13 @@ function makeCrop(p, poly, R) {
   const k = Math.min(1, 1024 / Math.max(bw, bh));
   const W = Math.max(2, Math.round(bw * k)), H = Math.max(2, Math.round(bh * k));
   const full = canvas(W, H); full.getContext('2d').drawImage(R.img, x0, y0, bw, bh, 0, 0, W, H);
-  const lp = poly.map(([x, y]) => [(x - x0) * k, (y - y0) * k]);
-  const masked = canvas(W, H), mc = masked.getContext('2d');
-  mc.save(); tracePath(mc, lp); mc.clip(); mc.drawImage(full, 0, 0); mc.restore();
+  const lps = polys.map(poly => poly.map(([x, y]) => [(x - x0) * k, (y - y0) * k]));
   const mask = canvas(W, H), kc = mask.getContext('2d');
-  kc.drawImage(masked, 0, 0); kc.globalCompositeOperation = 'source-in'; kc.fillStyle = '#fff'; kc.fillRect(0, 0, W, H);
-  p.crop = {W, H, full, masked, mask, poly: lp, src: {x0, y0, bw, bh, RW: R.w, RH: R.h}};
-  p.refId = R.id; p.refPoly = poly; p.th = thumb(masked, 120);
+  kc.fillStyle = '#fff'; for (const lp of lps) { tracePath(kc, lp); kc.fill(); } // 1 つずつ塗る（重なっても穴にならない）
+  const masked = canvas(W, H), mc = masked.getContext('2d');
+  mc.drawImage(full, 0, 0); mc.globalCompositeOperation = 'destination-in'; mc.drawImage(mask, 0, 0);
+  p.crop = {W, H, full, masked, mask, poly: lps[0], polys: lps, src: {x0, y0, bw, bh, RW: R.w, RH: R.h}};
+  p.refId = R.id; p.refPolys = polys; p.refPoly = polys[0]; p.th = thumb(masked, 120);
   makeTextures(p);
   return true;
 }
@@ -754,6 +776,7 @@ function heightMesh(F, B, m, gw, gh, W, H, tri) {
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setIndex(idx);
   planarUV(g, W, H); g.computeVertexNormals();
+  g.userData.front = {F, gw, gh, W, H}; // 十字のアタリ用（表の高さ）
   return g;
 }
 function closeEdge(F, B, m, gw, gh) { // ローポリ：輪郭の点は表裏とも 0 にして閉じる
@@ -925,9 +948,11 @@ const GEN = {
   },
   extrude(p) {
     const {W, H} = p.crop;
-    let pts = simplify(p.crop.poly, Math.max(W, H) / (st.lowpoly ? st.lowRes * 1.5 : 400));
-    if (pts.length > 400) pts = pts.filter((_, i) => i % Math.ceil(pts.length / 400) === 0);
-    const shape = new THREE.Shape(pts.map(([x, y]) => new THREE.Vector2(x - W / 2, H / 2 - y)));
+    const shape = (p.crop.polys || [p.crop.poly]).map(poly => {
+      let pts = simplify(poly, Math.max(W, H) / (st.lowpoly ? st.lowRes * 1.5 : 400));
+      if (pts.length > 400) pts = pts.filter((_, i) => i % Math.ceil(pts.length / 400) === 0);
+      return new THREE.Shape(pts.map(([x, y]) => new THREE.Vector2(x - W / 2, H / 2 - y)));
+    });
     const depth = p.prm.depth / 100 * Math.min(W, H);
     const bev = st.lowpoly ? 0 : Math.min(depth * 0.45, Math.min(W, H) * 0.025 * p.prm.smooth);
     const g = new THREE.ExtrudeGeometry(shape, {depth: Math.max(0.5, depth - bev * 2), bevelEnabled: bev > 0, bevelThickness: bev, bevelSize: bev * 0.7, bevelSegments: 4, curveSegments: 1, steps: 1});
@@ -1005,7 +1030,151 @@ function build(p) {
   disposePart(p);
   p.mesh = new THREE.Mesh(GEN[p.method](p), makeMat(p));
   p.group.add(p.mesh);
+  buildCross(p);
   requestRender();
+}
+
+// ---------- 十字のアタリ ----------
+// パーツの囲みの重心を通る、たて（赤）・よこ（青）の線を表の面にそって引く。傾けると曲がって向きがわかる。
+// 絵のほうでペンで ①アウトライン ②たて ③よこ を描くと、それに重なる位置・回転・大きさを探して置く（solveAtari）。
+const CROSS_V = 0xe23b3b, CROSS_H = 0x2f6fd0;
+const _rc = new THREE.Raycaster(), _ro = new THREE.Vector3(), _rd = new THREE.Vector3(0, 0, -1);
+function frontZ(p, x, y) {
+  const f = p.mesh.geometry.userData.front;
+  if (f) {
+    const i = clamp((x + f.W / 2) / f.W * f.gw - 0.5, 0, f.gw - 1), j = clamp((f.H / 2 - y) / f.H * f.gh - 0.5, 0, f.gh - 1);
+    const i0 = Math.floor(i), j0 = Math.floor(j), i1 = Math.min(f.gw - 1, i0 + 1), j1 = Math.min(f.gh - 1, j0 + 1), a = i - i0, b = j - j0, F = f.F;
+    return (F[j0 * f.gw + i0] * (1 - a) + F[j0 * f.gw + i1] * a) * (1 - b) + (F[j1 * f.gw + i0] * (1 - a) + F[j1 * f.gw + i1] * a) * b;
+  }
+  if (!p._rcMesh || p._rcMesh.geometry !== p.mesh.geometry) { p._rcMesh = new THREE.Mesh(p.mesh.geometry, new THREE.MeshBasicMaterial({side: THREE.DoubleSide})); p._rcMesh.updateMatrixWorld(); }
+  _ro.set(x, y, 1e5); _rc.set(_ro, _rd);
+  const h = _rc.intersectObject(p._rcMesh, false)[0];
+  return h ? h.point.z : 0;
+}
+function polyCentroid(P) {
+  let a = 0, cx = 0, cy = 0;
+  for (let i = 0; i < P.length; i++) { const [x0, y0] = P[i], [x1, y1] = P[(i + 1) % P.length], c = x0 * y1 - x1 * y0; a += c; cx += (x0 + x1) * c; cy += (y0 + y1) * c; }
+  return Math.abs(a) < 1e-6 ? P[0] : [cx / (3 * a), cy / (3 * a)];
+}
+// パーツの中の座標（中心が原点・y 上向き）で、アウトライン・たて・よこの 3D の線
+function crossCurves(p) {
+  const {W, H} = p.crop, polys = p.crop.polys || [p.crop.poly], lift = Math.min(W, H) * 0.004;
+  let wsum = 0, pcx = 0, pcy = 0; for (const P of polys) { const a = polyArea(P), c = polyCentroid(P); wsum += a; pcx += c[0] * a; pcy += c[1] * a; }
+  pcx /= wsum || 1; pcy /= wsum || 1;
+  const inside = (x, y) => polys.some(P => inPoly([x + W / 2, H / 2 - y], P));
+  const cx = pcx - W / 2, cy = H / 2 - pcy;
+  const run = (n, at) => { // 中心を含む、内側の続いている区間
+    const pts = []; for (let i = 0; i <= n; i++) pts.push(at(i / n));
+    const ins = pts.map(([x, y]) => inside(x, y));
+    let c = Math.round(n / 2); if (!ins[c]) { let best = -1; ins.forEach((v, i) => { if (v && (best < 0 || Math.abs(i - n / 2) < Math.abs(best - n / 2))) best = i; }); if (best < 0) return []; c = best; }
+    let a = c, b = c; while (a > 0 && ins[a - 1]) a--; while (b < n && ins[b + 1]) b++;
+    return pts.slice(a, b + 1).map(([x, y]) => [x, y, frontZ(p, x, y) + lift]);
+  };
+  const V = run(80, t => [cx, H / 2 - t * H]), Hh = run(80, t => [-W / 2 + t * W, cy]);
+  // 外まわり：それぞれの囲みの点のうち、ほかの囲みの中に入っていないもの
+  const O = polys.flatMap((P, i) => resampleClosed(P, Math.max(W, H) / 90).filter(q => !polys.some((Q, j) => j !== i && inPoly(q, Q)))).map(([px, py]) => { const x = px - W / 2, y = H / 2 - py; return [x, y, frontZ(p, x * 0.97 + cx * 0.03, y * 0.97 + cy * 0.03)]; });
+  return {V, H: Hh, O, c: [cx, cy]};
+}
+function buildCross(p) {
+  if (p.crossObj) { p.crossObj.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); }); p.group.remove(p.crossObj); p.crossObj = null; }
+  p.cross = null;
+  if (!p.mesh || !p.crop) return;
+  try { p.cross = crossCurves(p); } catch (e) { console.warn(e); return; }
+  const g = new THREE.Group(), r = Math.max(p.crop.W, p.crop.H) * 0.006;
+  for (const [pts, col] of [[p.cross.V, CROSS_V], [p.cross.H, CROSS_H]]) {
+    if (pts.length < 2) continue;
+    const curve = new THREE.CatmullRomCurve3(pts.map(q => new THREE.Vector3(...q)));
+    g.add(new THREE.Mesh(new THREE.TubeGeometry(curve, Math.min(200, pts.length * 2), r, 6, false), new THREE.MeshBasicMaterial({color: col})));
+  }
+  const dot = new THREE.Mesh(new THREE.SphereGeometry(r * 2.2, 12, 8), new THREE.MeshBasicMaterial({color: 0xffffff}));
+  dot.position.set(p.cross.c[0], p.cross.c[1], frontZ(p, p.cross.c[0], p.cross.c[1]) + r); g.add(dot);
+  p.crossObj = g; p.group.add(g);
+}
+
+// 絵の座標（px）へ投影する関数（表示の拡大・移動を外したカメラで）
+function artProjector() {
+  const A = st.art, cam = camera.clone();
+  cam.clearViewOffset(); cam.aspect = A.w / A.h; cam.updateProjectionMatrix(); cam.updateMatrixWorld();
+  const M = new THREE.Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse).elements;
+  return (x, y, z) => {
+    const w = M[3] * x + M[7] * y + M[11] * z + M[15];
+    return [((M[0] * x + M[4] * y + M[8] * z + M[12]) / w + 1) / 2 * A.w, (1 - (M[1] * x + M[5] * y + M[9] * z + M[13]) / w) / 2 * A.h];
+  };
+}
+function resampleOpen(P, n) {
+  if (P.length < 2) return P.slice();
+  const L = [0]; for (let i = 1; i < P.length; i++) L.push(L[i - 1] + Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1]));
+  const T = L[L.length - 1] || 1, out = []; let j = 0;
+  for (let k = 0; k < n; k++) { const t = k / (n - 1) * T; while (j < P.length - 2 && L[j + 1] < t) j++; const f = (t - L[j]) / ((L[j + 1] - L[j]) || 1); out.push([P[j][0] + (P[j + 1][0] - P[j][0]) * f, P[j][1] + (P[j + 1][1] - P[j][1]) * f]); }
+  return out;
+}
+function nearMean(A, B) { let s = 0; for (const a of A) { let m = Infinity; for (const b of B) { const d = (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2; if (d < m) m = d; } s += Math.sqrt(m); } return s / A.length; }
+function nelderMead(f, x0, steps, iters) {
+  const n = x0.length; let P = [x0.slice()]; for (let i = 0; i < n; i++) { const x = x0.slice(); x[i] += steps[i]; P.push(x); }
+  let F = P.map(f);
+  for (let it = 0; it < iters; it++) {
+    const o = P.map((_, i) => i).sort((a, b) => F[a] - F[b]); P = o.map(i => P[i]); F = o.map(i => F[i]);
+    const c = new Array(n).fill(0); for (let i = 0; i < n; i++) for (let d = 0; d < n; d++) c[d] += P[i][d] / n;
+    const at = t => c.map((v, d) => v + t * (P[n][d] - v));
+    const r = at(-1), fr = f(r);
+    if (fr < F[0]) { const e = at(-2), fe = f(e); if (fe < fr) { P[n] = e; F[n] = fe; } else { P[n] = r; F[n] = fr; } }
+    else if (fr < F[n - 1]) { P[n] = r; F[n] = fr; }
+    else { const k = at(fr < F[n] ? -0.5 : 0.5), fk = f(k); if (fk < Math.min(fr, F[n])) { P[n] = k; F[n] = fk; } else { for (let i = 1; i <= n; i++) { P[i] = P[i].map((v, d) => P[0][d] + 0.5 * (v - P[0][d])); F[i] = f(P[i]); } } }
+  }
+  let b = 0; for (let i = 1; i <= n; i++) if (F[i] < F[b]) b = i;
+  return {x: P[b], f: F[b]};
+}
+// 描いたアウトライン O（閉）・たて V・よこ H（絵の座標）に、パーツのアウトラインと十字が重なるように置く
+function solveAtari(p, O, V, H) {
+  const A = st.art; if (!A || !p.cross) return false;
+  const proj = artProjector(), cr = p.cross;
+  const dO = resampleClosed(O, Math.max(1, bbox(O).w + bbox(O).h) / 60), dV = V && V.length > 1 ? resampleOpen(V, 40) : null, dH = H && H.length > 1 ? resampleOpen(H, 40) : null;
+  const sO = cr.O.filter((_, i) => i % Math.ceil(cr.O.length / 70) === 0), sV = cr.V.filter((_, i) => i % Math.ceil(cr.V.length / 40) === 0), sH = cr.H.filter((_, i) => i % Math.ceil(cr.H.length / 40) === 0);
+  const ob = bbox(O), diag = Math.hypot(ob.w, ob.h) || 1, mir = p.mirror ? -1 : 1, aspect = st.fitAspect;
+  const e = new THREE.Euler(0, 0, 0, 'YXZ'), m = new THREE.Matrix4();
+  // x = [yaw, pitch, roll(°), log 大きさ, tx, ty（diag 単位）, log 縦横比]
+  const place = x => {
+    e.set(x[1] * D2R, x[0] * D2R, x[2] * D2R); m.makeRotationFromEuler(e); const R = m.elements;
+    const s = Math.exp(x[3]), ar = aspect ? Math.exp(x[6] || 0) : 1, kx = s * p.sx * ar * mir, ky = s * p.sy / (aspect ? 1 : 1), kz = s * p.sz;
+    const tx = x[4] * diag, ty = x[5] * diag;
+    return pts => pts.map(([a, b, c]) => { const X = a * kx, Y = b * ky, Z = c * kz; return proj(R[0] * X + R[4] * Y + R[8] * Z + tx, R[1] * X + R[5] * Y + R[9] * Z + ty, R[2] * X + R[6] * Y + R[10] * Z); });
+  };
+  const cost = x => {
+    if (Math.abs(x[0]) > 85 || Math.abs(x[1]) > 85) return 1e9;
+    const T = place(x), pO = T(sO);
+    let c = (nearMean(pO, dO) + nearMean(dO, pO)) / diag;
+    if (dV && sV.length > 1) { const pV = T(sV); c += 1.5 * (nearMean(pV, dV) + nearMean(dV, pV)) / diag; }
+    if (dH && sH.length > 1) { const pH = T(sH); c += 1.5 * (nearMean(pH, dH) + nearMean(dH, pH)) / diag; }
+    return c;
+  };
+  // ひねりの初期値：たての線の向き（上下どちら向きに描いても同じ）
+  let roll = 0;
+  if (dV) { const a = dV[0], b = dV[dV.length - 1]; let dx = b[0] - a[0], dy = b[1] - a[1]; if (dy < 0) { dx = -dx; dy = -dy; } roll = Math.atan2(dx, dy) / D2R; }
+  else if (dH) { const a = dH[0], b = dH[dH.length - 1]; let dx = b[0] - a[0], dy = b[1] - a[1]; if (dx < 0) { dx = -dx; dy = -dy; } roll = -Math.atan2(dy, dx) / D2R; }
+  let best = null;
+  const yaws = dV || dH ? [-40, 0, 40] : [0], pitches = dV || dH ? [-30, 0, 30] : [0];
+  for (const yaw of yaws) for (const pitch of pitches) {
+    // 大きさと位置は、外接矩形を合わせて初期値に
+    const x = [yaw, pitch, roll, 0, 0, 0, 0];
+    const b0 = bbox(place(x)(sO)); x[3] = Math.log(Math.hypot(ob.w, ob.h) / (Math.hypot(b0.w, b0.h) || 1));
+    const b1 = bbox(place(x)(sO)); x[4] = (ob.cx - b1.cx) / diag; x[5] = -(ob.cy - b1.cy) / diag;
+    if (aspect) { const b2 = bbox(place(x)(sO)); x[6] = Math.log((ob.w / ob.h) / ((b2.w / b2.h) || 1)); }
+    const r = nelderMead(cost, aspect ? x : x.slice(0, 6), aspect ? [15, 15, 8, 0.1, 0.04, 0.04, 0.1] : [15, 15, 8, 0.1, 0.04, 0.04], 260);
+    if (!best || r.f < best.f) best = r;
+  }
+  const x = best.x, s = Math.exp(x[3]);
+  p.group.rotation.set(x[1] * D2R, x[0] * D2R, x[2] * D2R);
+  p.scl = s; if (aspect) p.sx *= Math.exp(x[6] || 0);
+  p.group.position.set(x[4] * diag, x[5] * diag, 0);
+  applyScale(p); p.placed = true; p.fitErr = best.f;
+  requestRender();
+  return true;
+}
+// アタリ（アウトラインと、あれば十字）に合わせて置く
+function placeByAtari(p) {
+  if (!p || !p.crop) return;
+  if (p.target && (p.aV || p.aH) && p.cross) solveAtari(p, p.target, p.aV, p.aH);
+  else fit(p, st.fitAspect);
 }
 const rebuildQ = new Set(); let rebuildRaf = 0;
 function rebuildSoon(p) {
@@ -1052,7 +1221,7 @@ const undoS = [], redoS = [];
 const geoKey = p => p.method + JSON.stringify(p.prm) + p.invert;
 function snap() {
   return {parts: st.parts.slice(), cur: st.cur, data: new Map(st.parts.map(p => [p, {
-    placed: p.placed, visible: p.visible, target: p.target && p.target.map(q => q.slice()), method: p.method, prm: {...p.prm}, invert: p.invert,
+    placed: p.placed, visible: p.visible, target: p.target && p.target.map(q => q.slice()), aV: p.aV, aH: p.aH, method: p.method, prm: {...p.prm}, invert: p.invert,
     mirror: p.mirror, scl: p.scl, sx: p.sx, sy: p.sy, sz: p.sz, name: p.name, pos: p.group.position.clone(), quat: p.group.quaternion.clone(),
   }]))};
 }
@@ -1062,7 +1231,7 @@ function restoreSnap(sn) {
   for (const p of sn.parts) {
     if (!st.parts.includes(p)) scene.add(p.group);
     const d = sn.data.get(p), key = geoKey(p);
-    Object.assign(p, {placed: d.placed, visible: d.visible, target: d.target, method: d.method, prm: {...d.prm}, invert: d.invert, mirror: d.mirror, scl: d.scl, sx: d.sx, sy: d.sy, sz: d.sz, name: d.name});
+    Object.assign(p, {placed: d.placed, visible: d.visible, target: d.target, aV: d.aV, aH: d.aH, method: d.method, prm: {...d.prm}, invert: d.invert, mirror: d.mirror, scl: d.scl, sx: d.sx, sy: d.sy, sz: d.sz, name: d.name});
     p.group.position.copy(d.pos); p.group.quaternion.copy(d.quat); applyScale(p);
     if (p.crop && (key !== geoKey(p) || !p.mesh)) build(p);
   }
@@ -1101,6 +1270,7 @@ function showView(v) {
 }
 function setRtool(t) { st.rtool = t; pen = null; refresh(); }
 function setGmode(m) {
+  if (m === 'pen' && st.gmode !== 'pen') st.aStep = 'outline';
   st.gmode = m; pen = null;
   if (m !== 'pen') tc.setMode(m === 'all' ? 'translate' : m);
   refresh();
@@ -1116,21 +1286,26 @@ function drawOverlays() {
     const r = 6 / im.v.s;
     let a = '';
     if (pn.key === 'art') {
-      if (st.showTargets || st.gmode === 'pen') for (const p of st.parts) if (p.target)
-        a += `<polygon points="${ptsAttr(p.target)}" fill="${p === st.cur ? '#d2553a14' : 'none'}" stroke="${p === st.cur ? '#d2553a' : '#8888'}" stroke-width="${p === st.cur ? 2 : 1.2}" stroke-dasharray="6 4" ${ln}/>`;
+      if (st.showTargets || st.gmode === 'pen') for (const p of st.parts) {
+        if (p.target) a += `<polygon points="${ptsAttr(p.target)}" fill="${p === st.cur ? '#d2553a14' : 'none'}" stroke="${p === st.cur ? '#d2553a' : '#8888'}" stroke-width="${p === st.cur ? 2 : 1.2}" stroke-dasharray="6 4" ${ln}/>`;
+        if (p.aV) a += `<polyline points="${ptsAttr(p.aV)}" fill="none" stroke="#e23b3b" stroke-opacity="${p === st.cur ? 0.9 : 0.4}" stroke-width="2" stroke-dasharray="6 4" ${ln}/>`;
+        if (p.aH) a += `<polyline points="${ptsAttr(p.aH)}" fill="none" stroke="#2f6fd0" stroke-opacity="${p === st.cur ? 0.9 : 0.4}" stroke-width="2" stroke-dasharray="6 4" ${ln}/>`;
+      }
     } else {
-      for (const p of st.parts) if (p.refPoly && p.refId === im.id)
-        a += `<polygon points="${ptsAttr(p.refPoly)}" fill="${p === st.cur ? '#2f6fd033' : '#2f6fd012'}" stroke="#2f6fd0" stroke-width="${p === st.cur ? 2.5 : 1.4}" ${ln}/>`;
+      for (const p of st.parts) if (p.refPoly && p.refId === im.id) for (const P of polysOf(p))
+        a += `<polygon points="${ptsAttr(P)}" fill="${p === st.cur ? '#2f6fd033' : '#2f6fd012'}" stroke="#2f6fd0" stroke-width="${p === st.cur ? 2.5 : 1.4}" ${ln}/>`;
     }
+    const kc = k => k === 'erase' ? '#c0392b' : k === 'target' ? '#d2553a' : k === 'tv' ? '#e23b3b' : '#2f6fd0';
     if (pending && pending.pane === pn.key) {
-      const c = pending.kind === 'target' ? '#d2553a' : '#2f6fd0';
-      a += `<polygon points="${ptsAttr(pending.pts)}" fill="${c}30" stroke="${c}" stroke-width="2.5" stroke-dasharray="7 4" ${ln}/>`;
+      const c = kc(pending.kind);
+      if (openKind(pending.kind)) a += `<polyline points="${ptsAttr(pending.pts)}" fill="none" stroke="${c}" stroke-width="3" ${ln}/>`;
+      else for (const P of [pending.pts, ...(pending.extra || [])]) a += `<polygon points="${ptsAttr(P)}" fill="${c}30" stroke="${c}" stroke-width="2.5" stroke-dasharray="7 4" ${ln}/>`;
     }
     if (pen && pen.pane === pn.key && pen.pts.length) {
-      const c = pen.kind === 'erase' ? '#c0392b' : pen.kind === 'target' ? '#d2553a' : '#2f6fd0';
+      const c = kc(pen.kind);
       const tail = pen.kind === 'erase' || pen.down || !pen.hover ? [] : [pen.hover];
-      a += `<polyline points="${ptsAttr([...pen.pts, ...tail])}" fill="${c}22" stroke="${c}" stroke-width="2" ${pen.kind === 'erase' ? 'stroke-dasharray="5 4"' : ''} ${ln}/>`;
-      if (pen.kind !== 'erase') a += `<circle cx="${pen.pts[0][0]}" cy="${pen.pts[0][1]}" r="${r}" fill="#fff" stroke="${c}" stroke-width="2" ${ln}/>`;
+      a += `<polyline points="${ptsAttr([...pen.pts, ...tail])}" fill="${openKind(pen.kind) ? 'none' : c + '22'}" stroke="${c}" stroke-width="${openKind(pen.kind) ? 3 : 2}" ${pen.kind === 'erase' ? 'stroke-dasharray="5 4"' : ''} ${ln}/>`;
+      if (pen.kind !== 'erase' && !openKind(pen.kind)) a += `<circle cx="${pen.pts[0][0]}" cy="${pen.pts[0][1]}" r="${r}" fill="#fff" stroke="${c}" stroke-width="2" ${ln}/>`;
     }
     pn.ov.innerHTML = a;
   }
@@ -1140,8 +1315,9 @@ function drawOverlays() {
 // ---------- pen / lasso ----------
 function penKind(k) {
   if (k === 'ref') return st.rtool === 'pen' ? 'make' : st.rtool === 'erase' ? 'erase' : null;
-  return st.gmode === 'pen' ? 'target' : null;
+  return st.gmode === 'pen' ? {outline: 'target', v: 'tv', h: 'th'}[st.aStep] : null;
 }
+const openKind = k => k === 'tv' || k === 'th';
 // ふちに吸いつく（マグネット）：囲む画像の輪郭の強さで、点を寄せ、点と点のあいだを輪郭沿いの最短路（ライブワイヤー）でつなぐ
 const magnetOn = e => st.magnet && !(e && e.altKey);
 function edgeMap(im) {
@@ -1220,7 +1396,7 @@ function snapContour(im, pts) {
   return simplify(Q.map(q => [q[0] / k, q[1] / k]), 0.35 / k);
 }
 function penDown(e, kind, pn) {
-  if (pending) acceptPending(); // ✓／✕ を押さずに次を囲み始めたら ✓ 扱い（Ctrl+Z で戻せる）
+  if (pending && !(pending.adding && kind === pending.kind && pn.key === pending.pane)) acceptPending(); // ✓／✕ を押さずに次を囲み始めたら ✓ 扱い（Ctrl+Z で戻せる）
   const q = toImg(e, pn);
   if (kind === 'erase') { pen = {kind, pane: pn.key, pts: [q], down: true}; drawOverlays(); return; }
   if (pen && pen.kind === kind && pen.pane === pn.key && pen.pts.length) {
@@ -1246,8 +1422,8 @@ function penUp() {
   if (!pen) return;
   pen.down = false;
   if (pen.kind === 'erase') { const pts = pen.pts; pen = null; if (pts.length >= 3) eraseIn(pts); drawOverlays(); return; }
-  // ひと筆でぐるっと描いたら、そのまま閉じる
-  if (pen.fresh && pen.moved && pen.pts.length >= 8) commitPen();
+  // ひと筆でぐるっと描いたら、そのまま閉じる（たて・よこの線は、ひと筆で描き終わり）
+  if (pen.fresh && pen.moved && pen.pts.length >= (openKind(pen.kind) ? 3 : 8)) commitPen();
   else drawOverlays();
 }
 function commitPen() {
@@ -1255,12 +1431,16 @@ function commitPen() {
   const {kind} = pen, im = PANES[pen.pane].img();
   let pts = pen.pts;
   // 吸いつき：閉じた囲み全体を、輪郭へひと続きで寄せる
-  if (pen.mag && kind !== 'erase' && im && pts.length >= 3) pts = snapContour(im, pts);
+  if (pen.mag && kind !== 'erase' && !openKind(kind) && im && pts.length >= 3) pts = snapContour(im, pts);
   pts = pts.filter((q, i) => i === 0 || Math.hypot(q[0] - pts[i - 1][0], q[1] - pts[i - 1][1]) > 0.5);
-  while (pts.length > 3 && Math.hypot(pts[pts.length - 1][0] - pts[0][0], pts[pts.length - 1][1] - pts[0][1]) <= 0.5) pts.pop(); // 始点と重なる終点
+  while (!openKind(kind) && pts.length > 3 && Math.hypot(pts[pts.length - 1][0] - pts[0][0], pts[pts.length - 1][1] - pts[0][1]) <= 0.5) pts.pop(); // 始点と重なる終点
   const pane = pen.pane;
   pen = null;
-  if (pts.length < 3) { drawOverlays(); return; }
+  if (pts.length < (openKind(kind) ? 2 : 3)) { drawOverlays(); return; }
+  // ＋✎：さっきの囲みに足す
+  if (pending && pending.adding && pending.kind === kind && pending.pane === pane) {
+    pending.extra = [...(pending.extra || []), pts]; pending.adding = false; drawOverlays(); refresh(); return;
+  }
   // すぐには作らず、✓（決定）／✕（取り消し）を出して待つ
   pending = {kind, pane, pts, refId: st.ref?.id};
   drawOverlays(); refresh();
@@ -1269,8 +1449,9 @@ let pending = null; // {kind:'make'|'target', pane, pts, refId}
 function acceptPending() {
   const pd = pending; if (!pd) return;
   pending = null; drawOverlays();
-  if (pd.kind === 'make') { const R = st.refs.find(r => r.id === pd.refId); if (R) makePartFromRef(pd.pts, R); else refresh(); }
-  else setTarget(pd.pts);
+  if (pd.kind === 'make') { const R = st.refs.find(r => r.id === pd.refId); if (R) makePartFromRef([pd.pts, ...(pd.extra || [])], R); else refresh(); }
+  else if (pd.kind === 'target') setTarget(pd.pts);
+  else setCrossLine(pd.kind === 'tv' ? 'v' : 'h', pd.pts);
 }
 function cancelPending() { if (!pending) return; pending = null; drawOverlays(); refresh(); }
 function placeAsk() {
@@ -1279,9 +1460,11 @@ function placeAsk() {
   const pn = PANES[pending.pane];
   if (!pn.img() || !shown(pn.key)) { el.hidden = true; return; }
   if (el.parentNode !== pn.wrap) pn.wrap.appendChild(el);
-  const xs = pending.pts.map(q => toScreen(q, pn)[0]), ys = pending.pts.map(q => toScreen(q, pn)[1]);
+  const allP = [pending.pts, ...(pending.extra || [])].flat();
+  const xs = allP.map(q => toScreen(q, pn)[0]), ys = allP.map(q => toScreen(q, pn)[1]);
+  $('#bAskAdd').hidden = pending.kind !== 'make'; $('#bAskAdd').classList.toggle('on', !!pending.adding);
   el.hidden = false;
-  el.style.left = clamp(Math.max(...xs) + 8, 4, pn.W - 84) + 'px'; el.style.top = clamp(Math.min(...ys) - 18, 4, pn.H - 40) + 'px';
+  el.style.left = clamp(Math.max(...xs) + 8, 4, pn.W - 124) + 'px'; el.style.top = clamp(Math.min(...ys) - 18, 4, pn.H - 40) + 'px';
 }
 function makePartFromRef(poly, R = st.ref) {
   const before = snap(), p = newPart();
@@ -1296,18 +1479,34 @@ function eraseIn(lasso) {
   const R = st.ref, before = snap(); let n = 0;
   for (const p of st.parts.slice()) {
     if (!p.refPoly || p.refId !== R.id) continue;
-    const inside = p.refPoly.filter(q => inPoly(q, lasso)).length;
-    if (inside >= p.refPoly.length * 0.5) { delPart(p, true); n++; }
+    const pts = polysOf(p).flat(), inside = pts.filter(q => inPoly(q, lasso)).length;
+    if (inside >= pts.length * 0.5) { delPart(p, true); n++; }
   }
   if (n) pushUndo(before);
   toast(n ? `${n} 個のパーツを消しました（Ctrl+Z で戻せます）` : '囲みの中にパーツはありませんでした');
   refresh(); requestRender();
 }
+// ①アウトライン → ②たて → ③よこ。①でひとまず外接矩形に合わせて置き、③のあとに十字も合わせて置き直す
 function setTarget(pts) {
   const p = st.cur;
   if (!p || !p.crop) { toast('先に下のパーツを選んでください'); return; }
-  pushUndo(); p.target = pts; fit(p, false);
+  pushUndo(); p.target = pts; p.aV = p.aH = null; fit(p, st.fitAspect);
+  st.aStep = 'v'; refresh();
+}
+function setCrossLine(which, pts) {
+  const p = st.cur; if (!p || !p.target) { st.aStep = 'outline'; refresh(); return; }
+  pushUndo();
+  if (which === 'v') { p.aV = pts; st.aStep = 'h'; refresh(); return; }
+  p.aH = pts; finishAtari();
+}
+function finishAtari() {
+  const p = st.cur; st.aStep = 'outline';
+  if (p) { if (!(p.aV || p.aH) || solveAtari(p, p.target, p.aV, p.aH)) toast(p.aV || p.aH ? 'アウトラインと十字に合わせて置きました（Ctrl+Z で戻せます）' : 'アウトラインに合わせて置きました'); }
   setGmode('all');
+}
+function skipAtariStep() {
+  if (pending) cancelPending(); pen = null;
+  if (st.aStep === 'v') { st.aStep = 'h'; refresh(); } else if (st.aStep === 'h') finishAtari();
 }
 
 // ---------- pointer（キャンバス） ----------
@@ -1353,7 +1552,7 @@ function bindPane(pn) {
         return;
       }
     } else if (e.button === 0) { // 手：囲みの中をクリックでそのパーツを選ぶ
-      const q = toImg(e, pn), hit = st.parts.slice().reverse().find(p => p.refPoly && p.refId === st.ref.id && inPoly(q, p.refPoly));
+      const q = toImg(e, pn), hit = st.parts.slice().reverse().find(p => p.refPoly && p.refId === st.ref.id && polysOf(p).some(P => inPoly(q, P)));
       if (hit) select(hit);
     }
     act = {kind: 'pan', pn, x: e.clientX, y: e.clientY};
@@ -1561,20 +1760,27 @@ function refresh() {
   if (p) {
     $('#pName').textContent = p.name; selM.value = p.method; $('#ckMirror').checked = p.mirror; $('#ckInv').checked = p.invert;
     $('#ckInvWrap').hidden = !METHODS[p.method].inv;
-    $('#bFitStretch').disabled = !p.target; $('#bUnplace').disabled = !p.placed;
+    $('#ckAspect').checked = st.fitAspect; $('#bUnplace').disabled = !p.placed;
   }
+  { const order = ['outline', 'v', 'h'], on = shown('art') && st.gmode === 'pen' && !!(p && p.crop);
+    $('#aSteps').hidden = !on;
+    document.querySelectorAll('#aSteps span').forEach(sp => { sp.classList.toggle('on', sp.dataset.s === st.aStep); sp.classList.toggle('done', order.indexOf(sp.dataset.s) < order.indexOf(st.aStep)); });
+    $('#bSkip').hidden = st.aStep === 'outline'; }
   $('#bUndo').disabled = !undoS.length && !pen && !pending; $('#bRedo').disabled = !redoS.length;
   $('#bExportMenu').disabled = !st.art || !st.parts.some(q => q.mesh && q.placed);
   // 次にやること
   let h;
-  if (pending) h = '囲みはこれでいいですか？ <b>✓</b>（Enter）で決定、<b>✕</b>（Esc）で取り消し';
+  if (pending && pending.adding) h = '<b>追加で囲む</b>ところをペンで囲んでください（さっきの囲みとひとつのパーツになります）';
+  else if (pending) h = `囲みはこれでいいですか？ <b>✓</b>（Enter）で決定、<b>✕</b>（Esc）で取り消し${pending.kind === 'make' ? '、<b>＋✎</b> で囲みもれを足す' : ''}`;
   else if (!st.art) h = 'まず描きかけの絵を開いてください';
   else if (!art && st.rtool === 'pen') h = pen ? 'クリックで点・ドラッグで線。<b>始点をクリック／ダブルクリック／Enter</b> で閉じるとパーツになります（Esc でやめる）' : `<b>ペン</b>で、立体にしたいパーツを囲んでください。${st.magnet ? 'ふちに吸いつきます（Alt を押しているあいだは吸いつかない）' : 'いくつでも作れます'}`;
   else if (!art && st.rtool === 'erase') h = '<b>投げ縄</b>：いらないパーツの囲みをぐるっと囲むと消えます';
   else if (!art) h = 'ドラッグで表示を移動、ホイールで拡大縮小。囲みの中をクリックするとそのパーツを選びます';
   else if (!st.refs.length && !st.parts.length) h = `${split ? '右' : '上'}の「＋ 資料」で、パーツの資料を開いてください`;
   else if (!st.parts.some(q => q.crop)) h = '資料のタブで、ペンでパーツを囲んでください';
-  else if (st.gmode === 'pen') h = `<b>ペン</b>：${p ? `「${p.name}」` : 'パーツ'}を置きたい範囲（アタリ）を囲むと、そこに合わせて置きます`;
+  else if (st.gmode === 'pen') h = st.aStep === 'v' ? '② パーツのまん中を通る<b style="color:#e23b3b">たての線</b>を描いてください（パーツの赤い線にあたります）'
+    : st.aStep === 'h' ? '③ パーツのまん中を通る<b style="color:#2f6fd0">よこの線</b>を描いてください（パーツの青い線にあたります）'
+    : `① ${p ? `「${p.name}」` : 'パーツ'}を張り込む所の<b>アウトライン</b>を囲んでください。つづけて たて・よこの線を描くと、向きも合わせて置きます`;
   else if (!st.parts.some(q => q.placed)) h = '下のパーツのアイコンを、絵へドラッグして置きます（クリックで真ん中に置く）';
   else h = st.gmode === 'all' ? 'パーツをクリックで選び、矢印で移動・輪で回転・右上の角で拡大縮小。ホイールで絵の拡大縮小、空いたところをドラッグで移動' : 'パーツをクリックで選び、ハンドルで動かします。ホイールで絵の拡大縮小、空いたところをドラッグで移動';
   $('#hint').innerHTML = h;
@@ -1642,13 +1848,18 @@ $('#bViewPop').onclick = () => togglePop('#popView');
 $('#bExportMenu').onclick = () => { if (!shown('art')) showView('art'); togglePop('#popExport'); };
 $('#bProps').onclick = () => { st.propsOpen = !st.propsOpen; refresh(); };
 $('#bPropsMin').onclick = () => { st.propsOpen = false; refresh(); };
-$('#bFit').onclick = () => { pushUndo(); fit(st.cur, false); refresh(); };
-$('#bFitStretch').onclick = () => { pushUndo(); fit(st.cur, true); refresh(); };
+$('#bFit').onclick = () => { pushUndo(); placeByAtari(st.cur); refresh(); };
+$('#ckAspect').onchange = e => {
+  st.fitAspect = e.target.checked; const p = st.cur;
+  if (p && p.target) { pushUndo(); placeByAtari(p); refresh(); }
+};
 $('#bRotReset').onclick = () => { pushUndo(); st.cur.group.quaternion.identity(); syncUI(); requestRender(); };
 $('#bDup').onclick = () => dupPart(st.cur);
 $('#bUnplace').onclick = () => { const p = st.cur; if (p) { pushUndo(); p.placed = false; p.target = null; refresh(); } };
 $('#bDel').onclick = () => { if (st.cur) { delPart(st.cur); toast('消しました（Ctrl+Z で戻せます）'); } };
-$('#bAskOk').onclick = () => acceptPending(); $('#bAskNo').onclick = () => cancelPending();
+$('#bAskOk').onclick = () => acceptPending();
+$('#bSkip').onclick = () => skipAtariStep();
+$('#bAskAdd').onclick = () => { if (pending) { pending.adding = !pending.adding; drawOverlays(); refresh(); } }; $('#bAskNo').onclick = () => cancelPending();
 $('#bUndo').onclick = () => undo(); $('#bRedo').onclick = () => redo();
 $('#ckMirror').onchange = e => { if (st.cur) { pushUndo(); st.cur.mirror = e.target.checked; applyScale(st.cur); requestRender(); } };
 $('#ckInv').onchange = e => { if (st.cur) { pushUndo(); st.cur.invert = e.target.checked; rebuildSoon(st.cur); } };
@@ -1663,6 +1874,8 @@ $('#bReanalyze').onclick = () => {
 document.querySelectorAll('input[name=scope]').forEach(r => r.onchange = () => { st.scope = r.value; });
 $('#ckClip').onchange = e => { st.clip = e.target.checked; };
 $('#ckWithArt').onchange = e => { st.withArt = e.target.checked; };
+$('#ckCrossExp').onchange = e => { st.crossExport = e.target.checked; };
+$('#bCross').onclick = () => { st.showCross = !st.showCross; refresh(); };
 $('#bExport').onclick = () => { closePops(); exportPNG(); };
 
 addEventListener('keydown', e => {
@@ -1712,7 +1925,7 @@ addEventListener('paste', e => {
 });
 
 resize(); refresh();
-window.__atari = {st, THREE, tc, tcR, get pending() { return pending; }};
+window.__atari = {st, THREE, tc, tcR, get pending() { return pending; }, artProjector, solveAtari};
 </script>
 </body>
 </html>
