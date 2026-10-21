@@ -266,6 +266,8 @@ const st = {
 let passSet = null; // 書き出しでパーツごとに描くとき
 
 const METHODS = {
+  tube:    {label: '角・しっぽ・触角（丸い管）', alpha: true, prm: {depth: [0, 300, 100, '奥行き'], thick: [20, 200, 100, '太さ'], smooth: [0, 8, 1, 'なめらか']}},
+  ear:     {label: '獣耳（うすい殻）', alpha: true, prm: {depth: [0, 300, 100, '奥行き'], thick: [5, 200, 45, '厚み'], cup: [0, 100, 55, 'くぼみ'], smooth: [0, 8, 2, 'なめらか']}},
   depth:   {label: '元絵の立体から切り出す（AI 奥行き）', alpha: true, prm: {depth: [0, 300, 100, '奥行き'], thick: [0, 200, 40, '厚み'], smooth: [0, 8, 1, 'なめらか'], groove: [0, 100, 20, '線の彫り']}},
   mech:    {label: 'メカ・小物（色の区切り・線・丸を読む）', alpha: true, inv: true, prm: {depth: [5, 200, 40, '厚み'], smooth: [0, 8, 2, '面取り'], levels: [2, 8, 4, '色の段数'], step: [0, 150, 50, '段の高さ'], groove: [0, 100, 50, '線の彫り']}},
   inflate: {label: 'ふくらませる（髪・手・布）', alpha: true, prm: {depth: [0, 200, 60, 'ふくらみ'], smooth: [0, 8, 3, 'なめらか']}},
@@ -276,7 +278,7 @@ const METHODS = {
   cyl:     {label: '円柱', alpha: false, prm: {depth: [10, 300, 100, '奥行き']}},
   sphere:  {label: '球', alpha: false, prm: {depth: [10, 300, 100, '奥行き']}},
 };
-const PRM_KEYS = ['depth', 'thick', 'smooth', 'levels', 'step', 'groove'];
+const PRM_KEYS = ['depth', 'thick', 'cup', 'smooth', 'levels', 'step', 'groove'];
 function defaults(m) { const o = {}; for (const [k, v] of Object.entries(METHODS[m].prm)) o[k] = v[2]; return o; }
 
 // ---------- three ----------
@@ -689,7 +691,7 @@ function analyzeRef(r) {
   r.dstate = 'run';
   queueDepth(() => estimateDepth(scaledCanvas(r.img, 0, 0, r.w, r.h, 1024))).then(d => {
     r.depth = d; r.dstate = 'ok';
-    for (const p of st.parts) if (p.refId === r.id) { p.gDepth = d; if (p.method === 'depth') rebuildSoon(p); }
+    for (const p of st.parts) if (p.refId === r.id) { p.gDepth = d; if (['depth', 'tube', 'ear'].includes(p.method)) rebuildSoon(p); }
     refresh();
   }).catch(e => {
     console.warn(e); r.dstate = 'fail';
@@ -704,9 +706,9 @@ function analyzePart(p, R) {
   p.dstate = 'run';
   queueDepth(() => estimateDepth(scaledCanvas(R.img, rx0, ry0, rx1 - rx0, ry1 - ry0, 768))).then(d => {
     p.localDepth = {d, rx0, ry0, rw: rx1 - rx0, rh: ry1 - ry0}; p.dstate = 'ok';
-    if (p.method === 'depth') rebuildSoon(p);
+    if (['depth', 'tube', 'ear'].includes(p.method)) rebuildSoon(p);
     refresh();
-  }).catch(e => { console.warn(e); p.dstate = 'fail'; if (p.method === 'depth') rebuildSoon(p); refresh(); });
+  }).catch(e => { console.warn(e); p.dstate = 'fail'; if (['depth', 'tube', 'ear'].includes(p.method)) rebuildSoon(p); refresh(); });
 }
 function bil(D, u, v) { // D の (u, v)∈[0,1] を双一次補間
   const x = clamp(u * D.w - 0.5, 0, D.w - 1), y = clamp(v * D.h - 0.5, 0, D.h - 1);
@@ -827,33 +829,146 @@ function modeFilter(lab, m, gw, gh, K) {
   }
   return out;
 }
+// AI 奥行きを格子の上の表の面（切り抜きのピクセル単位、囲みの中の一番奥が 0）にする。奥行きがまだないときは 0
+function depthSurface(p, gw, gh, m) {
+  const G = p.gDepth, Lc = p.localDepth, N = gw * gh, F = new Float32Array(N);
+  if (!G && !Lc) return F;
+  const {W} = p.crop, s = p.crop.src, P = p.prm;
+  const g = new Float32Array(N), l = new Float32Array(N);
+  for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) {
+    const k = j * gw + i, rx = s.x0 + (i + 0.5) / gw * s.bw, ry = s.y0 + (j + 0.5) / gh * s.bh;
+    if (G) g[k] = bil(G, rx / s.RW, ry / s.RH);
+    if (Lc) l[k] = bil(Lc.d, (rx - Lc.rx0) / Lc.rw, (ry - Lc.ry0) / Lc.rh);
+  }
+  let z;
+  if (G && Lc) { // 細かい奥行きを、全体の奥行きの尺度にそろえる：a·l + b ≈ g
+    let n = 0, ml = 0, mg = 0; for (let i = 0; i < N; i++) if (m[i]) { n++; ml += l[i]; mg += g[i]; }
+    ml /= n || 1; mg /= n || 1;
+    let cv = 0, vl = 0, vg = 0; for (let i = 0; i < N; i++) if (m[i]) { const a = l[i] - ml, b = g[i] - mg; cv += a * b; vl += a * a; vg += b * b; }
+    let a = vl > 1e-9 ? cv / vl : 0;
+    if (!(a > 0.05)) a = vl > 1e-9 ? Math.sqrt(vg / vl) : 0;
+    z = Float32Array.from(l, v => a * (v - ml) + mg);
+  } else if (G) z = g;
+  else z = Float32Array.from(l, v => v * 0.35);
+  // 奥行き 1.0 ≒ 資料の長辺の半分（切り抜きのピクセルに直す）
+  const kc = W / s.bw, Zs = (P.depth ?? 100) / 100 * 0.5 * Math.max(s.RW, s.RH) * kc;
+  let zmin = Infinity; for (let i = 0; i < N; i++) if (m[i] && z[i] < zmin) zmin = z[i];
+  for (let i = 0; i < N; i++) F[i] = (z[i] - zmin) * Zs;
+  return F;
+}
+// 中心線（距離の尾根）と、そこまでの距離＝太さ
+function ridge(m, dt, gw, gh) {
+  const out = [];
+  for (let y = 0; y < gh; y++) for (let x = 0; x < gw; x++) {
+    const k = y * gw + x; if (!m[k] || dt[k] < 1) continue;
+    let top = true;
+    for (let dy = -1; dy <= 1 && top; dy++) for (let dx = -1; dx <= 1; dx++) {
+      if (!dx && !dy) continue; const xx = x + dx, yy = y + dy;
+      if (xx >= 0 && yy >= 0 && xx < gw && yy < gh && dt[yy * gw + xx] > dt[k] + 0.01) { top = false; break; }
+    }
+    if (top) out.push(k);
+  }
+  return out;
+}
+// 形の見当：細長い・枝分かれ → 管（角・しっぽ）、とがった三角 → 殻（獣耳）、それ以外 → AI 奥行き
+function guessShape(p) {
+  const {gw, gh, m} = maskGrid(p, 120);
+  const dt = chamfer(Float32Array.from(m, v => v ? 1e9 : 0), gw, gh, 1, 0);
+  let area = 0; for (const v of m) area += v;
+  if (area < 20) return 'depth';
+  // 細長さ：帯なら 面積 ÷ 太さ² になるように、太さ＝輪郭からの距離の平均 × 4（円 ≈ 1.8、正三角形 ≈ 2.9、細い帯は長さ÷太さ）
+  let sd = 0; for (let i = 0; i < m.length; i++) if (m[i]) sd += dt[i];
+  const w = 4 * sd / area, elong = area / (w * w);
+  if (elong > 4.5) return 'tube';
+  const poly = p.crop.poly, hull = convexHull(poly), solid = polyArea(poly) / (polyArea(hull) || 1);
+  // とがった先（外形の角のうち一番せまいもの）
+  const tol = Math.hypot(p.crop.W, p.crop.H) * 0.06;
+  let far = 0; hull.forEach((q, i) => { if (Math.hypot(q[0] - hull[0][0], q[1] - hull[0][1]) > Math.hypot(hull[far][0] - hull[0][0], hull[far][1] - hull[0][1])) far = i; });
+  const hv = [...simplify(hull.slice(0, far + 1), tol).slice(0, -1), ...simplify([...hull.slice(far), hull[0]], tol).slice(0, -1)];
+  let tip = 180;
+  for (let i = 0; i < hv.length; i++) {
+    const a = hv[(i - 1 + hv.length) % hv.length], b = hv[i], c = hv[(i + 1) % hv.length];
+    const v1 = [a[0] - b[0], a[1] - b[1]], v2 = [c[0] - b[0], c[1] - b[1]];
+    tip = Math.min(tip, Math.acos(clamp((v1[0] * v2[0] + v1[1] * v2[1]) / (Math.hypot(...v1) * Math.hypot(...v2) || 1), -1, 1)) / D2R);
+  }
+  p.shapeInfo = {elong: +elong.toFixed(2), solid: +solid.toFixed(2), tip: Math.round(tip), corners: hv.length};
+  if (solid > 0.78 && tip < 75 && hv.length <= 5 && elong > 2.1) return 'ear';
+  return 'depth';
+}
+function convexHull(P) {
+  const pts = P.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]), cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lo = [], up = [];
+  for (const q of pts) { while (lo.length >= 2 && cr(lo[lo.length - 2], lo[lo.length - 1], q) <= 0) lo.pop(); lo.push(q); }
+  for (const q of pts.reverse()) { while (up.length >= 2 && cr(up[up.length - 2], up[up.length - 1], q) <= 0) up.pop(); up.push(q); }
+  return lo.slice(0, -1).concat(up.slice(0, -1));
+}
+const SHAPE_NAME = {tube: '角・しっぽのような細長い形', ear: '獣耳のようなとがった形', depth: 'かたまり'};
+function closeMid(F, B, m, gw, gh, gap) { // ローポリ：輪郭の点は表裏を同じ高さにして閉じる
+  for (let y = 0; y < gh; y++) for (let x = 0; x < gw; x++) {
+    const k = y * gw + x; if (!m[k]) continue;
+    if (x === 0 || y === 0 || x === gw - 1 || y === gh - 1 || !m[k - 1] || !m[k + 1] || !m[k - gw] || !m[k + gw]) { const mid = F[k] - gap; F[k] = mid; B[k] = -mid; }
+  }
+}
+function centerZ(F, B, m) { let fmax = -Infinity, bmin = Infinity; for (let i = 0; i < F.length; i++) if (m[i]) { fmax = Math.max(fmax, F[i]); bmin = Math.min(bmin, -B[i]); } const c = (fmax + bmin) / 2; for (let i = 0; i < F.length; i++) { F[i] -= c; B[i] += c; } }
 const GEN = {
+  // 角・しっぽ：中心線のまわりを丸い管にする（太さは輪郭からの距離）。中心線の手前・奥は AI 奥行きから
+  tube(p) {
+    const {W, H} = p.crop, R = res(160), {gw, gh, m} = maskGrid(p, R), N = gw * gh, P = p.prm, cell = W / gw;
+    const dt = chamfer(Float32Array.from(m, v => v ? 1e9 : 0), gw, gh, 1, 0);
+    const S = blur(depthSurface(p, gw, gh, m), gw, gh, 2, null), rg = ridge(m, dt, gw, gh), th = P.thick / 100;
+    const F = new Float32Array(N).fill(-Infinity), Bz = new Float32Array(N).fill(Infinity), Zc = new Float32Array(N).fill(NaN);
+    for (const k of rg) {
+      const cx = k % gw, cy = (k - cx) / gw, r = dt[k], rw = r * cell, zc = S[k] - rw * th, ri = Math.ceil(r + 0.5);
+      for (let y = Math.max(0, cy - ri); y <= Math.min(gh - 1, cy + ri); y++) for (let x = Math.max(0, cx - ri); x <= Math.min(gw - 1, cx + ri); x++) {
+        const d2 = (x - cx) ** 2 + (y - cy) ** 2; if (d2 > (r + 0.5) ** 2) continue;
+        const hh = Math.sqrt(Math.max(0, r * r - d2)) * cell * th, q = y * gw + x;
+        if (zc + hh > F[q]) { F[q] = zc + hh; Zc[q] = zc; }
+        if (zc - hh < Bz[q]) Bz[q] = zc - hh;
+      }
+    }
+    // 尾根から届かなかったところ・囲みの外は、となりの管の中心の高さで表と裏を閉じる（ふちがトゲにならない）
+    let front = []; for (let i = 0; i < N; i++) if (!isNaN(Zc[i])) front.push(i);
+    if (!front.length) return GEN.depth(p);
+    while (front.length) {
+      const next = [];
+      for (const k of front) { const x = k % gw, y = (k - x) / gw;
+        for (const n of [x > 0 ? k - 1 : -1, x < gw - 1 ? k + 1 : -1, y > 0 ? k - gw : -1, y < gh - 1 ? k + gw : -1])
+          if (n >= 0 && isNaN(Zc[n])) { Zc[n] = Zc[k]; next.push(n); } }
+      front = next;
+    }
+    for (let i = 0; i < N; i++) if (!isFinite(F[i]) || !m[i]) { F[i] = Zc[i]; Bz[i] = Zc[i]; }
+    let Fs = blur(F, gw, gh, st.lowpoly ? 0 : P.smooth, null), Bs = blur(Bz, gw, gh, st.lowpoly ? 0 : P.smooth, null);
+    const B = Bs.map(v => -v);
+    if (st.lowpoly) closeMid(Fs, B, m, gw, gh, 0);
+    centerZ(Fs, B, m);
+    return heightMesh(Fs, B, m, gw, gh, W, H, st.lowpoly);
+  },
+  // 獣耳：うすい殻。表はふちが立ってまん中がくぼみ、裏はふくらむ。全体の傾きは AI 奥行きから
+  ear(p) {
+    const {W, H} = p.crop, R = res(150), {gw, gh, m} = maskGrid(p, R), N = gw * gh, P = p.prm;
+    const dt = chamfer(Float32Array.from(m, v => v ? 1e9 : 0), gw, gh, 1, 0);
+    let dmax = 1; for (const v of dt) if (v > dmax) dmax = v;
+    const S = blur(depthSurface(p, gw, gh, m), gw, gh, 3, null), T = P.thick / 100 * Math.min(W, H) / 2, cup = P.cup / 100;
+    let F = new Float32Array(N), Bz = new Float32Array(N);
+    for (let i = 0; i < N; i++) {
+      const t = Math.min(1, dt[i] / dmax), pr = Math.sqrt(t * (2 - t)), rim = Math.min(1, dt[i] / (dmax * 0.35));
+      const e = m[i] ? Math.min(1, dt[i] / 2) : 0; // ふちで表と裏を閉じる
+      F[i] = S[i] + e * T * (0.15 + 0.5 * rim - cup * 0.9 * pr);
+      Bz[i] = S[i] - e * (T * (0.15 + 0.85 * pr) - T * (0.5 * rim - cup * 0.9 * pr) * 0.4);
+    }
+    F = blur(F, gw, gh, st.lowpoly ? 0 : P.smooth, null); Bz = blur(Bz, gw, gh, st.lowpoly ? 0 : P.smooth, null);
+    for (let i = 0; i < N; i++) if (m[i] && dt[i] >= 2 && Bz[i] > F[i] - T * 0.08) Bz[i] = F[i] - T * 0.08; // うすくても表と裏が交わらない
+    const B = Bz.map(v => -v);
+    if (st.lowpoly) closeMid(F, B, m, gw, gh, T * 0.04);
+    centerZ(F, B, m);
+    return heightMesh(F, B, m, gw, gh, W, H, st.lowpoly);
+  },
   // 元絵の立体から切り出す：表は推定した奥行きそのもの、裏は表から厚みぶん下げる（縁は薄く・中ほど厚く）
   depth(p) {
     const G = p.gDepth, Lc = p.localDepth;
     if (!G && !Lc) return GEN.mech(p); // まだ解析中・解析できなかった
-    const {W, H} = p.crop, s = p.crop.src, R = res(180), {gw, gh, m} = maskGrid(p, R), N = gw * gh, P = p.prm;
-    const g = new Float32Array(N), l = new Float32Array(N);
-    for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) {
-      const k = j * gw + i, rx = s.x0 + (i + 0.5) / gw * s.bw, ry = s.y0 + (j + 0.5) / gh * s.bh;
-      if (G) g[k] = bil(G, rx / s.RW, ry / s.RH);
-      if (Lc) l[k] = bil(Lc.d, (rx - Lc.rx0) / Lc.rw, (ry - Lc.ry0) / Lc.rh);
-    }
-    let z;
-    if (G && Lc) { // 細かい奥行きを、全体の奥行きの尺度にそろえる：a·l + b ≈ g
-      let n = 0, ml = 0, mg = 0; for (let i = 0; i < N; i++) if (m[i]) { n++; ml += l[i]; mg += g[i]; }
-      ml /= n || 1; mg /= n || 1;
-      let cv = 0, vl = 0, vg = 0; for (let i = 0; i < N; i++) if (m[i]) { const a = l[i] - ml, b = g[i] - mg; cv += a * b; vl += a * a; vg += b * b; }
-      let a = vl > 1e-9 ? cv / vl : 0;
-      if (!(a > 0.05)) a = vl > 1e-9 ? Math.sqrt(vg / vl) : 0;
-      z = Float32Array.from(l, v => a * (v - ml) + mg);
-    } else if (G) z = g;
-    else z = Float32Array.from(l, v => v * 0.35);
-    // 奥行き 1.0 ≒ 資料の長辺の半分（切り抜きのピクセルに直す）
-    const kc = W / s.bw, Zs = P.depth / 100 * 0.5 * Math.max(s.RW, s.RH) * kc;
-    let F = new Float32Array(N);
-    let zmin = Infinity; for (let i = 0; i < N; i++) if (m[i] && z[i] < zmin) zmin = z[i];
-    for (let i = 0; i < N; i++) F[i] = (z[i] - zmin) * Zs;
+    const {W, H} = p.crop, R = res(180), {gw, gh, m} = maskGrid(p, R), N = gw * gh, P = p.prm;
+    let F = depthSurface(p, gw, gh, m);
     F = blur(F, gw, gh, st.lowpoly ? 0 : P.smooth, null);
     // 暗い細い線は少し彫る
     if (P.groove > 0) {
@@ -1470,9 +1585,10 @@ function makePartFromRef(poly, R = st.ref) {
   const before = snap(), p = newPart();
   if (!makeCrop(p, poly, R)) { delPart(p, true); refresh(); return; }
   R.n++; p.name = `${R.name}-${R.n}`;
+  const shape = guessShape(p); p.method = shape; p.prm = defaults(shape);
   p.gDepth = R.depth || null; analyzePart(p, R);
   build(p); st.cur = p; pushUndo(before);
-  toast(st.art ? `「${p.name}」をパーツにしました。下のアイコンを絵へドラッグすると置けます` : `「${p.name}」をパーツにしました`);
+  toast(`「${p.name}」を${SHAPE_NAME[shape]}と見て立体にしました（右のパネルで変えられます）。${st.art ? '下のアイコンを絵へドラッグすると置けます' : ''}`);
   refresh();
 }
 function eraseIn(lasso) {
@@ -1613,7 +1729,7 @@ function renderTray() {
     el.title = p.name + (p.placed ? '' : '（まだ絵に置いていません。絵へドラッグ）');
     const c = canvas(120, 120); c.getContext('2d').drawImage(p.th, 0, 0);
     el.appendChild(c);
-    el.insertAdjacentHTML('beforeend', `${p.method === 'depth' && p.dstate === 'run' ? '<span class="badge">解析中</span>' : p.placed ? '' : '<span class="badge">未配置</span>'}<button class="eye" title="表示">${p.visible ? '👁' : '－'}</button><span class="nm"></span>`);
+    el.insertAdjacentHTML('beforeend', `${['depth', 'tube', 'ear'].includes(p.method) && p.dstate === 'run' ? '<span class="badge">解析中</span>' : p.placed ? '' : '<span class="badge">未配置</span>'}<button class="eye" title="表示">${p.visible ? '👁' : '－'}</button><span class="nm"></span>`);
     el.querySelector('.nm').textContent = p.name;
     el.querySelector('.eye').addEventListener('pointerdown', ev => ev.stopPropagation());
     el.querySelector('.eye').addEventListener('click', ev => { ev.stopPropagation(); pushUndo(); p.visible = !p.visible; refresh(); requestRender(); });
@@ -1925,7 +2041,7 @@ addEventListener('paste', e => {
 });
 
 resize(); refresh();
-window.__atari = {st, THREE, tc, tcR, get pending() { return pending; }, artProjector, solveAtari};
+window.__atari = {st, THREE, tc, tcR, get pending() { return pending; }, artProjector, solveAtari, guessShape};
 </script>
 </body>
 </html>

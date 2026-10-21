@@ -164,6 +164,25 @@ const { chromium } = require(require.resolve('playwright', {paths: [__dirname + 
   const bad = stat.w !== 1200 || stat.h !== 1600 || stat.opaque < 500 || stat.transparent < stat.w * stat.h * 0.5;
   await p.selectOption('#selMode', 'tex'); await p.keyboard.press('q'); await p.waitForTimeout(300);
   await p.screenshot({path: 'atari3d.png'});
+  // 角・獣耳：形の見当で、丸い管・うすい殻になるか
+  for (const [name, d, want] of [
+    ['horn', "x.beginPath();x.moveTo(100,560);x.quadraticCurveTo(200,200,520,80);x.quadraticCurveTo(260,260,190,580);x.closePath();x.fill();", 'tube'],
+    ['ear', "x.beginPath();x.moveTo(120,560);x.quadraticCurveTo(230,250,330,60);x.quadraticCurveTo(420,300,520,560);x.closePath();x.fill();", 'ear'],
+  ]) {
+    const b64 = await png(640, 640, "x.fillStyle='#fff';x.fillRect(0,0,w,h);x.fillStyle='#8a2a2a';" + d);
+    await p.setInputFiles('#fRef', file(name + '.png', b64)); await p.waitForTimeout(400);
+    const poly = await p.evaluate(() => { // 輪郭をなぞる（Moore 近傍）
+      const r = __atari.st.ref, c = document.createElement('canvas'); c.width = r.w; c.height = r.h; const x = c.getContext('2d'); x.drawImage(r.img, 0, 0);
+      const d = x.getImageData(0, 0, r.w, r.h).data, W = r.w, H = r.h, on = (X, Y) => X >= 0 && Y >= 0 && X < W && Y < H && d[(Y * W + X) * 4] < 200;
+      let sx = -1, sy = -1; for (let Y = 0; Y < H && sx < 0; Y++) for (let X = 0; X < W; X++) if (on(X, Y)) { sx = X; sy = Y; break; }
+      const N = [[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]], out = [[sx, sy]]; let cx = sx, cy = sy, dir = 6;
+      for (let it = 0; it < 20000; it++) { let k; for (k = 0; k < 8; k++) { const dd = (dir + 6 + k) % 8; if (on(cx + N[dd][0], cy + N[dd][1])) { cx += N[dd][0]; cy += N[dd][1]; dir = dd; break; } } if (k === 8 || (cx === sx && cy === sy)) break; out.push([cx, cy]); }
+      return out.filter((_, i) => i % 4 === 0);
+    });
+    await p.keyboard.down('Alt'); await stroke([...poly, poly[0]], 'ref'); await p.keyboard.up('Alt'); await p.keyboard.press('Enter'); await p.waitForTimeout(500);
+    const got = await p.evaluate(() => [__atari.st.cur.method, __atari.st.cur.mesh.geometry.attributes.position.count]);
+    console.log(`shape guess ${name}:`, got[0], 'verts', got[1]); if (got[0] !== want || !got[1]) errs.push('shape guess ' + name);
+  }
   // 狭い画面ではタブで切り替え
   await p.setViewportSize({width: 700, height: 900}); await p.waitForTimeout(300);
   console.log('narrow: split', await p.evaluate(() => document.body.classList.contains('split')), 'tabs', await p.$$eval('#tabs .tab', t => t.length));
